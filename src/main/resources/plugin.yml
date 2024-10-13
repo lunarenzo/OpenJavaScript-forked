@@ -1,0 +1,21 @@
+name: OpenJS
+version: '${project.version}'
+main: coolcostupit.openjs.OpenJSPlugin
+author: coolcostupit
+api-version: '1.13'
+commands:
+  oj:
+    description: OpenJS command
+    usage: /<command>
+    permission: openjs.use
+  openjavascript:
+    description: OpenJS command
+    usage: /<command>
+    permission: openjs.use
+permissions:
+  openjs.use:
+    description: Allows using OpenJS commands
+    default: op
+  openjs.*:
+    description: Allows all OpenJS commands
+    default: op
