@@ -10,3 +10,4 @@ Version 1.0.4:
 - Renamed setStoredVar and getStoredVar to loadVar and saveVar
 - simplified statements for the command handler
 - added a version command to easily retrieve the plugin version
+- preparing for 1.0.5
