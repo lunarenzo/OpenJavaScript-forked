@@ -2,6 +2,7 @@ package coolcostupit.openjs;
 
 import com.vk2gpz.jsengine.JSEnginePlugin;
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.modules.FoliaSupport;
 import coolcostupit.openjs.modules.scriptWrapper;
 import coolcostupit.openjs.utility.chatColors;
 import coolcostupit.openjs.utility.configurationUtil;
@@ -38,7 +39,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
     private pluginLogger pluginLogger;
     private VariableStorage variableStorage;
     private scriptWrapper scriptWrapper;
-    private  UpdateChecker updateChecker;
+    private UpdateChecker updateChecker;
 
     @Override
     @SuppressWarnings("all")
@@ -90,6 +91,9 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         pluginLogger.log(Level.INFO, "Version: " + getDescription().getVersion(), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Author: " + getDescription().getAuthors().toString().substring(1, getDescription().getAuthors().toString().length() - 1), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Java Version: " + System.getProperty("java.version"), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+        if (FoliaSupport.isFolia() == true) {
+            pluginLogger.log(Level.INFO, "Folia Support: true (BETA)", coolcostupit.openjs.logging.pluginLogger.ORANGE);
+        }
         pluginLogger.log(Level.INFO, "[<------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
     }
 

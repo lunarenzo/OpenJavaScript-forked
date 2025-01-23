@@ -2,6 +2,7 @@ package coolcostupit.openjs.utility;
 
 import coolcostupit.openjs.logging.pluginLogger;
 
+import coolcostupit.openjs.modules.FoliaSupport;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -33,12 +34,13 @@ public class UpdateChecker {
     }
 
     public void startChecking() {
-        new BukkitRunnable() {
+        FoliaSupport.ScheduleRepeatingTask(plugin, new BukkitRunnable() {
             @Override
             public void run() {
                 CheckForUpdates();
-            }
-        }.runTaskTimerAsynchronously(plugin, 0L, CHECK_INTERVAL);
+            }}, 0L, CHECK_INTERVAL);
+
+        //}.runTaskTimerAsynchronously(plugin, 0L, CHECK_INTERVAL);
     }
     public void CheckForUpdates() {
         if (config.getConfigFromBuffer("UpdateNotifications", true)) {

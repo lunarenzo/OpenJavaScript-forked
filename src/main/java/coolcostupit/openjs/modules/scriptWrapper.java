@@ -31,8 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 
-import static org.bukkit.Bukkit.getLogger;
-import static org.bukkit.Bukkit.getServer;
+import static org.bukkit.Bukkit.*;
 
 // this is the main stuff, but I haven't added many to no comments because I was way too focused when coding all that
 public class scriptWrapper {
@@ -64,7 +63,11 @@ public class scriptWrapper {
         // Initialize script system on first use
         if (!hasInit) {
             hasInit = true;
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> scriptsReady = true, 20L);
+            if (FoliaSupport.isFolia()) { // Folia has no main thread, so I need to run it in async
+                scriptsReady = true;
+            } else {
+                plugin.getServer().getScheduler().runTaskLater(plugin, () -> scriptsReady = true, 20L);
+            }
         }
 
         File scriptsFolder = new File(plugin.getDataFolder(), "scripts");
