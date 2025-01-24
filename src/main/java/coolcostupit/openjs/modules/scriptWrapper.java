@@ -3,6 +3,7 @@ package coolcostupit.openjs.modules;
 import com.vk2gpz.jsengine.JSEnginePlugin;
 import coolcostupit.openjs.events.ScriptLoadedEvent;
 import coolcostupit.openjs.events.ScriptUnloadedEvent;
+import coolcostupit.openjs.foliascheduler.folia.FoliaEntityScheduler;
 import coolcostupit.openjs.logging.ScriptLogger;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.utility.VariableStorage;
@@ -63,11 +64,8 @@ public class scriptWrapper {
         // Initialize script system on first use
         if (!hasInit) {
             hasInit = true;
-            if (FoliaSupport.isFolia()) { // Folia has no main thread, so I need to run it in async
-                scriptsReady = true;
-            } else {
-                plugin.getServer().getScheduler().runTaskLater(plugin, () -> scriptsReady = true, 20L);
-            }
+            FoliaSupport.ScheduleTask(plugin, () -> scriptsReady = true, 20L);
+            //plugin.getServer().getScheduler().runTaskLater(plugin, () -> scriptsReady = true, 20L);
         }
 
         File scriptsFolder = new File(plugin.getDataFolder(), "scripts");
@@ -227,7 +225,9 @@ public class scriptWrapper {
         }
 
         if (plugin.isEnabled()) {
-            plugin.getServer().getScheduler().runTask(plugin, () -> plugin.getServer().getPluginManager().callEvent(new ScriptUnloadedEvent(scriptName)));
+            // Folia fallback
+            FoliaSupport.runTaskSynchronously(plugin, () -> plugin.getServer().getPluginManager().callEvent(new ScriptUnloadedEvent(scriptName)));
+            //plugin.getServer().getScheduler().runTask(plugin, () -> plugin.getServer().getPluginManager().callEvent(new ScriptUnloadedEvent(scriptName)));
         }
     }
 
@@ -405,7 +405,7 @@ public class scriptWrapper {
                     if (configUtil.getConfigFromBuffer("PrintScriptActivations", true)) {
                         pluginLogger.log(Level.INFO, "Loaded the script " + scriptFile.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
                     }
-                    plugin.getServer().getScheduler().runTask(plugin, () ->
+                    FoliaSupport.runTaskSynchronously(plugin, () -> //plugin.getServer().getScheduler().runTask(plugin, () ->
                             plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(scriptFile.getName())));
                 } catch (IOException | ScriptException e) {
                     pluginLogger.log(Level.WARNING, "Failed to load script " + scriptFile.getName() + ". " + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.ORANGE);
@@ -492,7 +492,7 @@ public class scriptWrapper {
             taskId = plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, task, delay);
         }
 
-        scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(taskId);
+        scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
     }
 
     @SuppressWarnings("unused")

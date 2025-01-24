@@ -15,3 +15,4 @@ Version 1.0.5
 X- Folia support (experemential)
 X- Support for custom commands
 x- Compiled plugin in Java 17
+x- Caching schedulers for much faster scheduler initialization
