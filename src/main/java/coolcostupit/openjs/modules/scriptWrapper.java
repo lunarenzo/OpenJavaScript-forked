@@ -375,14 +375,6 @@ public class scriptWrapper {
                                     "}" +
                                     "function saveVar(varName, variable, global) {" +
                                     "    variableStorage.setStoredVar(currentScriptName, varName, JSON.stringify(variable), global);" +
-                                    "}"+
-                                    "function getStoredVar(varName, defaultVar, global) {" + //deprecated
-                                    "log.warn('setPublicVar is deprecated, please use loadVar instead!');" +
-                                    "    return JSON.parse(variableStorage.getStoredVar(currentScriptName, varName, defaultVar, global));" +
-                                    "}" +
-                                    "function setStoredVar(varName, variable, global) {" +  //deprecated
-                                    "    log.warn('setStoredVar is deprecated, please use saveVar instead!');" +
-                                    "    variableStorage.setStoredVar(currentScriptName, varName, JSON.stringify(variable), global);" +
                                     "}"
                     );
 
