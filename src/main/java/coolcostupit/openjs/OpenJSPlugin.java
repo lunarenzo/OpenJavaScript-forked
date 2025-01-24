@@ -1,8 +1,8 @@
 package coolcostupit.openjs;
 
-import com.vk2gpz.jsengine.JSEnginePlugin;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.FoliaSupport;
+import coolcostupit.openjs.modules.ScriptEngine;
 import coolcostupit.openjs.modules.scriptWrapper;
 import coolcostupit.openjs.utility.chatColors;
 import coolcostupit.openjs.utility.configurationUtil;
@@ -53,7 +53,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         this.pluginLogger = new pluginLogger(this, configUtil);
         this.variableStorage = new VariableStorage(this);
 
-        if (JSEnginePlugin.getSharedEngine() == null) {
+        if (ScriptEngine.getEngine() == null) {
             pluginLogger.log(Level.SEVERE, "Failed to initialize JavaScript engine. Disabling plugin.", pluginLogger.RED);
             getServer().getPluginManager().disablePlugin(this);
             return;

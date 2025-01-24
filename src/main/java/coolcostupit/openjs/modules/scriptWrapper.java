@@ -1,9 +1,7 @@
 package coolcostupit.openjs.modules;
 
-import com.vk2gpz.jsengine.JSEnginePlugin;
 import coolcostupit.openjs.events.ScriptLoadedEvent;
 import coolcostupit.openjs.events.ScriptUnloadedEvent;
-import coolcostupit.openjs.foliascheduler.folia.FoliaEntityScheduler;
 import coolcostupit.openjs.logging.ScriptLogger;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.utility.VariableStorage;
@@ -127,7 +125,7 @@ public class scriptWrapper {
         List<Integer> taskIds = scriptTasksMap.get(scriptName);
         if (taskIds != null) {
             for (int taskId : taskIds) {
-                getServer().getScheduler().cancelTask(taskId);
+                FoliaSupport.CancelTask(taskId);
             }
             scriptTasksMap.remove(scriptName);
         }
@@ -315,7 +313,7 @@ public class scriptWrapper {
 
             unloadScript(scriptFile.getName());
 
-            ScriptEngine localScriptEngine = JSEnginePlugin.getNewEngine();
+            ScriptEngine localScriptEngine = coolcostupit.openjs.modules.ScriptEngine.getEngine();
             scriptEngines.put(scriptFile.getName(), localScriptEngine);
 
             // Initialize the custom in-built stuff
@@ -475,7 +473,7 @@ public class scriptWrapper {
         }
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings("all")
     public void registerSchedule(String scriptName, long delay, long period, Object handler, ScriptEngine scriptEngine, String methodName) {
         Runnable task = () -> {
             try {
@@ -487,9 +485,11 @@ public class scriptWrapper {
 
         int taskId;
         if (period > 0) {
-            taskId = plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, task, delay, period);
+            taskId = FoliaSupport.ScheduleRepeatingTask(plugin, task, delay, period);
+            //taskId = plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, task, delay, period);
         } else {
-            taskId = plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, task, delay);
+            taskId = FoliaSupport.ScheduleTask(plugin, task, delay);
+            //taskId = plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, task, delay);
         }
 
         scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));

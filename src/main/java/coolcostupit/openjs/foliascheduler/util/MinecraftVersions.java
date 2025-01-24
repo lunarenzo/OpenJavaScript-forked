@@ -355,11 +355,6 @@ public final class MinecraftVersions {
         }
 
         @Override
-        public int hashCode() {
-            return Objects.hash(major, minor, versions);
-        }
-
-        @Override
         public @NotNull String toString() {
             return major + "." + minor;
         }
@@ -529,11 +524,6 @@ public final class MinecraftVersions {
             if (o == null || getClass() != o.getClass()) return false;
             Version version = (Version) o;
             return major == version.major && minor == version.minor && patch == version.patch;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(major, minor, patch);
         }
 
         @Override

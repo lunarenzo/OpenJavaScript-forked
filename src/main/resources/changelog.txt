@@ -12,7 +12,8 @@ Version 1.0.4:
 - added a version command to easily retrieve the plugin version
 - preparing for 1.0.5
 Version 1.0.5
-X- Folia support (experemential)
+- Folia support (experemential)
+x- native Nashorn/Javascript implementation
 X- Support for custom commands
 x- Compiled plugin in Java 17
 x- Caching schedulers for much faster scheduler initialization
