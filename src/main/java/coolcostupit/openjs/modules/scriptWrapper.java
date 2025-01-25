@@ -194,38 +194,32 @@ public class scriptWrapper {
         return commandMap;
     }
 
-    // Unregister all commands for a specific script
-    public void debugRegisteredCommands() {
-        try {
-            CommandMap commandMap = getCommandMap();
-            final Field bukkitCommandMap = Bukkit.getServer().getClass().getDeclaredField("commandMap");
+    private void removeCommandFromKnownCommands(String commandName) throws Exception {
+        CommandMap commandMap = getCommandMap();
 
-            bukkitCommandMap.setAccessible(true);
-            ((CommandMap) bukkitCommandMap.get(Bukkit.getServer())).register("hello", commandMap.getCommand("hello"));
-            bukkitCommandMap.setAccessible(false);
+        Field knownCommandsField = SimpleCommandMap.class.getDeclaredField("knownCommands");
+        knownCommandsField.setAccessible(true);
 
-        } catch (Exception e) {
-            pluginLogger.log(Level.SEVERE, "Failed to debug registered commands" + e, coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        }
+        Map<String, Command> knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
+        knownCommands.remove(commandName); // Remove the command
     }
 
-
+    // Unregister all commands for a specific script
     public void unregisterCommands(String scriptName) {
         List<Command> commands = scriptCommands.remove(scriptName);
         if (commands != null) {
             try {
-                // Access CommandMap using reflection
                 CommandMap commandMap = getCommandMap();
 
                 for (Command dynamicCommand : commands) {
                     // Unregister the command using CommandMap directly
+                    removeCommandFromKnownCommands(dynamicCommand.getName());
                     boolean Unregistered = dynamicCommand.unregister(commandMap);
                     if (Unregistered) {
                         pluginLogger.log(Level.INFO, "[" + scriptName + "] Unregistered command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
                     } else {
                         pluginLogger.log(Level.INFO, "[" + scriptName + "] Failed to unregister command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
                     }
-                    debugRegisteredCommands();
                 }
             } catch (Exception e) {
                 pluginLogger.log(Level.SEVERE, "Failed to unregister commands for script: " + scriptName + " " + e, coolcostupit.openjs.logging.pluginLogger.ORANGE);
