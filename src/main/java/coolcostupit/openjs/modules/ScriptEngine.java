@@ -78,10 +78,7 @@ public class ScriptEngine {
         if (MANAGER == null) {
             MANAGER = new ScriptEngineManager();
             if (MANAGER.getEngineByName("JavaScript") == null) {
-                Bukkit.getServer().getLogger().warning("Using Nashorn engine");
                 useOpenJDKNashorn(true);
-            } else {
-                Bukkit.getServer().getLogger().warning("Using Javascript engine");
             }
             setFactory(MANAGER);
         }
