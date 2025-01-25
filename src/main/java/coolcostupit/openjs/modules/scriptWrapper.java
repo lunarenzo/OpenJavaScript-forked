@@ -4,24 +4,24 @@ import coolcostupit.openjs.events.ScriptLoadedEvent;
 import coolcostupit.openjs.events.ScriptUnloadedEvent;
 import coolcostupit.openjs.logging.ScriptLogger;
 import coolcostupit.openjs.logging.pluginLogger;
-import coolcostupit.openjs.utility.VariableStorage;
-import coolcostupit.openjs.utility.configurationUtil;
-import coolcostupit.openjs.utility.FlagInterpreter;
+import coolcostupit.openjs.utility.*;
+import org.bukkit.Bukkit;
+import org.bukkit.command.*;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import javax.script.Invocable;
-import javax.script.ScriptContext;
+import javax.script.*;
 import javax.script.ScriptEngine;
-import javax.script.ScriptException;
 import java.io.*;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.function.Consumer;
@@ -40,6 +40,7 @@ public class scriptWrapper {
     private final Map<String, List<Integer>> scriptTasksMap = new HashMap<>();
     private final Map<String, Future<?>> scriptFutures = new HashMap<>();
     private final Map<String, ScriptEngine> scriptEngines = new HashMap<>();
+    private final Map<String, List<Command>> scriptCommands = new HashMap<>();
     private final JavaPlugin plugin;
     private final File disabledScriptsFile;
     private final pluginLogger pluginLogger;
@@ -168,6 +169,85 @@ public class scriptWrapper {
         eventListenersMap.clear();
     }
 
+    private static Object getPrivateField(Object object, String field)throws SecurityException,
+            NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
+        Class<?> clazz = object.getClass();
+        Field objectField = clazz.getDeclaredField(field);
+        objectField.setAccessible(true);
+        Object result = objectField.get(object);
+        objectField.setAccessible(false);
+        return result;
+    }
+
+    public CommandMap getCommandMap() {
+        CommandMap commandMap = null;
+
+        try {
+            Field f = Bukkit.getPluginManager().getClass().getDeclaredField("commandMap");
+            f.setAccessible(true);
+
+            commandMap = (CommandMap) f.get(Bukkit.getPluginManager());
+        } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException | SecurityException e) {
+            e.printStackTrace();
+        }
+
+        return commandMap;
+    }
+
+    // Unregister all commands for a specific script
+    public void debugRegisteredCommands() {
+        try {
+            CommandMap commandMap = getCommandMap();
+            final Field bukkitCommandMap = Bukkit.getServer().getClass().getDeclaredField("commandMap");
+
+            bukkitCommandMap.setAccessible(true);
+            ((CommandMap) bukkitCommandMap.get(Bukkit.getServer())).register("hello", commandMap.getCommand("hello"));
+            bukkitCommandMap.setAccessible(false);
+
+        } catch (Exception e) {
+            pluginLogger.log(Level.SEVERE, "Failed to debug registered commands" + e, coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+        }
+    }
+
+
+    public void unregisterCommands(String scriptName) {
+        List<Command> commands = scriptCommands.remove(scriptName);
+        if (commands != null) {
+            try {
+                // Access CommandMap using reflection
+                CommandMap commandMap = getCommandMap();
+
+                for (Command dynamicCommand : commands) {
+                    // Unregister the command using CommandMap directly
+                    boolean Unregistered = dynamicCommand.unregister(commandMap);
+                    if (Unregistered) {
+                        pluginLogger.log(Level.INFO, "[" + scriptName + "] Unregistered command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
+                    } else {
+                        pluginLogger.log(Level.INFO, "[" + scriptName + "] Failed to unregister command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
+                    }
+                    debugRegisteredCommands();
+                }
+            } catch (Exception e) {
+                pluginLogger.log(Level.SEVERE, "Failed to unregister commands for script: " + scriptName + " " + e, coolcostupit.openjs.logging.pluginLogger.ORANGE);
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+    // Unregister all dynamically registered commands
+    public void unregisterAllScriptCommands() {
+        try {
+            for (String scriptName : scriptCommands.keySet()) {
+                unregisterCommands(scriptName);
+            }
+            scriptCommands.clear();
+        } catch (Exception e) {
+            pluginLogger.log(Level.SEVERE, "Failed to unregister all script commands.", e.getMessage());
+        }
+    }
+
+
     @SuppressWarnings("all")
     public void saveDisabledScripts() {
         try (FileWriter writer = new FileWriter(disabledScriptsFile)) {
@@ -213,6 +293,7 @@ public class scriptWrapper {
         }
 
         unregisterListenersFromScript(scriptName);
+        unregisterCommands(scriptName);
         unregisterTasksFromScript(scriptName);
 
         Future<?> future = scriptFutures.remove(scriptName);
@@ -339,7 +420,16 @@ public class scriptWrapper {
                     }
 
                     localScriptEngine.eval(
-                              "function LoadScript(scriptName) {" +
+                              "function toArray(args) {" +
+                                    "    return Array.prototype.slice.call(args)" +
+                                    "}" +
+                                    "function toJavaList(data) {" +
+                                    "    return Java.to(data, 'java.util.List');" +
+                                    "}" +
+                                    "function addCommand(commandName, commandHandler, tabCompleter) {" +
+                                    "    scriptManager.registerCommand(commandName, commandHandler, currentScriptName, scriptEngine);" +
+                                    "}" +
+                                    "function LoadScript(scriptName) {" +
                                     "     var result = scriptManager.loadScript(new java.io.File(plugin.getDataFolder() + '/scripts/' + scriptName), true);" +
                                     "     var success = result.isSuccess();" +
                                     "     var err = result.getMessage();" +
@@ -354,19 +444,6 @@ public class scriptWrapper {
                                     "    publicVarManager.setPublicVar(key, value);" +
                                     "}" +
                                     "function getShared(key) {" +
-                                    "    try {" +
-                                    "        return publicVarManager.getPublicVar(key);" +
-                                    "    } catch (e) {" +
-                                    "        log.warn('Failed to get public variable: ' + e.message);" +
-                                    "        return null;" +
-                                    "    }" +
-                                    "}" +
-                                    "function setPublicVar(key, value) {" +  //deprecated
-                                    "    log.warn('setPublicVar is deprecated, please use setShared instead!');" +
-                                    "    publicVarManager.setPublicVar(key, value);" +
-                                    "}" +
-                                    "function getPublicVar(key) {" +  //deprecated
-                                    "    log.warn('getPublicVar is deprecated, please use getShared instead!');" +
                                     "    try {" +
                                     "        return publicVarManager.getPublicVar(key);" +
                                     "    } catch (e) {" +
@@ -441,8 +518,43 @@ public class scriptWrapper {
         }
     }
 
-
     // In-Build script functions: (HELPERS)
+    public void registerCommand(String commandName, Object commandHandler, String scriptName, ScriptEngine scriptEngine) {
+        try {
+            CommandMap commandMap = getCommandMap();
+            Command dynamicCommand = new Command(commandName) {
+                @Override
+                public boolean execute(@NotNull CommandSender sender, @NotNull String label, String[] args) {
+                    try {
+                        ((Invocable) scriptEngine).invokeMethod(commandHandler, "onCommand", sender, args);
+                    } catch (Exception e) {
+                        sender.sendMessage(chatColors.RED + "An error occurred while executing the command: " + e.getMessage());
+                        pluginLogger.log(Level.SEVERE, "Error in script command execution for " + commandName + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.ORANGE);
+                    }
+                    return true;
+                }
+
+                @Override
+                public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, String[] args) {
+                    if (commandHandler instanceof Bindings && ((Bindings) commandHandler).containsKey("onTabComplete")) {
+                        try {
+                            return (List<String>) ((Invocable) scriptEngine).invokeMethod(commandHandler, "onTabComplete", sender, args);
+                        } catch (Exception e) {
+                            pluginLogger.log(Level.WARNING, "[" + scriptName + "] Error during tab-completion for command " + commandName + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.ORANGE);
+                        }
+                    }
+                    return super.tabComplete(sender, alias, args);
+                }
+            };
+
+            commandMap.register(plugin.getDescription().getName(), dynamicCommand);
+            scriptCommands.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(dynamicCommand);
+            pluginLogger.log(Level.INFO, "[" + scriptName + "] Registered command: " + commandName, coolcostupit.openjs.logging.pluginLogger.GREEN);
+        } catch (Exception e) {
+            pluginLogger.log(Level.SEVERE, "[" + scriptName + "] Failed to register command " + commandName, e.getMessage());
+        }
+    }
+
     @SuppressWarnings("unused")
     public void waitForScript(String scriptName) {
         while (!isJavascriptFileRunning(scriptName)) {
