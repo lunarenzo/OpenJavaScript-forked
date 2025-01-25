@@ -22,6 +22,8 @@ import javax.script.*;
 import javax.script.ScriptEngine;
 import java.io.*;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.function.Consumer;
@@ -204,6 +206,31 @@ public class scriptWrapper {
         knownCommands.remove(commandName); // Remove the command
     }
 
+    private void invokeSyncCommands() {
+        try {
+            Class<?> serverClass = Bukkit.getServer().getClass();
+            Method method = getMethod(serverClass, "syncCommands");
+            method.setAccessible(true);
+            method.invoke(Bukkit.getServer());
+            method.setAccessible(false);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Method getMethod(Class<?> clazz, String methodName) throws NoSuchMethodException {
+        try {
+            return clazz.getDeclaredMethod(methodName);
+        } catch (NoSuchMethodException e) {
+            Class<?> superClass = clazz.getSuperclass();
+            if (superClass == null) {
+                throw e;
+            } else {
+                return getMethod(superClass, methodName);
+            }
+        }
+    }
+
     // Unregister all commands for a specific script
     public void unregisterCommands(String scriptName) {
         List<Command> commands = scriptCommands.remove(scriptName);
@@ -217,6 +244,7 @@ public class scriptWrapper {
                     boolean Unregistered = dynamicCommand.unregister(commandMap);
                     if (Unregistered) {
                         pluginLogger.log(Level.INFO, "[" + scriptName + "] Unregistered command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
+                        invokeSyncCommands();
                     } else {
                         pluginLogger.log(Level.INFO, "[" + scriptName + "] Failed to unregister command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
                     }
