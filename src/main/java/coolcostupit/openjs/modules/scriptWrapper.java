@@ -208,6 +208,10 @@ public class scriptWrapper {
     }
 
     public void unloadScript(String scriptName) {
+        if (!runningScripts.contains(scriptName)) {
+            return;
+        }
+
         unregisterListenersFromScript(scriptName);
         unregisterTasksFromScript(scriptName);
 
