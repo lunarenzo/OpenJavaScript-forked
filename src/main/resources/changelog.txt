@@ -13,9 +13,9 @@ Version 1.0.4:
 - preparing for 1.0.5
 Version 1.0.5
 - Folia support (experemential)
-- native Nashorn/Javascript implementation
-- Debug code cleanup <-- here
+- native Nashorn /Javascript implementation
+- Debug code cleanup
 - Remove deprecated functions
 - Much faster script engine initialization
-X- Support for custom commands
+- Support for custom commands
 - Compiled plugin in Java 17

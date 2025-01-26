@@ -171,16 +171,6 @@ public class scriptWrapper {
         eventListenersMap.clear();
     }
 
-    private static Object getPrivateField(Object object, String field)throws SecurityException,
-            NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
-        Class<?> clazz = object.getClass();
-        Field objectField = clazz.getDeclaredField(field);
-        objectField.setAccessible(true);
-        Object result = objectField.get(object);
-        objectField.setAccessible(false);
-        return result;
-    }
-
     public CommandMap getCommandMap() {
         CommandMap commandMap = null;
 
@@ -630,7 +620,6 @@ public class scriptWrapper {
         try {
             Class<?> eventClass = Class.forName(eventClassName);
             if (Event.class.isAssignableFrom(eventClass)) {
-                @SuppressWarnings("unchecked")
                 Class<? extends Event> eventClassCasted = (Class<? extends Event>) eventClass;
                 Listener listener = new EventListenerWrapper(scriptEngine, handler, plugin);
                 getServer().getPluginManager().registerEvent(eventClassCasted, listener, EventPriority.NORMAL, (l, e) -> {
