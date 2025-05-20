@@ -180,7 +180,7 @@ public class scriptWrapper {
 
             commandMap = (CommandMap) f.get(Bukkit.getPluginManager());
         } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException | SecurityException e) {
-            e.printStackTrace();
+            pluginLogger.log(Level.SEVERE, "Failed to load CommandMap: " + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
         }
 
         return commandMap;
@@ -204,7 +204,7 @@ public class scriptWrapper {
             method.invoke(Bukkit.getServer());
             method.setAccessible(false);
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
+            pluginLogger.log(Level.SEVERE, "Failed to sync commands: " + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
         }
     }
 
@@ -241,7 +241,7 @@ public class scriptWrapper {
                 }
             } catch (Exception e) {
                 pluginLogger.log(Level.SEVERE, "Failed to unregister commands for script: " + scriptName + " " + e, coolcostupit.openjs.logging.pluginLogger.ORANGE);
-                e.printStackTrace();
+                pluginLogger.log(Level.SEVERE, e.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
             }
         }
     }
@@ -375,7 +375,7 @@ public class scriptWrapper {
         return notLoadedScripts;
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings("all")
     public static class ScriptLoadResult {
         private final boolean success;
         private final String message;
@@ -493,6 +493,7 @@ public class scriptWrapper {
     }
 
     // In-Build script functions: (HELPERS)
+    @SuppressWarnings("unused")
     public void registerCommand(String commandName, Object commandHandler, String scriptName, ScriptEngine scriptEngine) {
         try {
             CommandMap commandMap = getCommandMap();
@@ -521,7 +522,7 @@ public class scriptWrapper {
                 }
             };
 
-            commandMap.register(plugin.getDescription().getName(), dynamicCommand);
+            commandMap.register(plugin.getName(), dynamicCommand);
             scriptCommands.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(dynamicCommand);
             pluginLogger.log(Level.INFO, "[" + scriptName + "] Registered command: " + commandName, coolcostupit.openjs.logging.pluginLogger.GREEN);
         } catch (Exception e) {
