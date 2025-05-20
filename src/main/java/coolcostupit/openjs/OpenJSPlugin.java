@@ -4,9 +4,11 @@ import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.FoliaSupport;
 import coolcostupit.openjs.modules.ScriptEngine;
 import coolcostupit.openjs.modules.scriptWrapper;
+import coolcostupit.openjs.modules.sharedClass;
 import coolcostupit.openjs.utility.*;
 import coolcostupit.openjs.logging.OpsLogger;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -55,10 +57,16 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             return;
         }
 
+        sharedClass.configUtil = configUtil;
+        sharedClass.PluginDescription = this.getDescription();
+        sharedClass.IsPapiLoaded = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
+        sharedClass.logger = pluginLogger;
+        sharedClass.plugin = this;
+
         this.scriptWrapper = new scriptWrapper(this, configUtil);
         this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
 
-        JavascriptHelper.updateSource(configUtil);
+        JavascriptHelper.updateSource();
         updateChecker.startChecking();
         scriptWrapper.loadDisabledScripts();
         scriptWrapper.checkDisabledScripts();
@@ -195,7 +203,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             case "reload":
                 if (args.length < 2) {
                     configUtil.reloadConfigBuffer();
-                    JavascriptHelper.updateSource(configUtil);
+                    JavascriptHelper.updateSource();
                     scriptWrapper.loadScripts();
                     sender.sendMessage(chatColors.GREEN+"All scripts and the config have been reloaded.");
                     return true;

@@ -49,6 +49,7 @@ public class scriptWrapper {
     private final PublicVarManager PublicVarManager;
     private final configurationUtil configUtil;
     private final VariableStorage variableStorage;
+    private final PlaceHolderApiJS placeholderApiJS;
     public final List<String> disabledScripts = new ArrayList<>();
     public final List<String> activeFiles = new ArrayList<>();
     public final List<String> runningScripts = new ArrayList<>();
@@ -60,7 +61,12 @@ public class scriptWrapper {
         this.PublicVarManager = new PublicVarManager();
         this.configUtil = configUtil;
         this.variableStorage = new VariableStorage(plugin);
+        this.placeholderApiJS = new PlaceHolderApiJS();
         this.executorService = Executors.newCachedThreadPool();
+
+        if (sharedClass.IsPapiLoaded) {
+            new pApiExtension(plugin, pluginLogger).register();
+        }
 
         // Initialize script system on first use
         if (!hasInit) {
@@ -423,12 +429,29 @@ public class scriptWrapper {
             localScriptEngine.put("publicVarManager", PublicVarManager);
             localScriptEngine.put("waitForScript", (Consumer<String>) this::waitForScript);
 
+            if (sharedClass.IsPapiLoaded && FlagInterpreter.hasFlag(scriptFile, "PlaceholderAPI")) {
+                localScriptEngine.put("PlaceholderAPI_", placeholderApiJS);
+            }
+
             Future<?> future = executorService.submit(() -> {
                 try {
                     if (configUtil.getConfigFromBuffer("AllowFeatureFlags", true)) {
                         if (FlagInterpreter.hasFlag(scriptFile, "waitForInit")) {
                             localScriptEngine.eval("scriptManager.waitForInit()");
                         }
+                    }
+
+                    if (sharedClass.IsPapiLoaded && FlagInterpreter.hasFlag(scriptFile, "PlaceholderAPI")) {
+                        localScriptEngine.eval("""
+                                var PlaceholderAPI = {
+                                    registerPlaceholder: function(placeholderPrefix, handler) {
+                                        PlaceholderAPI_.registerPlaceholder(placeholderPrefix, handler, currentScriptName, scriptEngine);
+                                    },
+                                    parseString: function(player, text) {
+                                        PlaceholderAPI_.parseString(player, text);
+                                    }
+                                }
+                                """);
                     }
 
                     localScriptEngine.eval(JavascriptHelper.JAVASCRIPT_CODE);

@@ -1,5 +1,7 @@
 package coolcostupit.openjs.utility;
 
+import coolcostupit.openjs.modules.sharedClass;
+
 public class JavascriptHelper {
     private static final String MAIN_JAVASCRIPT_CODE = """
                 function toArray(args) {
@@ -64,15 +66,15 @@ public class JavascriptHelper {
 
     public static String JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE;
 
-    public static void updateSource(configurationUtil configUtil) {
+    public static void updateSource() {
         JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE +
-                (configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true)
+                (sharedClass.configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true)
                         ?
                         "function registerEvent(eventClass, handler) {" +
                         "    scriptManager.registerEvent(eventClass, handler, currentScriptName, scriptEngine);" +
                         "}"
                         : "") +
-                (configUtil.getConfigFromBuffer("LoadCustomScheduler", true)
+                (sharedClass.configUtil.getConfigFromBuffer("LoadCustomScheduler", true)
                         ?
                         "function registerSchedule(delay, period, handler, method) {" +
                         "    scriptManager.registerSchedule(delay, period, handler, scriptEngine, method, currentScriptName);" +
