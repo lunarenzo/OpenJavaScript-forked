@@ -4,11 +4,7 @@ import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.FoliaSupport;
 import coolcostupit.openjs.modules.ScriptEngine;
 import coolcostupit.openjs.modules.scriptWrapper;
-import coolcostupit.openjs.utility.chatColors;
-import coolcostupit.openjs.utility.configurationUtil;
-import coolcostupit.openjs.utility.Metrics;
-import coolcostupit.openjs.utility.VariableStorage;
-import coolcostupit.openjs.utility.UpdateChecker;
+import coolcostupit.openjs.utility.*;
 import coolcostupit.openjs.logging.OpsLogger;
 
 import org.bukkit.Server;
@@ -62,6 +58,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         this.scriptWrapper = new scriptWrapper(this, configUtil);
         this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
 
+        JavascriptHelper.updateSource(configUtil);
         updateChecker.startChecking();
         scriptWrapper.loadDisabledScripts();
         scriptWrapper.checkDisabledScripts();
@@ -198,6 +195,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             case "reload":
                 if (args.length < 2) {
                     configUtil.reloadConfigBuffer();
+                    JavascriptHelper.updateSource(configUtil);
                     scriptWrapper.loadScripts();
                     sender.sendMessage(chatColors.GREEN+"All scripts and the config have been reloaded.");
                     return true;

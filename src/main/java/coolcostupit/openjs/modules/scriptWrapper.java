@@ -433,18 +433,6 @@ public class scriptWrapper {
 
                     localScriptEngine.eval(JavascriptHelper.JAVASCRIPT_CODE);
 
-                    if (configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true)) {
-                        localScriptEngine.eval("function registerEvent(eventClass, handler) {" +
-                                "    scriptManager.registerEvent(eventClass, handler, currentScriptName, scriptEngine);" +
-                                "}");
-                    }
-
-                    if (configUtil.getConfigFromBuffer("LoadCustomScheduler", true)) {
-                        localScriptEngine.eval("function registerSchedule(delay, period, handler, method) {" +
-                                "    scriptManager.registerSchedule(delay, period, handler, scriptEngine, method, currentScriptName);" +
-                                "}");
-                    }
-
                     String processedScript = preprocessScript(scriptFile, localScriptEngine);
                     localScriptEngine.eval(processedScript);
                     if (configUtil.getConfigFromBuffer("PrintScriptActivations", true)) {
