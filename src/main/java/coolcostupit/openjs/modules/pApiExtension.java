@@ -19,22 +19,22 @@ public class pApiExtension extends PlaceholderExpansion {
 
     @Override
     public @NotNull String getIdentifier() {
-        return plugin.getName().toLowerCase();
+        return sharedClass.Identifier;
     }
 
     @Override
     public @NotNull String getAuthor() {
-        return plugin.getDescription().getAuthors().get(1);
+        return sharedClass.PluginDescription.getAuthors().get(1);
     }
 
     @Override
     public @NotNull String getVersion() {
-        return plugin.getDescription().getVersion();
+        return sharedClass.PluginDescription.getVersion();
     }
 
     @Override
     public String onPlaceholderRequest(Player player, @NotNull String params) {
         logger.log(Level.INFO, params, pluginLogger.GREEN);
-        return null;
+        return sharedClass.PlaceHolderApiJavascript.invokePrefix(params, player);
     }
 }

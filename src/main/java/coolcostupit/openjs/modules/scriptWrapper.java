@@ -38,6 +38,7 @@ import static org.bukkit.Bukkit.*;
 public class scriptWrapper {
     private boolean scriptsReady = false;
     private boolean hasInit = false;
+    private PlaceHolderApiJS placeholderApiJS;
     private final Map<String, List<Listener>> eventListenersMap = new HashMap<>();
     private final Map<String, List<Integer>> scriptTasksMap = new HashMap<>();
     private final Map<String, Future<?>> scriptFutures = new HashMap<>();
@@ -49,7 +50,6 @@ public class scriptWrapper {
     private final PublicVarManager PublicVarManager;
     private final configurationUtil configUtil;
     private final VariableStorage variableStorage;
-    private final PlaceHolderApiJS placeholderApiJS;
     public final List<String> disabledScripts = new ArrayList<>();
     public final List<String> activeFiles = new ArrayList<>();
     public final List<String> runningScripts = new ArrayList<>();
@@ -61,11 +61,12 @@ public class scriptWrapper {
         this.PublicVarManager = new PublicVarManager();
         this.configUtil = configUtil;
         this.variableStorage = new VariableStorage(plugin);
-        this.placeholderApiJS = new PlaceHolderApiJS();
         this.executorService = Executors.newCachedThreadPool();
 
         if (sharedClass.IsPapiLoaded) {
             new pApiExtension(plugin, pluginLogger).register();
+            this.placeholderApiJS = new PlaceHolderApiJS();
+            sharedClass.PlaceHolderApiJavascript = placeholderApiJS;
         }
 
         // Initialize script system on first use

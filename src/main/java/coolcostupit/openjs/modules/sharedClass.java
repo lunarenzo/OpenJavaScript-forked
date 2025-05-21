@@ -11,4 +11,6 @@ public class sharedClass {
     public static configurationUtil configUtil;
     public static pluginLogger logger;
     public static JavaPlugin plugin;
+    public static String Identifier;
+    public static PlaceHolderApiJS PlaceHolderApiJavascript;
 }

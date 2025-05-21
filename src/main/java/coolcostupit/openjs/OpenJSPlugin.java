@@ -62,6 +62,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sharedClass.IsPapiLoaded = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
         sharedClass.logger = pluginLogger;
         sharedClass.plugin = this;
+        sharedClass.Identifier = this.getName().toLowerCase();
 
         this.scriptWrapper = new scriptWrapper(this, configUtil);
         this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
