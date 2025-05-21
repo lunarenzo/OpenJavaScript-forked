@@ -94,11 +94,14 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
         pluginLogger.log(Level.INFO, "[<------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
         pluginLogger.log(Level.INFO, "      [OpenJavascript enabled]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        pluginLogger.log(Level.INFO, "Version: " + getDescription().getVersion(), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        pluginLogger.log(Level.INFO, "Author: " + getDescription().getAuthors().toString().substring(1, getDescription().getAuthors().toString().length() - 1), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+        pluginLogger.log(Level.INFO, "Version: " + sharedClass.PluginDescription.getVersion(), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+        pluginLogger.log(Level.INFO, "Author: " + sharedClass.PluginDescription.getAuthors().toString().substring(1, sharedClass.PluginDescription.getAuthors().toString().length() - 1), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Java Version: " + System.getProperty("java.version"), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         if (FoliaSupport.isFolia() == true) {
-            pluginLogger.log(Level.INFO, "Folia Support: true (BETA)", coolcostupit.openjs.logging.pluginLogger.ORANGE);
+            pluginLogger.log(Level.INFO, "Folia Support: true", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+        }
+        if (sharedClass.IsPapiLoaded) {
+            pluginLogger.log(Level.INFO, "PlaceholderApi Support: true", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         }
         pluginLogger.log(Level.INFO, "[<------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
     }
@@ -190,7 +193,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             sendUsageMessage(sender, label);
             return true;
         } else if ("version".equalsIgnoreCase(args[0])) {
-            sender.sendMessage(chatColors.LIGHT_BLUE + "Version: " + getDescription().getVersion());
+            sender.sendMessage(chatColors.LIGHT_BLUE + "Version: " + sharedClass.PluginDescription.getVersion());
             return true;
         } else if (args.length == 1 && "list".equalsIgnoreCase(args[0])) {
             list_enabled_scripts(sender);

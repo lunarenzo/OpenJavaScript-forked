@@ -45,19 +45,10 @@ public class PlaceHolderApiJS {
         registeredPlaceholders.entrySet().removeIf(entry -> {
             boolean match = entry.getValue().scriptName.equals(scriptName);
             if (match) {
-                sharedClass.logger.log(Level.INFO, "[" + scriptName + "] Placeholder [" + entry.getKey() + "] has been unregistered.", pluginLogger.RED);
+                sharedClass.logger.log(Level.INFO, "[" + scriptName + "] Placeholder %" + sharedClass.Identifier + "_" + entry.getKey() + "% has been unregistered.", pluginLogger.LIGHT_BLUE);
             }
             return match;
         });
-    }
-
-    public void unregisterAllPlaceholders() {
-        for (Map.Entry<String, PlaceholderData> entry : registeredPlaceholders.entrySet()) {
-            String prefix = entry.getKey();
-            String scriptName = entry.getValue().scriptName;
-            sharedClass.logger.log(Level.INFO, "[" + scriptName + "] Placeholder [" + prefix + "] has been unregistered.", pluginLogger.RED);
-        }
-        registeredPlaceholders.clear();
     }
 
     public String invokePrefix(String prefix, Player player) {

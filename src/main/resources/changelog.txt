@@ -20,7 +20,7 @@ Version 1.0.5
 - Support for custom commands
 - Compiled plugin in Java 17
 Version 1.0.6
-x add PlaceholderApi support (TODO: Use the prefix api from ApiExtension.java)
+🟩️ add PlaceholderApi support
 x Drop cache into storage after buffer limit reached (memory leak fix)
 x add permission system to custom commands (make sure permissions are optional)
 

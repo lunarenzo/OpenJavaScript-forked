@@ -34,7 +34,6 @@ public class pApiExtension extends PlaceholderExpansion {
 
     @Override
     public String onPlaceholderRequest(Player player, @NotNull String params) {
-        logger.log(Level.INFO, params, pluginLogger.GREEN);
         return sharedClass.PlaceHolderApiJavascript.invokePrefix(params, player);
     }
 }

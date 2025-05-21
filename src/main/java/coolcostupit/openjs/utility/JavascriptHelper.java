@@ -2,6 +2,8 @@ package coolcostupit.openjs.utility;
 
 import coolcostupit.openjs.modules.sharedClass;
 
+import javax.script.ScriptEngine;
+
 public class JavascriptHelper {
     private static final String MAIN_JAVASCRIPT_CODE = """
                 function toArray(args) {
@@ -77,7 +79,7 @@ public class JavascriptHelper {
                 (sharedClass.configUtil.getConfigFromBuffer("LoadCustomScheduler", true)
                         ?
                         "function registerSchedule(delay, period, handler, method) {" +
-                        "    scriptManager.registerSchedule(delay, period, handler, scriptEngine, method, currentScriptName);" +
+                        "    scriptManager.registerSchedule(currentScriptName, delay, period, handler, scriptEngine, method);" +
                         "}"
                         : "");
     }

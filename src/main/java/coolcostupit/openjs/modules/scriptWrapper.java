@@ -314,6 +314,7 @@ public class scriptWrapper {
         unregisterListenersFromScript(scriptName);
         unregisterCommands(scriptName);
         unregisterTasksFromScript(scriptName);
+        placeholderApiJS.unregisterPlaceholder(scriptName);
 
         Future<?> future = scriptFutures.remove(scriptName);
         if (future != null) {
