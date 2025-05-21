@@ -450,7 +450,7 @@ public class scriptWrapper {
                                         PlaceholderAPI_.registerPlaceholder(placeholderPrefix, handler, currentScriptName, scriptEngine);
                                     },
                                     parseString: function(player, text) {
-                                        PlaceholderAPI_.parseString(player, text);
+                                        return PlaceholderAPI_.parseString(player, text);
                                     }
                                 }
                                 """);
