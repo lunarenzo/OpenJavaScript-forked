@@ -92,18 +92,18 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
         pluginManager.registerEvents(this, this);
 
-        pluginLogger.log(Level.INFO, "[<------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
-        pluginLogger.log(Level.INFO, "      [OpenJavascript enabled]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        pluginLogger.log(Level.INFO, "Version: " + sharedClass.PluginDescription.getVersion(), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        pluginLogger.log(Level.INFO, "Author: " + sharedClass.PluginDescription.getAuthors().toString().substring(1, sharedClass.PluginDescription.getAuthors().toString().length() - 1), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        pluginLogger.log(Level.INFO, "Java Version: " + System.getProperty("java.version"), coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+        pluginLogger.log(Level.INFO, "[<------------------------------->]", pluginLogger.BLUE);
+        pluginLogger.log(Level.INFO, "      [Loaded OpenJavascript]", pluginLogger.LIGHT_BLUE);
+        pluginLogger.log(Level.INFO, "Version: " + sharedClass.PluginDescription.getVersion(), pluginLogger.LIGHT_BLUE);
+        pluginLogger.log(Level.INFO, "Author: " + sharedClass.PluginDescription.getAuthors().toString().substring(1, sharedClass.PluginDescription.getAuthors().toString().length() - 1), pluginLogger.LIGHT_BLUE);
+        pluginLogger.log(Level.INFO, "Java Version: " + System.getProperty("java.version"), pluginLogger.LIGHT_BLUE);
         if (FoliaSupport.isFolia() == true) {
-            pluginLogger.log(Level.INFO, "Folia Support: true", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+            pluginLogger.log(Level.INFO, "Folia Support: true", pluginLogger.LIGHT_BLUE);
         }
         if (sharedClass.IsPapiLoaded) {
-            pluginLogger.log(Level.INFO, "PlaceholderApi Support: true", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+            pluginLogger.log(Level.INFO, "PlaceholderApi Support: true", pluginLogger.LIGHT_BLUE);
         }
-        pluginLogger.log(Level.INFO, "[<------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
+        pluginLogger.log(Level.INFO, "[<------------------------------->]", pluginLogger.BLUE);
     }
 
     @Override

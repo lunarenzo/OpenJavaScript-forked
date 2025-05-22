@@ -16,7 +16,8 @@ public class pApiExtension extends PlaceholderExpansion {
 
     @Override
     public @NotNull String getAuthor() {
-        return sharedClass.PluginDescription.getAuthors().get(1);
+        String authors = sharedClass.PluginDescription.getAuthors().toString();
+        return authors.substring(1, authors.length() - 1);
     }
 
     @Override

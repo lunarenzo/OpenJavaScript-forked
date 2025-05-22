@@ -37,6 +37,9 @@ public class PlaceHolderApiJS {
         if (registeredPlaceholders.containsKey(prefix)) {
             sharedClass.logger.log(Level.WARNING, "[" + scriptName + "] Placeholder %" + sharedClass.Identifier + "_" + prefix + "% already exists and will be overwritten.", pluginLogger.ORANGE);
         }
+        if (prefix.contains("_")) {
+            sharedClass.logger.log(Level.WARNING, "[" + scriptName + "] Placeholder '%" + sharedClass.Identifier + "_" + prefix + "%' contains an underscore, which will make it unusable due to parameter splitting!", pluginLogger.ORANGE);
+        }
         registeredPlaceholders.put(prefix, new PlaceholderData(handler, engine, scriptName));
         sharedClass.logger.log(Level.INFO, "[" + scriptName + "] Placeholder %" + sharedClass.Identifier + "_" + prefix + "% has been registered.", pluginLogger.GREEN);
     }
