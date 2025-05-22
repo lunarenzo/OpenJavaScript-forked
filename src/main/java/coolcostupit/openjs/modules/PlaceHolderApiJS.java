@@ -51,11 +51,11 @@ public class PlaceHolderApiJS {
         });
     }
 
-    public String invokePrefix(String prefix, Player player) {
+    public String invokePrefix(String prefix, Player player, String params) {
         PlaceholderData data = registeredPlaceholders.get(prefix);
         if (data == null) return null;
         try {
-            return (String) ((Invocable) data.engine).invokeMethod(data.handler, "onRequest", player);
+            return (String) ((Invocable) data.engine).invokeMethod(data.handler, "onRequest", player, params);
         } catch (Exception e) {
             sharedClass.logger.log(Level.SEVERE, "[" + data.scriptName + "] Error invoking placeholder [" + prefix + "]: " + e.getMessage(), pluginLogger.RED);
             return null;

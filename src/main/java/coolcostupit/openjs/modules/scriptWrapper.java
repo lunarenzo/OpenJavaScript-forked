@@ -64,7 +64,7 @@ public class scriptWrapper {
         this.executorService = Executors.newCachedThreadPool();
 
         if (sharedClass.IsPapiLoaded) {
-            new pApiExtension(plugin, pluginLogger).register();
+            new pApiExtension().register();
             this.placeholderApiJS = new PlaceHolderApiJS();
             sharedClass.PlaceHolderApiJavascript = placeholderApiJS;
         }
@@ -431,8 +431,13 @@ public class scriptWrapper {
             localScriptEngine.put("publicVarManager", PublicVarManager);
             localScriptEngine.put("waitForScript", (Consumer<String>) this::waitForScript);
 
+            boolean LoadPapi;
+
             if (sharedClass.IsPapiLoaded && FlagInterpreter.hasFlag(scriptFile, "PlaceholderAPI")) {
                 localScriptEngine.put("PlaceholderAPI_", placeholderApiJS);
+                LoadPapi = true;
+            } else {
+                LoadPapi = false;
             }
 
             Future<?> future = executorService.submit(() -> {
@@ -443,7 +448,7 @@ public class scriptWrapper {
                         }
                     }
 
-                    if (sharedClass.IsPapiLoaded && FlagInterpreter.hasFlag(scriptFile, "PlaceholderAPI")) {
+                    if (LoadPapi) {
                         localScriptEngine.eval("""
                                 var PlaceholderAPI = {
                                     registerPlaceholder: function(placeholderPrefix, handler) {

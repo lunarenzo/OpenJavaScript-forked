@@ -1,20 +1,12 @@
 package coolcostupit.openjs.modules;
 
-import coolcostupit.openjs.logging.pluginLogger;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.logging.Level;
-
 public class pApiExtension extends PlaceholderExpansion {
-    private final JavaPlugin plugin;
-    private final pluginLogger logger;
 
-    public pApiExtension(JavaPlugin plugin, pluginLogger Logger) {
-        this.plugin = plugin;
-        this.logger = Logger;
+    public pApiExtension() {
     }
 
     @Override
@@ -34,6 +26,19 @@ public class pApiExtension extends PlaceholderExpansion {
 
     @Override
     public String onPlaceholderRequest(Player player, @NotNull String params) {
-        return sharedClass.PlaceHolderApiJavascript.invokePrefix(params, player);
+        String prefix;
+        String param;
+
+        int underscore = params.indexOf('_');
+        if (underscore == -1) {
+            // No params found
+            prefix = params;
+            param = "";
+        } else {
+            prefix = params.substring(0, underscore);
+            param = params.substring(underscore + 1);
+        }
+
+        return sharedClass.PlaceHolderApiJavascript.invokePrefix(prefix, player, param);
     }
 }
