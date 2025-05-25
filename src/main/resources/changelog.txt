@@ -21,7 +21,7 @@ Version 1.0.5
 - Compiled plugin in Java 17
 Version 1.0.6
 🟩️ add PlaceholderApi support
-x Drop cache into storage after buffer limit reached (memory leak fix)
-x add permission system to custom commands (make sure permissions are optional)
+🟩️ Drop cache into storage after buffer limit reached (memory leak fix)
+🟩️ add permission system to custom commands (make sure permissions are optional)
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==

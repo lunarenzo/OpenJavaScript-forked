@@ -1,10 +1,13 @@
 package coolcostupit.openjs.utility;
 
+import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.modules.sharedClass;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
 
 @SuppressWarnings("all")
 public class VariableStorage {
@@ -22,6 +25,7 @@ public class VariableStorage {
     }
 
     public Object getStoredVar(String scriptName, String varName, Object defaultVar, boolean global) {
+        sharedClass.logger.log(Level.WARNING, "["+scriptName+"] Do not use loadVar(...) use DiskApi instead!", pluginLogger.RED);
         if (global) {
             return globalVars.computeIfAbsent(varName, k -> defaultVar);
         } else {
@@ -31,6 +35,7 @@ public class VariableStorage {
     }
 
     public void setStoredVar(String scriptName, String varName, Object var, boolean global) {
+        sharedClass.logger.log(Level.WARNING, "["+scriptName+"] Do not use getVar(...) use DiskApi instead!", pluginLogger.RED);
         if (global) {
             globalVars.put(varName, var);
         } else {

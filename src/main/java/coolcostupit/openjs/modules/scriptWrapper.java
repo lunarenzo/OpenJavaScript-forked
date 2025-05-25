@@ -18,6 +18,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import javax.annotation.Nullable;
 import javax.script.*;
 import javax.script.ScriptEngine;
 import java.io.*;
@@ -46,7 +47,7 @@ public class scriptWrapper {
     private final Map<String, List<Command>> scriptCommands = new HashMap<>();
     private final JavaPlugin plugin;
     private final File disabledScriptsFile;
-    private final pluginLogger pluginLogger;
+    private final pluginLogger Logger;
     private final PublicVarManager PublicVarManager;
     private final configurationUtil configUtil;
     private final VariableStorage variableStorage;
@@ -57,7 +58,7 @@ public class scriptWrapper {
 
     public scriptWrapper(JavaPlugin plugin, configurationUtil configUtil) {
         this.plugin = plugin;
-        this.pluginLogger = new pluginLogger(plugin, configUtil);
+        this.Logger = new pluginLogger(plugin, configUtil);
         this.PublicVarManager = new PublicVarManager();
         this.configUtil = configUtil;
         this.variableStorage = new VariableStorage(plugin);
@@ -89,12 +90,12 @@ public class scriptWrapper {
                     }
                 }
             } catch (IOException e) {
-                pluginLogger.log(Level.SEVERE, "Failed to create disabledscripts.json." + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
+                Logger.log(Level.SEVERE, "Failed to create disabledscripts.json." + e.getMessage(), pluginLogger.RED);
             }
         }
 
         if (!scriptsFolderCreated && !scriptsFolder.exists()) {
-            pluginLogger.log(Level.WARNING, "Failed to create scripts folder.", coolcostupit.openjs.logging.pluginLogger.ORANGE);
+            Logger.log(Level.WARNING, "Failed to create scripts folder.", pluginLogger.ORANGE);
         }
     }
 
@@ -164,7 +165,7 @@ public class scriptWrapper {
                 disabledScripts.add((String) obj);
             }
         } catch (IOException | ParseException e) {
-            pluginLogger.log(Level.SEVERE, "Failed to load disabled scripts." + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
+            Logger.log(Level.SEVERE, "Failed to load disabled scripts." + e.getMessage(), pluginLogger.RED);
         }
     }
 
@@ -187,7 +188,7 @@ public class scriptWrapper {
 
             commandMap = (CommandMap) f.get(Bukkit.getPluginManager());
         } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException | SecurityException e) {
-            pluginLogger.log(Level.SEVERE, "Failed to load CommandMap: " + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
+            Logger.log(Level.SEVERE, "Failed to load CommandMap: " + e.getMessage(), pluginLogger.RED);
         }
 
         return commandMap;
@@ -211,7 +212,7 @@ public class scriptWrapper {
             method.invoke(Bukkit.getServer());
             method.setAccessible(false);
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            pluginLogger.log(Level.SEVERE, "Failed to sync commands: " + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
+            Logger.log(Level.SEVERE, "Failed to sync commands: " + e.getMessage(), pluginLogger.RED);
         }
     }
 
@@ -241,16 +242,16 @@ public class scriptWrapper {
                     boolean Unregistered = dynamicCommand.unregister(commandMap);
                     if (Unregistered) {
                         if (configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true)) {
-                            pluginLogger.log(Level.INFO, "[" + scriptName + "] Unregistered command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
+                            Logger.log(Level.INFO, "[" + scriptName + "] Unregistered command: " + dynamicCommand.getName(), pluginLogger.GREEN);
                         }
                         invokeSyncCommands();
                     } else {
-                        pluginLogger.log(Level.INFO, "[" + scriptName + "] Failed to unregister command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
+                        Logger.log(Level.INFO, "[" + scriptName + "] Failed to unregister command: " + dynamicCommand.getName(), pluginLogger.GREEN);
                     }
                 }
             } catch (Exception e) {
-                pluginLogger.log(Level.SEVERE, "Failed to unregister commands for script: " + scriptName + " " + e, coolcostupit.openjs.logging.pluginLogger.ORANGE);
-                pluginLogger.log(Level.SEVERE, e.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
+                Logger.log(Level.SEVERE, "Failed to unregister commands for script: " + scriptName + " " + e, pluginLogger.ORANGE);
+                Logger.log(Level.SEVERE, e.getMessage(), pluginLogger.RED);
             }
         }
     }
@@ -264,7 +265,7 @@ public class scriptWrapper {
             }
             scriptCommands.clear();
         } catch (Exception e) {
-            pluginLogger.log(Level.SEVERE, "Failed to unregister all script commands.", e.getMessage());
+            Logger.log(Level.SEVERE, "Failed to unregister all script commands.", e.getMessage());
         }
     }
 
@@ -276,7 +277,7 @@ public class scriptWrapper {
             jsonArray.addAll(disabledScripts);
             writer.write(jsonArray.toJSONString());
         } catch (IOException e) {
-            pluginLogger.log(Level.SEVERE, "Failed to save disabled scripts." + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
+            Logger.log(Level.SEVERE, "Failed to save disabled scripts." + e.getMessage(), pluginLogger.RED);
         }
     }
 
@@ -299,7 +300,7 @@ public class scriptWrapper {
             if (!scriptsInFolder.contains(scriptName)) {
                 iterator.remove();
                 modified = true;
-                pluginLogger.log(Level.INFO, "Removed non-existent script " + scriptName + " from disabled scripts list.", coolcostupit.openjs.logging.pluginLogger.BLUE);
+                Logger.log(Level.INFO, "Removed non-existent script " + scriptName + " from disabled scripts list.", pluginLogger.BLUE);
             }
         }
 
@@ -364,7 +365,7 @@ public class scriptWrapper {
                 String simpleName = clazz.getSimpleName();
                 scriptEngine.put(simpleName, clazz);
             } catch (ClassNotFoundException e) {
-                pluginLogger.log(Level.WARNING, "Class not found for import: " + importStatement, coolcostupit.openjs.logging.pluginLogger.ORANGE);
+                Logger.log(Level.WARNING, "Class not found for import: " + importStatement, pluginLogger.ORANGE);
             }
         }
 
@@ -469,12 +470,12 @@ public class scriptWrapper {
                     String processedScript = preprocessScript(scriptFile, localScriptEngine);
                     localScriptEngine.eval(processedScript);
                     if (configUtil.getConfigFromBuffer("PrintScriptActivations", true)) {
-                        pluginLogger.log(Level.INFO, "Loaded the script " + scriptFile.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
+                        Logger.log(Level.INFO, "Loaded the script " + scriptFile.getName(), pluginLogger.GREEN);
                     }
                     FoliaSupport.runTaskSynchronously(plugin, () -> //plugin.getServer().getScheduler().runTask(plugin, () ->
                             plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(scriptFile.getName())));
                 } catch (IOException | ScriptException e) {
-                    pluginLogger.log(Level.WARNING, "Failed to load script " + scriptFile.getName() + ". " + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.ORANGE);
+                    Logger.log(Level.WARNING, "Failed to load script " + scriptFile.getName() + ". " + e.getMessage(), pluginLogger.ORANGE);
                 }
             });
 
@@ -507,7 +508,7 @@ public class scriptWrapper {
                 try {
                     future.get();
                 } catch (Exception e) {
-                    pluginLogger.log(Level.WARNING, "An error occurred while waiting for script loading tasks to complete: " + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.ORANGE);
+                    Logger.log(Level.WARNING, "An error occurred while waiting for script loading tasks to complete: " + e.getMessage(), pluginLogger.ORANGE);
                 }
             }
         }
@@ -515,17 +516,19 @@ public class scriptWrapper {
 
     // In-Build script functions: (HELPERS)
     @SuppressWarnings("unused")
-    public void registerCommand(String commandName, Object commandHandler, String scriptName, ScriptEngine scriptEngine) {
+    public void registerCommand(String commandName, Object commandHandler, String scriptName, ScriptEngine scriptEngine, @Nullable String permission) {
         try {
             CommandMap commandMap = getCommandMap();
+
             Command dynamicCommand = new Command(commandName) {
                 @Override
                 public boolean execute(@NotNull CommandSender sender, @NotNull String label, String[] args) {
+                    if (!testPermission(sender)) return true; // permission check, may be redundant
                     try {
                         ((Invocable) scriptEngine).invokeMethod(commandHandler, "onCommand", sender, args);
                     } catch (Exception e) {
                         sender.sendMessage(chatColors.RED + "An error occurred while executing the command: " + e.getMessage());
-                        pluginLogger.log(Level.SEVERE, "Error in script command execution for " + commandName + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.ORANGE);
+                        Logger.log(Level.SEVERE, "Error in script command execution for " + commandName + ": " + e.getMessage(), pluginLogger.ORANGE);
                     }
                     return true;
                 }
@@ -536,20 +539,26 @@ public class scriptWrapper {
                         try {
                             return (List<String>) ((Invocable) scriptEngine).invokeMethod(commandHandler, "onTabComplete", sender, args);
                         } catch (Exception e) {
-                            pluginLogger.log(Level.WARNING, "[" + scriptName + "] Error during tab-completion for command " + commandName + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.ORANGE);
+                            Logger.log(Level.WARNING, "[" + scriptName + "] Error during tab-completion for command " + commandName + ": " + e.getMessage(), pluginLogger.ORANGE);
                         }
                     }
                     return super.tabComplete(sender, alias, args);
                 }
             };
 
+            if (permission != null && !permission.isEmpty()) {
+                dynamicCommand.setPermission(permission);
+            }
+
             commandMap.register(plugin.getName(), dynamicCommand);
             scriptCommands.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(dynamicCommand);
+            invokeSyncCommands(); // Update command map for tab completion
+
             if (configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true)) {
-                pluginLogger.log(Level.INFO, "[" + scriptName + "] Registered command: " + commandName, coolcostupit.openjs.logging.pluginLogger.GREEN);
+                Logger.log(Level.INFO, "[" + scriptName + "] Registered command: " + commandName, pluginLogger.GREEN);
             }
         } catch (Exception e) {
-            pluginLogger.log(Level.SEVERE, "[" + scriptName + "] Failed to register command " + commandName, e.getMessage());
+            Logger.log(Level.SEVERE, "[" + scriptName + "] Failed to register command " + commandName, e.getMessage());
         }
     }
 
@@ -585,7 +594,7 @@ public class scriptWrapper {
             try {
                 ((Invocable) scriptEngine).invokeMethod(handler, methodName);
             } catch (ScriptException | NoSuchMethodException e) {
-                pluginLogger.log(Level.SEVERE, "["+scriptName+"] " + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
+                Logger.log(Level.SEVERE, "["+scriptName+"] " + e.getMessage(), pluginLogger.RED);
             }
         };
 
@@ -612,16 +621,16 @@ public class scriptWrapper {
                     try {
                         ((Invocable) scriptEngine).invokeMethod(handler, "handleEvent", e);
                     } catch (ScriptException | NoSuchMethodException ex) {
-                        pluginLogger.log(Level.SEVERE, "["+scriptName+"] " + ex.getMessage(), coolcostupit.openjs.logging.pluginLogger.RED);
+                        Logger.log(Level.SEVERE, "["+scriptName+"] " + ex.getMessage(), pluginLogger.RED);
                     }
                 }, plugin);
 
                 eventListenersMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(listener);
             } else {
-                pluginLogger.log(Level.WARNING, "Class " + eventClassName + " is not an Event.", coolcostupit.openjs.logging.pluginLogger.ORANGE);
+                Logger.log(Level.WARNING, "Class " + eventClassName + " is not an Event.", pluginLogger.ORANGE);
             }
         } catch (ClassNotFoundException e) {
-            pluginLogger.log(Level.WARNING, "Failed to register event " + eventClassName + ": " + e.getMessage(), coolcostupit.openjs.logging.pluginLogger.ORANGE);
+            Logger.log(Level.WARNING, "Failed to register event " + eventClassName + ": " + e.getMessage(), pluginLogger.ORANGE);
         }
     }
 }

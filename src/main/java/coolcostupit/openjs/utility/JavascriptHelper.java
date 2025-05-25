@@ -12,8 +12,11 @@ public class JavascriptHelper {
                 function toJavaList(data) {
                     return Java.to(data, 'java.util.List');
                 }
-                function addCommand(commandName, commandHandler, tabCompleter) {
-                    scriptManager.registerCommand(commandName, commandHandler, currentScriptName, scriptEngine);
+                function addCommand(commandName, commandHandler, permission) {
+                    if (typeof permission !== "string") {
+                        permission = ""
+                    }
+                    scriptManager.registerCommand(commandName, commandHandler, currentScriptName, scriptEngine, permission);
                 }
                 function LoadScript(scriptName) {
                     var result = scriptManager.loadScript(new java.io.File(plugin.getDataFolder() + '/scripts/' + scriptName), true);

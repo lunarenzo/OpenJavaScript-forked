@@ -1,11 +1,13 @@
 package coolcostupit.openjs.utility;
 
+import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.sharedClass;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.logging.Level;
 
 public class DiskStorage {
 
@@ -59,7 +61,7 @@ public class DiskStorage {
                         }
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    sharedClass.logger.log(Level.SEVERE, e.getMessage(), pluginLogger.RED);
                 }
             }
 
@@ -86,9 +88,10 @@ public class DiskStorage {
                     writer.newLine();
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                sharedClass.logger.log(Level.SEVERE, e.getMessage(), pluginLogger.RED);
             } finally {
                 filesBeingSaved.remove(fullName);
+                cache.remove(fullName);
             }
         };
 
