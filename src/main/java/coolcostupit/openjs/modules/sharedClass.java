@@ -1,6 +1,7 @@
 package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.utility.DiskStorage;
 import coolcostupit.openjs.utility.configurationUtil;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -13,4 +14,5 @@ public class sharedClass {
     public static JavaPlugin plugin;
     public static String Identifier;
     public static PlaceHolderApiJS PlaceHolderApiJavascript;
+    public static DiskStorage DiskStorageApi;
 }

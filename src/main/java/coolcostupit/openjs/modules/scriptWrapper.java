@@ -240,7 +240,9 @@ public class scriptWrapper {
                     removeCommandFromKnownCommands(dynamicCommand.getName());
                     boolean Unregistered = dynamicCommand.unregister(commandMap);
                     if (Unregistered) {
-                        pluginLogger.log(Level.INFO, "[" + scriptName + "] Unregistered command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
+                        if (configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true)) {
+                            pluginLogger.log(Level.INFO, "[" + scriptName + "] Unregistered command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
+                        }
                         invokeSyncCommands();
                     } else {
                         pluginLogger.log(Level.INFO, "[" + scriptName + "] Failed to unregister command: " + dynamicCommand.getName(), coolcostupit.openjs.logging.pluginLogger.GREEN);
@@ -428,6 +430,7 @@ public class scriptWrapper {
             localScriptEngine.put("currentScriptName", scriptFile.getName());
             localScriptEngine.put("log", new ScriptLogger(getLogger(), scriptFile.getName()));
             localScriptEngine.put("variableStorage", variableStorage);
+            localScriptEngine.put("DiskStorage", sharedClass.DiskStorageApi);
             localScriptEngine.put("publicVarManager", PublicVarManager);
             localScriptEngine.put("waitForScript", (Consumer<String>) this::waitForScript);
 
@@ -542,7 +545,9 @@ public class scriptWrapper {
 
             commandMap.register(plugin.getName(), dynamicCommand);
             scriptCommands.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(dynamicCommand);
-            pluginLogger.log(Level.INFO, "[" + scriptName + "] Registered command: " + commandName, coolcostupit.openjs.logging.pluginLogger.GREEN);
+            if (configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true)) {
+                pluginLogger.log(Level.INFO, "[" + scriptName + "] Registered command: " + commandName, coolcostupit.openjs.logging.pluginLogger.GREEN);
+            }
         } catch (Exception e) {
             pluginLogger.log(Level.SEVERE, "[" + scriptName + "] Failed to register command " + commandName, e.getMessage());
         }

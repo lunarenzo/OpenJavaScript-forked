@@ -10,6 +10,14 @@ UseCustomInterpreter: true
 # by default, scripts that failed to load will print in the console
 PrintScriptActivations: true
 
+# Logs in the console, whenever a placeholder gets
+# registered or unregistered
+LogPlaceHolderActivity: true
+
+# Logs in the console, whenever a custom command
+# gets enabled/loaded or disabled/removed
+LogCustomCommandsActivity: true
+
 # Will send messages regarding errors and warnings to operators or users who have
 # the permission to use the commands from OpenJS
 BroadcastToOps: true

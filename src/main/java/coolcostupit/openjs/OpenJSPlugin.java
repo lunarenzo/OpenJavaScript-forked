@@ -36,6 +36,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
     public configurationUtil configUtil;
     private pluginLogger pluginLogger;
     private VariableStorage variableStorage;
+    private DiskStorage DiskStorageApi;
     private scriptWrapper scriptWrapper;
     private UpdateChecker updateChecker;
 
@@ -50,6 +51,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         this.configUtil = new configurationUtil(this);
         this.pluginLogger = new pluginLogger(this, configUtil);
         this.variableStorage = new VariableStorage(this);
+        this.DiskStorageApi = new DiskStorage(this);
 
         if (ScriptEngine.getEngine() == null) {
             pluginLogger.log(Level.SEVERE, "Failed to initialize JavaScript engine. Disabling plugin.", pluginLogger.RED);
@@ -63,6 +65,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sharedClass.logger = pluginLogger;
         sharedClass.plugin = this;
         sharedClass.Identifier = this.getName().toLowerCase();
+        sharedClass.DiskStorageApi = DiskStorageApi;
 
         this.scriptWrapper = new scriptWrapper(this, configUtil);
         this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
@@ -121,6 +124,8 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         scriptWrapper.unloadAllScripts();
         pluginLogger.log(Level.INFO, "Storing memory variables...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         variableStorage.saveVariables();
+        pluginLogger.log(Level.INFO, "Saving disk storage files...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+        DiskStorageApi.saveAllCaches(false);
         pluginLogger.log(Level.INFO, "[OpenJavascript shutdown successfully]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "[<---------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
     }

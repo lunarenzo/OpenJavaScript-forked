@@ -41,14 +41,18 @@ public class PlaceHolderApiJS {
             sharedClass.logger.log(Level.WARNING, "[" + scriptName + "] Placeholder '%" + sharedClass.Identifier + "_" + prefix + "%' contains an underscore, which will make it unusable due to parameter splitting!", pluginLogger.ORANGE);
         }
         registeredPlaceholders.put(prefix, new PlaceholderData(handler, engine, scriptName));
-        sharedClass.logger.log(Level.INFO, "[" + scriptName + "] Placeholder %" + sharedClass.Identifier + "_" + prefix + "% has been registered.", pluginLogger.GREEN);
+        if (sharedClass.configUtil.getConfigFromBuffer("LogPlaceHolderActivity", true)) {
+            sharedClass.logger.log(Level.INFO, "[" + scriptName + "] Placeholder %" + sharedClass.Identifier + "_" + prefix + "% has been registered.", pluginLogger.GREEN);
+        }
     }
 
     public void unregisterPlaceholder(String scriptName) {
         registeredPlaceholders.entrySet().removeIf(entry -> {
             boolean match = entry.getValue().scriptName.equals(scriptName);
             if (match) {
-                sharedClass.logger.log(Level.INFO, "[" + scriptName + "] Placeholder %" + sharedClass.Identifier + "_" + entry.getKey() + "% has been unregistered.", pluginLogger.LIGHT_BLUE);
+                if (sharedClass.configUtil.getConfigFromBuffer("LogPlaceHolderActivity", true)) {
+                    sharedClass.logger.log(Level.INFO, "[" + scriptName + "] Placeholder %" + sharedClass.Identifier + "_" + entry.getKey() + "% has been unregistered.", pluginLogger.LIGHT_BLUE);
+                }
             }
             return match;
         });
@@ -60,7 +64,7 @@ public class PlaceHolderApiJS {
         try {
             return (String) ((Invocable) data.engine).invokeMethod(data.handler, "onRequest", player, params);
         } catch (Exception e) {
-            sharedClass.logger.log(Level.SEVERE, "[" + data.scriptName + "] Error invoking placeholder [" + prefix + "]: " + e.getMessage(), pluginLogger.RED);
+            sharedClass.logger.log(Level.SEVERE, "[" + data.scriptName + "] Error invoking placeholder %" + sharedClass.Identifier + "_" + prefix + "% reason: " + e.getMessage(), pluginLogger.RED);
             return null;
         }
     }

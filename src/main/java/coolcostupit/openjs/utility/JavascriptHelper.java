@@ -64,6 +64,20 @@ public class JavascriptHelper {
                         }
                     }
                 }
+                var DiskApi = {
+                    loadFile: function(fileName, async, global) {
+                        DiskStorage.loadFile(fileName, async, currentScriptName, global);
+                    },
+                    saveFile: function(fileName, async, global) {
+                        DiskStorage.saveFile(fileName, async, currentScriptName, global);
+                    },
+                    getVar: function(fileName, valueName, fallbackValue, global) {
+                        return JSON.parse(DiskStorage.getValue(currentScriptName, global, fileName, valueName, fallbackValue));
+                    },
+                    setVar: function(fileName, valueName, value, global) {
+                        DiskStorage.setValue(currentScriptName, global, fileName, valueName, JSON.stringify(value));
+                    }
+                }
                 """;
 
     public static String JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE;
