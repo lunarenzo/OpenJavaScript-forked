@@ -19,9 +19,25 @@ Version 1.0.5
 - Much faster script engine initialization
 - Support for custom commands
 - Compiled plugin in Java 17
-Version 1.0.6
+Version 1.0.6:
 🟩️ add PlaceholderApi support
 🟩️ Drop cache into storage after buffer limit reached (memory leak fix)
 🟩️ add permission system to custom commands (make sure permissions are optional)
+
+Version 1.0.7:
+# Small patch with new additions
+- Fixed [Schedules](https://docs-mc-1.gitbook.io/openjs-docs/openjs-components/scheduling) not unregistering on Folia Servers
+
+- Fixed Plugin breaking if PlaceholderApi is not installed
+
+- Fixed /oj reload command on Folia servers
+
+- Added Bstats opt-out option in the [configuration](https://docs-mc-1.gitbook.io/openjs-docs/getting-started/configdocs) file
+
+- Fixed a few weird errors that only occured on Folia servers
+
+- Fixed the [no hit cooldown](https://app.gitbook.com/o/lJVeDfFucKbRvA1nGFas/s/ninfHRqxK6AQQSdjX6JX/example-scripts/nohitcooldown) example script causing errors
+
+- Added 2 new example scripts: [hitstand script](https://docs-mc-1.gitbook.io/openjs-docs/example-scripts/hitstandcmdexample) & [Knockback-stick script](https://docs-mc-1.gitbook.io/openjs-docs/example-scripts/knockbackstick) to the [documentation](https://docs-mc-1.gitbook.io/openjs-docs)
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==
