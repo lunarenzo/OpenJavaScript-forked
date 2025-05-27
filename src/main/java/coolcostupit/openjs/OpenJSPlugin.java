@@ -43,8 +43,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
     @Override
     @SuppressWarnings("all")
     public void onEnable() {
-        // shhh don't tell anyone that I am using bstats
-        Metrics metrics = new Metrics(this, 22268);
         Server server = getServer();
         PluginManager pluginManager = server.getPluginManager();
 
@@ -82,11 +80,19 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         configUtil.getConfigFromBuffer("PrintScriptActivations", true);
         configUtil.getConfigFromBuffer("UseCustomInterpreter", true);
         configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true);
+        configUtil.getConfigFromBuffer("LogPlaceHolderActivity", true);
+        configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true);
+        configUtil.getConfigFromBuffer("AllowBstats", true);
         configUtil.getConfigFromBuffer("LoadCustomScheduler", true);
         configUtil.getConfigFromBuffer("UpdateNotifications", true);
         configUtil.getConfigFromBuffer("AllowFeatureFlags", true);
         configUtil.getConfigFromBuffer("BroadcastToOps", true);
         configUtil.saveBufferToConfig();
+
+        if (configUtil.getConfigFromBuffer("AllowBstats", true)) {
+            // here ya go chads, you can opt-out bstats if u want to :)
+            Metrics metrics = new Metrics(this, 22268);
+        };
 
         getCommand("oj").setExecutor(this);
         getCommand("oj").setTabCompleter(this);

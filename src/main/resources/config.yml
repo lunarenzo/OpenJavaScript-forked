@@ -35,3 +35,6 @@ UpdateNotifications: true
 # see https://www.spigotmc.org/resources/117328/field?field=documentation
 # under the feature flags section for more info
 AllowFeatureFlags: true
+
+# opt-in/out from Bstats https://bstats.org/plugin/bukkit/OpenJavaScript/22268
+AllowBstats: true

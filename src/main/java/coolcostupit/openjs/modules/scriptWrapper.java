@@ -151,7 +151,7 @@ public class scriptWrapper {
     public void unregisterAllTasks() {
         for (List<Integer> taskIds : scriptTasksMap.values()) {
             for (int taskId : taskIds) {
-                getServer().getScheduler().cancelTask(taskId);
+                FoliaSupport.CancelTask(taskId);
             }
         }
         scriptTasksMap.clear();
