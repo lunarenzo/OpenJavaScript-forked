@@ -20,14 +20,28 @@ public class scriptTaskerApi {
     }
 
     public void wait(String scriptName, Number seconds) {
+        double sec = seconds.doubleValue();
+
+        if (sec <= 0) return; // don't wait if zero or negative
+
         if (Bukkit.isPrimaryThread()) {
-            Logger.log(Level.WARNING, "[" + scriptName + "] Calling task.wait() on the main server thread can cause lag or freeze the server!", pluginLogger.ORANGE);
+            Logger.log(
+                    Level.WARNING,
+                    "[" + scriptName + "] Calling task.wait(" + sec + "s) on the main server thread can cause lag or freeze the server!",
+                    pluginLogger.ORANGE
+            );
         }
+
         try {
-            long millis = (long) (seconds.doubleValue() * 1000);
+            long millis = (long) (sec * 1000);
+
+            if (millis < 0) millis = 0; // overflow protection
+
             Thread.sleep(millis);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        } catch (IllegalArgumentException e) {
+            Logger.log(Level.WARNING, "[" + scriptName + "] Invalid wait time: " + seconds, pluginLogger.RED);
         }
     }
 

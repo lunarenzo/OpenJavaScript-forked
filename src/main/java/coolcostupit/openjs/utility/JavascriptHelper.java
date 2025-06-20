@@ -84,7 +84,7 @@ public class JavascriptHelper {
                 var waitForScript = _task.waitForScript
                 var task = {
                     wait: function(seconds) {
-                        _task.wait(currentScriptName, seconds)
+                        _task.wait(currentScriptName, parseFloat(seconds))
                     },
                     waitForScript: _task.waitForScript,
                     waitForPlugin: function(pluginName) {
