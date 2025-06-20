@@ -40,7 +40,7 @@ public class scriptWrapper {
     private boolean hasInit = false;
     private PlaceHolderApiJS placeholderApiJS;
     private final Map<String, List<Listener>> eventListenersMap = new HashMap<>();
-    private final Map<String, List<Integer>> scriptTasksMap = new HashMap<>();
+    public final Map<String, List<Integer>> scriptTasksMap = new HashMap<>();
     private final Map<String, Future<?>> scriptFutures = new HashMap<>();
     private final Map<String, ScriptEngine> scriptEngines = new HashMap<>();
     private final Map<String, List<Command>> scriptCommands = new HashMap<>();

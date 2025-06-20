@@ -2,8 +2,6 @@ package coolcostupit.openjs.utility;
 
 import coolcostupit.openjs.modules.sharedClass;
 
-import javax.script.ScriptEngine;
-
 public class JavascriptHelper {
     private static final String MAIN_JAVASCRIPT_CODE = """
                 function toArray(args) {
@@ -89,7 +87,25 @@ public class JavascriptHelper {
                     waitForScript: _task.waitForScript,
                     waitForPlugin: function(pluginName) {
                         _task.waitForPlugin(pluginName, currentScriptName)
-                    }
+                    },
+                    cancel: function(taskId) {
+                        _task.spawn(currentScriptName, taskId)
+                    },
+                    spawn: function(func) {
+                        return _task.spawn(currentScriptName, scriptEngine, {
+                            f: func
+                        })
+                    },
+                    delay: function(delay, func) {
+                        return _task.delay(currentScriptName, scriptEngine, parseFloat(delay), {
+                            f: func
+                        })
+                    },
+                    repeat: function(delay, period, func) {
+                        return _task.repeat(currentScriptName, scriptEngine, parseFloat(delay), parseFloat(period), {
+                            f: func
+                        })
+                    },
                 }
                 """;
 

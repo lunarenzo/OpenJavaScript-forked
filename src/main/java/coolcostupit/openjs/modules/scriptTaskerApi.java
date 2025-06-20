@@ -6,6 +6,11 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 
+import javax.script.Invocable;
+import javax.script.ScriptEngine;
+import javax.script.ScriptException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 
 public class scriptTaskerApi {
@@ -77,6 +82,81 @@ public class scriptTaskerApi {
                 Thread.currentThread().interrupt();
                 break;
             }
+        }
+    }
+
+    public int spawn(String scriptName, ScriptEngine scriptEngine, Object handler) {
+        Runnable task = () -> {
+            try {
+                ((Invocable) scriptEngine).invokeMethod(handler, "f");
+            } catch (ScriptException | NoSuchMethodException e) {
+                Logger.log(Level.SEVERE, "[" + scriptName + "] " + e.getMessage(), pluginLogger.RED);
+            }
+        };
+        int taskId = FoliaSupport.runTask(sharedClass.plugin, task);
+        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
+
+        return taskId;
+    }
+
+    public int delay(String scriptName, ScriptEngine scriptEngine, Number Delay, Object handler) {
+        double sec = Delay.doubleValue();
+
+        if (sec <= 0) return 0;
+        long ticks = (long) (sec * 20); // Convert seconds to ticks
+
+        Runnable task = () -> {
+            try {
+                ((Invocable) scriptEngine).invokeMethod(handler, "f");
+            } catch (ScriptException | NoSuchMethodException e) {
+                Logger.log(Level.SEVERE, "[" + scriptName + "] " + e.getMessage(), pluginLogger.RED);
+            }
+        };
+
+        int taskId = FoliaSupport.ScheduleTask(sharedClass.plugin, task, ticks);
+        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
+
+        return taskId;
+    }
+
+    public int repeat(String scriptName, ScriptEngine scriptEngine, Number Delay, Number Period, Object handler) {
+        double delaySec = Delay.doubleValue();
+        double periodSec = Period.doubleValue();
+
+        if (delaySec < 0 || periodSec <= 0) {
+            Logger.log(Level.WARNING, "[" + scriptName + "] Invalid repeat delay/period values: delay=" + delaySec + ", period=" + periodSec, pluginLogger.RED);
+            return 0;
+        }
+
+        long delayTicks = (long) (delaySec * 20);   // Delay before first run
+        long periodTicks = (long) (periodSec * 20); // Interval between runs
+
+        Runnable task = () -> {
+            try {
+                ((Invocable) scriptEngine).invokeMethod(handler, "f");
+            } catch (ScriptException | NoSuchMethodException e) {
+                Logger.log(Level.SEVERE, "[" + scriptName + "] " + e.getMessage(), pluginLogger.RED);
+            }
+        };
+
+        int taskId = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task, delayTicks, periodTicks);
+        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(taskId);
+
+        return taskId;
+    }
+
+    public void cancel(String scriptName, int taskId) {
+        List<Integer> taskIds = ScriptWrapper.scriptTasksMap.get(scriptName);
+
+        if (taskIds != null && taskIds.remove(Integer.valueOf(taskId))) {
+            FoliaSupport.CancelTask(taskId);
+            Logger.log(Level.INFO, "[" + scriptName + "] Unregistered task ID " + taskId, pluginLogger.LIGHT_BLUE);
+
+            if (taskIds.isEmpty()) {
+                ScriptWrapper.scriptTasksMap.remove(scriptName);
+            }
+        } else {
+            Logger.log(Level.WARNING, "[" + scriptName + "] Tried to unregister unknown task ID " + taskId, pluginLogger.ORANGE);
         }
     }
 }
