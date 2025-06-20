@@ -81,6 +81,16 @@ public class JavascriptHelper {
                         DiskStorage.setValue(currentScriptName, global, fileName, valueName, JSON.stringify(value));
                     }
                 }
+                var waitForScript = _task.waitForScript
+                var task = {
+                    wait: function(seconds) {
+                        _task.wait(currentScriptName, seconds)
+                    },
+                    waitForScript: _task.waitForScript,
+                    waitForPlugin: function(pluginName) {
+                        _task.waitForPlugin(pluginName, currentScriptName)
+                    }
+                }
                 """;
 
     public static String JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE;

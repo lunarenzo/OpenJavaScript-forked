@@ -27,7 +27,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -55,6 +54,7 @@ public class scriptWrapper {
     public final List<String> activeFiles = new ArrayList<>();
     public final List<String> runningScripts = new ArrayList<>();
     public final ExecutorService executorService;
+    private final scriptTaskerApi taskApi;
 
     public scriptWrapper(JavaPlugin plugin, configurationUtil configUtil) {
         this.plugin = plugin;
@@ -63,6 +63,7 @@ public class scriptWrapper {
         this.configUtil = configUtil;
         this.variableStorage = new VariableStorage(plugin);
         this.executorService = Executors.newCachedThreadPool();
+        this.taskApi = new scriptTaskerApi(this);
 
         if (sharedClass.IsPapiLoaded) {
             new pApiExtension().register();
@@ -435,7 +436,8 @@ public class scriptWrapper {
             localScriptEngine.put("variableStorage", variableStorage);
             localScriptEngine.put("DiskStorage", sharedClass.DiskStorageApi);
             localScriptEngine.put("publicVarManager", PublicVarManager);
-            localScriptEngine.put("waitForScript", (Consumer<String>) this::waitForScript);
+            localScriptEngine.put("_task", taskApi); // See class: JavascriptHelper
+            localScriptEngine.put("IsFoliaServer", FoliaSupport.isFolia());
 
             boolean LoadPapi;
 
@@ -560,20 +562,7 @@ public class scriptWrapper {
                 Logger.log(Level.INFO, "[" + scriptName + "] Registered command: " + commandName, pluginLogger.GREEN);
             }
         } catch (Exception e) {
-            Logger.log(Level.SEVERE, "[" + scriptName + "] Failed to register command " + commandName, e.getMessage());
-        }
-    }
-
-    @SuppressWarnings("unused")
-    public void waitForScript(String scriptName) {
-        while (!isJavascriptFileRunning(scriptName)) {
-            try {
-                //noinspection BusyWait
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
+            Logger.log(Level.SEVERE, "[" + scriptName + "] Failed to register command " + commandName + ": " + e.getMessage(), pluginLogger.RED);
         }
     }
 

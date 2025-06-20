@@ -33,4 +33,11 @@ Version 1.0.7:
 - Fixed a few weird errors that only occurred on Folia servers
 - Fixed Bstats silently failing to load on Folia servers
 
+Version 1.0.8:
+- Fix Commands not unregistering properly
+- Finalize Folia support (try to make it as stable as possible on Folia)
+- add external .jar package loading
+- add official support for folders
+- improve and release translation layer for java to javascript (allow scripts to access other plugin apis)
+
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==
