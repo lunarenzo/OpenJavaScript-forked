@@ -7,6 +7,7 @@ import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 
 import javax.script.Invocable;
+import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 import java.util.ArrayList;
@@ -24,10 +25,10 @@ public class scriptTaskerApi {
         this.Logger = sharedClass.logger;
     }
 
-    public void wait(String scriptName, Number seconds) {
+    public Boolean wait(String scriptName, ScriptEngine scriptEngine, Number seconds) {
         double sec = seconds.doubleValue();
 
-        if (sec <= 0) return; // don't wait if zero or negative
+        if (sec <= 0) return Boolean.TRUE;
 
         if (Bukkit.isPrimaryThread()) {
             Logger.log(
@@ -37,17 +38,18 @@ public class scriptTaskerApi {
             );
         }
 
+        long millis = (long) (sec * 1000);
+        if (millis < 0) millis = 0;
+
         try {
-            long millis = (long) (sec * 1000);
-
-            if (millis < 0) millis = 0; // overflow protection
-
             Thread.sleep(millis);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } catch (IllegalArgumentException e) {
-            Logger.log(Level.WARNING, "[" + scriptName + "] Invalid wait time: " + seconds, pluginLogger.RED);
+            Logger.log(Level.INFO, "[" + scriptName + "] interrupting task.wait(" + seconds + ")", pluginLogger.LIGHT_BLUE);
+            return Boolean.FALSE;
         }
+
+        return Boolean.TRUE;
     }
 
     public void waitForScript(String scriptName) {
@@ -90,10 +92,24 @@ public class scriptTaskerApi {
             try {
                 ((Invocable) scriptEngine).invokeMethod(handler, "f");
             } catch (ScriptException | NoSuchMethodException e) {
-                Logger.log(Level.SEVERE, "[" + scriptName + "] " + e.getMessage(), pluginLogger.RED);
+                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
             }
         };
         int taskId = FoliaSupport.runTask(sharedClass.plugin, task);
+        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
+
+        return taskId;
+    }
+
+    public int main(String scriptName, ScriptEngine scriptEngine, Object handler) {
+        Runnable task = () -> {
+            try {
+                ((Invocable) scriptEngine).invokeMethod(handler, "f");
+            } catch (ScriptException | NoSuchMethodException e) {
+                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
+            }
+        };
+        int taskId = FoliaSupport.runTaskSynchronously(sharedClass.plugin, task);
         ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
 
         return taskId;
@@ -109,11 +125,11 @@ public class scriptTaskerApi {
             try {
                 ((Invocable) scriptEngine).invokeMethod(handler, "f");
             } catch (ScriptException | NoSuchMethodException e) {
-                Logger.log(Level.SEVERE, "[" + scriptName + "] " + e.getMessage(), pluginLogger.RED);
+                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
             }
         };
 
-        int taskId = FoliaSupport.ScheduleTask(sharedClass.plugin, task, ticks);
+        int taskId = FoliaSupport.DelayTask(sharedClass.plugin, task, ticks);
         ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
 
         return taskId;
@@ -123,7 +139,7 @@ public class scriptTaskerApi {
         double delaySec = Delay.doubleValue();
         double periodSec = Period.doubleValue();
 
-        if (delaySec < 0 || periodSec <= 0) {
+        if (delaySec < 0) {
             Logger.log(Level.WARNING, "[" + scriptName + "] Invalid repeat delay/period values: delay=" + delaySec + ", period=" + periodSec, pluginLogger.RED);
             return 0;
         }
@@ -135,7 +151,7 @@ public class scriptTaskerApi {
             try {
                 ((Invocable) scriptEngine).invokeMethod(handler, "f");
             } catch (ScriptException | NoSuchMethodException e) {
-                Logger.log(Level.SEVERE, "[" + scriptName + "] " + e.getMessage(), pluginLogger.RED);
+                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
             }
         };
 

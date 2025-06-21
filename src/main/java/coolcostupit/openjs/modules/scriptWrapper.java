@@ -330,7 +330,17 @@ public class scriptWrapper {
         ScriptEngine engine = scriptEngines.remove(scriptName);
         runningScripts.remove(scriptName);
         if (engine != null) {
+
+            if (engine instanceof Invocable invocable) {
+                try {
+                    invocable.invokeFunction("_unloadThis");
+                } catch (NoSuchMethodException | ScriptException e) {
+                    Logger.log(Level.WARNING, "[" + scriptName + "] Failed to garbage collect: " + e.getMessage(), pluginLogger.RED);
+                }
+            }
+
             engine.getBindings(ScriptContext.ENGINE_SCOPE).clear();
+            engine = null;
         }
 
         if (plugin.isEnabled()) {
@@ -479,7 +489,7 @@ public class scriptWrapper {
                     FoliaSupport.runTaskSynchronously(plugin, () -> //plugin.getServer().getScheduler().runTask(plugin, () ->
                             plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(scriptFile.getName())));
                 } catch (IOException | ScriptException e) {
-                    Logger.log(Level.WARNING, "Failed to load script " + scriptFile.getName() + ". " + e.getMessage(), pluginLogger.ORANGE);
+                    Logger.scriptlog(Level.WARNING,  scriptFile.getName(), "Failed to load script " + e.getMessage(), pluginLogger.ORANGE);
                 }
             });
 

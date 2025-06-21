@@ -215,6 +215,8 @@ public final class MinecraftVersions {
         update.version(2, 2); // 1.21.2 (Bundles of Bravery)
         update.version(3, 2); // 1.21.3
         update.version(4, 3); // 1.21.4 (The Garden Awakens)
+        update.version(5, 4); // 1.21.5 (Spring to Life)
+        update.version(6, 5); // 1.21.6 (Chase the Skies)
     }));
 
     /**
@@ -352,6 +354,11 @@ public final class MinecraftVersions {
             if (o == null || getClass() != o.getClass()) return false;
             Update update = (Update) o;
             return major == update.major && minor == update.minor && Objects.equals(versions, update.versions);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(major, minor, versions);
         }
 
         @Override
@@ -524,6 +531,11 @@ public final class MinecraftVersions {
             if (o == null || getClass() != o.getClass()) return false;
             Version version = (Version) o;
             return major == version.major && minor == version.minor && patch == version.patch;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(major, minor, patch);
         }
 
         @Override

@@ -1,9 +1,18 @@
 package coolcostupit.openjs.utility;
 
+import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.sharedClass;
 
 public class JavascriptHelper {
-    private static final String MAIN_JAVASCRIPT_CODE = """
+    private static final String MAIN_JAVASCRIPT_CODE = String.format("""
+                var _gc = false;
+                function _unloadThis() {
+                    var keys = Object.keys(this);
+                    for (var i = 0; i < keys.length; i++) {
+                        this[keys[i]] = null;
+                    }
+                    _gc = true;
+                }
                 function toArray(args) {
                     return Array.prototype.slice.call(args);
                 }
@@ -82,17 +91,25 @@ public class JavascriptHelper {
                 var waitForScript = _task.waitForScript
                 var task = {
                     wait: function(seconds) {
-                        _task.wait(currentScriptName, parseFloat(seconds))
+                        var continueRunning = _task.wait(currentScriptName, scriptEngine, parseFloat(seconds));
+                        if (!continueRunning) {
+                            throw new Error('%s');
+                        }
                     },
                     waitForScript: _task.waitForScript,
                     waitForPlugin: function(pluginName) {
                         _task.waitForPlugin(pluginName, currentScriptName)
                     },
                     cancel: function(taskId) {
-                        _task.spawn(currentScriptName, taskId)
+                        _task.cancel(currentScriptName, taskId)
                     },
                     spawn: function(func) {
                         return _task.spawn(currentScriptName, scriptEngine, {
+                            f: func
+                        })
+                    },
+                    main: function(func) {
+                        return _task.main(currentScriptName, scriptEngine, {
                             f: func
                         })
                     },
@@ -107,7 +124,7 @@ public class JavascriptHelper {
                         })
                     },
                 }
-                """;
+                """, pluginLogger.yieldKill);
 
     public static String JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE;
 

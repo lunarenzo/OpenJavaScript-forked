@@ -1,114 +1,139 @@
 package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.foliascheduler.ServerImplementation;
-import coolcostupit.openjs.foliascheduler.folia.FoliaTask;
+import coolcostupit.openjs.foliascheduler.TaskImplementation;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import coolcostupit.openjs.foliascheduler.FoliaCompatibility;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.lang.reflect.Method;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class FoliaSupport {
     private static Boolean cached = null;
     private static Boolean isFoliaChecked = null;
 
-    // A map to store active tasks with their IDs
-    private static final Map<Integer, Object> activeTasks = new HashMap<>();
-    private static int nextTaskId = 1; // Custom task ID generator
+    private enum TaskType {
+        BUKKIT,
+        FOLIA,
+        THREADPOOL
+    }
 
-    // Check if the server is running on Folia and cache the result
+    private static final Map<Integer, Object> activeTasks = new ConcurrentHashMap<>();
+    private static final Map<Integer, TaskType> taskTypes = new ConcurrentHashMap<>();
+    private static final AtomicInteger nextTaskId = new AtomicInteger(1);
+
+    // TODO: Make it shut down when plugins disables (that's why it is public)
+    public static final ExecutorService threadPool = Executors.newCachedThreadPool();
+
     public static boolean isFolia() {
         if (cached == null) {
             if (isFoliaChecked == null) {
                 boolean foliaDetected = false;
                 try {
-                    // Check if Folia-specific methods exist
                     Method getRegionScheduler = Bukkit.getServer().getClass().getMethod("getRegionScheduler");
                     foliaDetected = getRegionScheduler != null;
-                } catch (NoSuchMethodException | SecurityException ignored) {
-                    // Folia-specific methods not found, assume non-Folia server
-                }
-                isFoliaChecked = (Boolean) foliaDetected;
+                } catch (NoSuchMethodException | SecurityException ignored) {}
+                isFoliaChecked = foliaDetected;
             }
-            cached = (Boolean) true;
+            cached = true;
         }
         return isFoliaChecked;
     }
 
-    // Schedule a delayed task and return its custom task ID
     public static int ScheduleTask(JavaPlugin plugin, Runnable function, long delay) {
         Object task;
         if (isFolia()) {
             ServerImplementation scheduler = new FoliaCompatibility(plugin).getServerImplementation();
             task = scheduler.async().runDelayed(function, delay);
+            return addTask(task, TaskType.FOLIA);
         } else {
             task = Bukkit.getScheduler().runTaskLater(plugin, function, delay);
+            return addTask(task, TaskType.BUKKIT);
         }
-        return addTask(task);
     }
 
-    // Run a task immediately and return its custom task ID
-    public static int runTask(JavaPlugin plugin, Runnable function) {
-        Object task;
+    public static int DelayTask(JavaPlugin plugin, Runnable function, long delay) {
         if (isFolia()) {
-            ServerImplementation scheduler = new FoliaCompatibility(plugin).getServerImplementation();
-            task = scheduler.async().runNow(function);
+            Future<?> task = threadPool.submit(() -> {
+                try {
+                    Thread.sleep(delay * 50L);
+                    function.run();
+                } catch (InterruptedException ignored) {}
+            });
+            return addTask(task, TaskType.THREADPOOL);
         } else {
-            task = Bukkit.getScheduler().runTask(plugin, function);
+            Object task = Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, function, delay);
+            return addTask(task, TaskType.BUKKIT);
         }
-        return addTask(task);
     }
 
-    // Run a synchronous task and return its custom task ID
+    public static int runTask(JavaPlugin plugin, Runnable function) {
+        if (isFolia()) {
+            Future<?> task = threadPool.submit(function);
+            return addTask(task, TaskType.THREADPOOL);
+        } else {
+            Object task = Bukkit.getScheduler().runTaskAsynchronously(plugin, function);
+            return addTask(task, TaskType.BUKKIT);
+        }
+    }
+
     public static int runTaskSynchronously(JavaPlugin plugin, Runnable function) {
         Object task;
         if (isFolia()) {
             ServerImplementation scheduler = new FoliaCompatibility(plugin).getServerImplementation();
             task = scheduler.global().run(function);
+            return addTask(task, TaskType.FOLIA);
         } else {
             task = Bukkit.getScheduler().runTask(plugin, function);
+            return addTask(task, TaskType.BUKKIT);
         }
-        return addTask(task);
     }
 
-    // Schedule a repeating task and return its custom task ID
     public static int ScheduleRepeatingTask(JavaPlugin plugin, Runnable function, long delay, long period) {
         Object task;
         if (isFolia()) {
             ServerImplementation scheduler = new FoliaCompatibility(plugin).getServerImplementation();
             task = scheduler.async().runAtFixedRate(function, delay, period);
+            return addTask(task, TaskType.FOLIA);
         } else {
             task = Bukkit.getScheduler().runTaskTimer(plugin, function, delay, period);
+            return addTask(task, TaskType.BUKKIT);
         }
-        return addTask(task);
     }
 
-    // Cancel a task by its custom task ID
     public static boolean CancelTask(int taskId) {
-        Object task = activeTasks.remove((Integer) taskId);
-        if (task == null) {
-            return false; // Task not found
-        }
+        Object task = activeTasks.remove(taskId);
+        TaskType type = taskTypes.remove(taskId);
+
+        if (task == null || type == null) return false;
 
         try {
-            if (isFolia()) {
-                ((FoliaTask<?>) task).cancel();
-            } else {
-                ((BukkitTask) task).cancel();
+            switch (type) {
+                case FOLIA:
+                    ((TaskImplementation<?>) task).cancel();
+                    break;
+                case BUKKIT:
+                    ((BukkitTask) task).cancel();
+                    break;
+                case THREADPOOL:
+                    ((Future<?>) task).cancel(true);
+                    break;
             }
             return true;
-        } catch (Exception e) {
-            return false; // Task cancellation failed
+        } catch (Exception ignored) {
+            return false;
         }
     }
 
-    // Add a task to the map and return its custom task ID
-    private static int addTask(Object task) {
-        Integer taskId = (Integer) nextTaskId++;
+    private static int addTask(Object task, TaskType type) {
+        int taskId = nextTaskId.getAndIncrement();
         activeTasks.put(taskId, task);
+        taskTypes.put(taskId, type);
         return taskId;
     }
 }

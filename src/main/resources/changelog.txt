@@ -35,6 +35,10 @@ Version 1.0.7:
 
 Version 1.0.8:
 - Fix Commands not unregistering properly
+🟩️ Fix memory leaks with scheduling
+🟩️ Fix async scheduling thread limit (use thread pool instead of folia scheduler)
+🟩️ add option to cancel schedules
+🟩️ create a new task api that has the required scheduling stuff
 - Finalize Folia support (try to make it as stable as possible on Folia)
 - add external .jar package loading
 - add official support for folders

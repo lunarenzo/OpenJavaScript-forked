@@ -16,6 +16,10 @@ public class pluginLogger {
     public static final String BLUE = "\u001B[34m";
     public static final String LIGHT_BLUE = "\u001B[38;5;81m";
     public static final String ORANGE = "\u001B[38;5;214m";
+
+    // Special indicators
+    public static final String yieldKill = "_殺了我ͶͶ";
+
     private final configurationUtil configUtil;
     private final Logger logger;
 
@@ -28,6 +32,14 @@ public class pluginLogger {
         logger.log(level, colorCode + message + RESET);
         if (configUtil.getConfigFromBuffer("BroadcastToOps", true) && level == Level.SEVERE || level == Level.WARNING) {
             OpsLogger.LogToOps(Collections.singletonList(chatColors.RED + message));
+        }
+    }
+
+    public void scriptlog(Level level, String scriptName, String message, String colorCode) {
+        if (message != null && message.contains(yieldKill)) { // special Unicode's so that scripts won't silently call this
+            this.log(Level.INFO, "[" + scriptName + "] stopped executing", LIGHT_BLUE);
+        } else {
+            this.log(level, "[" + scriptName + "] " + message, colorCode);
         }
     }
 }
