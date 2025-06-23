@@ -65,6 +65,9 @@ public class scriptWrapper {
         this.executorService = Executors.newCachedThreadPool();
         this.taskApi = new scriptTaskerApi(this);
 
+        // Experimental flag to enable ECMAScript 6.0
+        System.setProperty("nashorn.args", "--language=es6");
+
         if (sharedClass.IsPapiLoaded) {
             new pApiExtension().register();
             this.placeholderApiJS = new PlaceHolderApiJS();
@@ -460,6 +463,43 @@ public class scriptWrapper {
 
             Future<?> future = executorService.submit(() -> {
                 try {
+                    // Developer protections and memory optimization (just a myth but freezing in-build variables should decrease memory overhead)
+                    localScriptEngine.eval("""
+                    const deepFreeze = function(obj) {
+                        if (obj === null || typeof obj !== 'object') return obj;
+                        Object.getOwnPropertyNames(obj).forEach(function(name) {
+                            var prop = obj[name];
+                            if (typeof prop === 'object' && prop !== null && !Object.isFrozen(prop)) {
+                                deepFreeze(prop);
+                            }
+                        });
+                        return Object.freeze(obj);
+                    }
+                    
+                    deepFreeze(plugin);
+                    deepFreeze(scriptManager);
+                    deepFreeze(scriptEngine);
+                    deepFreeze(log);
+                    deepFreeze(variableStorage);
+                    deepFreeze(DiskStorage);
+                    deepFreeze(publicVarManager);
+                    deepFreeze(_task);
+                    
+                    Object.defineProperty(this, 'currentScriptName', {
+                      value: currentScriptName,
+                      writable: false,
+                      configurable: false,
+                      enumerable: true
+                    });
+                    
+                    Object.defineProperty(this, 'IsFoliaServer', {
+                      value: IsFoliaServer,
+                      writable: false,
+                      configurable: false,
+                      enumerable: true
+                    });
+                    """);
+
                     if (configUtil.getConfigFromBuffer("AllowFeatureFlags", true)) {
                         if (FlagInterpreter.hasFlag(scriptFile, "waitForInit")) {
                             localScriptEngine.eval("scriptManager.waitForInit()");
@@ -468,7 +508,7 @@ public class scriptWrapper {
 
                     if (LoadPapi) {
                         localScriptEngine.eval("""
-                                var PlaceholderAPI = {
+                                const PlaceholderAPI = {
                                     registerPlaceholder: function(placeholderPrefix, handler) {
                                         PlaceholderAPI_.registerPlaceholder(placeholderPrefix, handler, currentScriptName, scriptEngine);
                                     },
@@ -476,6 +516,7 @@ public class scriptWrapper {
                                         return PlaceholderAPI_.parseString(player, text);
                                     }
                                 }
+                                Object.freeze(PlaceholderAPI);
                                 """);
                     }
 

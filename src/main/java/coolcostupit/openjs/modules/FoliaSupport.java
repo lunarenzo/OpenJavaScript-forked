@@ -5,6 +5,7 @@ import coolcostupit.openjs.foliascheduler.TaskImplementation;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import coolcostupit.openjs.foliascheduler.FoliaCompatibility;
+import coolcostupit.openjs.modules.sharedClass;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.lang.reflect.Method;
@@ -26,9 +27,13 @@ public class FoliaSupport {
     private static final Map<Integer, Object> activeTasks = new ConcurrentHashMap<>();
     private static final Map<Integer, TaskType> taskTypes = new ConcurrentHashMap<>();
     private static final AtomicInteger nextTaskId = new AtomicInteger(1);
+    private static final ExecutorService threadPool;
 
-    // TODO: Make it shut down when plugins disables (that's why it is public)
-    public static final ExecutorService threadPool = Executors.newCachedThreadPool();
+    static {
+        threadPool = Executors.newCachedThreadPool();
+        sharedClass.TaskThreadPool = threadPool;
+    }
+
 
     public static boolean isFolia() {
         if (cached == null) {

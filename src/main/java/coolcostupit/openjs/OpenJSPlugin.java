@@ -126,6 +126,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         pluginLogger.log(Level.INFO, "Un-registering all script commands...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         scriptWrapper.unregisterAllScriptCommands();
         pluginLogger.log(Level.INFO, "Un-loading all scripts...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+        sharedClass.TaskThreadPool.shutdown();
         scriptWrapper.executorService.shutdown();
         scriptWrapper.unloadAllScripts();
         pluginLogger.log(Level.INFO, "Storing memory variables...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);

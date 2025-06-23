@@ -6,6 +6,8 @@ import coolcostupit.openjs.utility.configurationUtil;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.concurrent.ExecutorService;
+
 public class sharedClass {
     public static Boolean IsPapiLoaded;
     public static PluginDescriptionFile PluginDescription;
@@ -15,4 +17,5 @@ public class sharedClass {
     public static String Identifier;
     public static PlaceHolderApiJS PlaceHolderApiJavascript;
     public static DiskStorage DiskStorageApi;
+    public static ExecutorService TaskThreadPool;
 }
