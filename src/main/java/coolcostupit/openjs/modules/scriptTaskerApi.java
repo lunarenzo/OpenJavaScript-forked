@@ -2,6 +2,7 @@ package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.logging.pluginLogger;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
@@ -96,6 +97,20 @@ public class scriptTaskerApi {
             }
         };
         int taskId = FoliaSupport.runTask(sharedClass.plugin, task);
+        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
+
+        return taskId;
+    }
+
+    public int entitySchedule(String scriptName, ScriptEngine scriptEngine, Entity entity, Object handler) {
+        Runnable task = () -> {
+            try {
+                ((Invocable) scriptEngine).invokeMethod(handler, "f");
+            } catch (ScriptException | NoSuchMethodException e) {
+                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
+            }
+        };
+        int taskId = FoliaSupport.runEntityTask(sharedClass.plugin, entity, task);
         ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
 
         return taskId;

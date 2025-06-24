@@ -2,17 +2,22 @@ package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.foliascheduler.ServerImplementation;
 import coolcostupit.openjs.foliascheduler.TaskImplementation;
+import coolcostupit.openjs.logging.pluginLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import coolcostupit.openjs.foliascheduler.FoliaCompatibility;
-import coolcostupit.openjs.modules.sharedClass;
+import org.bukkit.entity.Entity;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Consumer;
 
+import javax.script.Invocable;
+import javax.script.ScriptException;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 public class FoliaSupport {
     private static Boolean cached = null;
@@ -61,6 +66,21 @@ public class FoliaSupport {
             return addTask(task, TaskType.BUKKIT);
         }
     }
+
+
+    public static int runEntityTask(JavaPlugin plugin, Entity entity, Runnable function) {
+        if (isFolia()) {
+            ServerImplementation scheduler = new FoliaCompatibility(plugin).getServerImplementation();
+            TaskImplementation<?> foliaTask = scheduler.entity(entity).run(function);
+            return addTask(foliaTask, TaskType.FOLIA);
+
+        } else {
+            // Bukkit: just run Runnable on main thread
+            BukkitTask task = Bukkit.getScheduler().runTask(plugin, function);
+            return addTask(task, TaskType.BUKKIT);
+        }
+    }
+
 
     public static int DelayTask(JavaPlugin plugin, Runnable function, long delay) {
         if (isFolia()) {

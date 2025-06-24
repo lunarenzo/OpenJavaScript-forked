@@ -123,6 +123,9 @@ public class JavascriptHelper {
                   main(func) {
                     return _task.main(currentScriptName, scriptEngine, { f: func });
                   },
+                  entitySchedule(entity, func) {
+                    return _task.entitySchedule(currentScriptName, scriptEngine, entity, { f: func });
+                  },
                   delay(delay, func) {
                     return _task.delay(currentScriptName, scriptEngine, parseFloat(delay), { f: func });
                   },
