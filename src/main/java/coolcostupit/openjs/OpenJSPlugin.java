@@ -145,7 +145,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                 player.sendMessage(chatColors.ORANGE+"A new version of OpenJS is available!");
                 player.sendMessage(chatColors.ORANGE+"Current version: " + chatColors.RED + updateChecker.CurrentVersion);
                 player.sendMessage(chatColors.ORANGE+"Latest version: " + chatColors.GREEN + updateChecker.LatestVersion);
-                player.sendMessage(chatColors.ORANGE+"Download it here: " + chatColors.LIGHT_BLUE + "https://www.spigotmc.org/resources/117328/");
+                player.sendMessage(chatColors.ORANGE+"Download it here: " + chatColors.LIGHT_BLUE + "https://modrinth.com/plugin/openjavascript/version/latest");
                 player.sendMessage(chatColors.GRAY+"-----------------------------------------------------");
             }
         }

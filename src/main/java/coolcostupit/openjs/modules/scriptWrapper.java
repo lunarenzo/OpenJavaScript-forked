@@ -634,6 +634,7 @@ public class scriptWrapper {
 
     @SuppressWarnings("all")
     public void registerSchedule(String scriptName, long delay, long period, Object handler, ScriptEngine scriptEngine, String methodName) {
+        Logger.scriptlog(Level.WARNING, scriptName, "Do not use registerSchedule! This will get removed soon, use task.repeat instead!", pluginLogger.ORANGE);
         Runnable task = () -> {
             try {
                 ((Invocable) scriptEngine).invokeMethod(handler, methodName);
