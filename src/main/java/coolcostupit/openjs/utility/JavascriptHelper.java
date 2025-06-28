@@ -28,6 +28,10 @@ public class JavascriptHelper {
                   scriptManager.registerCommand(commandName, commandHandler, currentScriptName, scriptEngine, permission);
                 };
                 
+                const importLib = libName => {
+                  return _libImporter.getLib(libName)
+                };
+                
                 const LoadScript = scriptName => {
                   const result = scriptManager.loadScript(new java.io.File(plugin.getDataFolder() + '/scripts/' + scriptName), true);
                   const success = result.isSuccess();

@@ -1,10 +1,7 @@
 package coolcostupit.openjs;
 
 import coolcostupit.openjs.logging.pluginLogger;
-import coolcostupit.openjs.modules.FoliaSupport;
-import coolcostupit.openjs.modules.ScriptEngine;
-import coolcostupit.openjs.modules.scriptWrapper;
-import coolcostupit.openjs.modules.sharedClass;
+import coolcostupit.openjs.modules.*;
 import coolcostupit.openjs.utility.*;
 import coolcostupit.openjs.logging.OpsLogger;
 
@@ -64,6 +61,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sharedClass.plugin = this;
         sharedClass.Identifier = this.getName().toLowerCase();
         sharedClass.DiskStorageApi = DiskStorageApi;
+        sharedClass.LibImporterApi = new LibImporterApi();
 
         this.scriptWrapper = new scriptWrapper(this, configUtil);
         this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
@@ -129,6 +127,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sharedClass.TaskThreadPool.shutdown();
         scriptWrapper.executorService.shutdown();
         scriptWrapper.unloadAllScripts();
+        sharedClass.LibImporterApi.shutdown();
         pluginLogger.log(Level.INFO, "Storing memory variables...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         variableStorage.saveVariables();
         pluginLogger.log(Level.INFO, "Saving disk storage files...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);

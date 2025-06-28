@@ -18,4 +18,5 @@ public class sharedClass {
     public static PlaceHolderApiJS PlaceHolderApiJavascript;
     public static DiskStorage DiskStorageApi;
     public static ExecutorService TaskThreadPool;
+    public static LibImporterApi LibImporterApi;
 }

@@ -450,6 +450,7 @@ public class scriptWrapper {
             localScriptEngine.put("DiskStorage", sharedClass.DiskStorageApi);
             localScriptEngine.put("publicVarManager", PublicVarManager);
             localScriptEngine.put("_task", taskApi); // See class: JavascriptHelper
+            localScriptEngine.put("_libImporter", sharedClass.LibImporterApi);
             localScriptEngine.put("IsFoliaServer", FoliaSupport.isFolia());
 
             boolean LoadPapi;
@@ -484,6 +485,7 @@ public class scriptWrapper {
                     deepFreeze(DiskStorage);
                     deepFreeze(publicVarManager);
                     deepFreeze(_task);
+                    deepFreeze(_libImporter);
                     
                     Object.defineProperty(this, 'currentScriptName', {
                       value: currentScriptName,
