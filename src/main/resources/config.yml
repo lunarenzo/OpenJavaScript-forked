@@ -32,7 +32,7 @@ UpdateNotifications: true
 
 # Allows usage of feature flags, disabling this can decrease script loading times
 # feature flags are being used like this "//!Flagname"
-# see https://www.spigotmc.org/resources/117328/field?field=documentation
+# see https://docs-mc-1.gitbook.io/openjs-docs/openjs-components/fflags
 # under the feature flags section for more info
 AllowFeatureFlags: true
 

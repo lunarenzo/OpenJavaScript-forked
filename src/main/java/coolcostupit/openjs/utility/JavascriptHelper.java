@@ -145,14 +145,22 @@ public class JavascriptHelper {
         JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE +
                 (sharedClass.configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true)
                         ?
-                        "function registerEvent(eventClass, handler) {" +
-                        "    scriptManager.registerEvent(eventClass, handler, currentScriptName, scriptEngine);" +
-                        "}"
+                        "const registerEvent = function(eventClass, handler) {" +
+                        "   var wrappedHandler;" +
+                        "   if (typeof handler === 'function') {" +
+                        "       wrappedHandler = { handleEvent: handler };" +
+                        "   } else if (handler && typeof handler.handleEvent === 'function') {" +
+                        "       wrappedHandler = handler;" +
+                        "   } else {" +
+                        "       log.error('Invalid handler: must be a function or an object with a handleEvent method.');" +
+                        "   }" +
+                        "   scriptManager.registerEvent(eventClass, wrappedHandler, currentScriptName, scriptEngine);" +
+                        "};"
                         : "") +
                 (sharedClass.configUtil.getConfigFromBuffer("LoadCustomScheduler", true)
-                        ?
+                        ? // TODO: Remove in next major update
                         "function registerSchedule(delay, period, handler, method) {" +
-                        "    scriptManager.registerSchedule(currentScriptName, delay, period, handler, scriptEngine, method);" +
+                            "scriptManager.registerSchedule(currentScriptName, delay, period, handler, scriptEngine, method);" +
                         "}"
                         : "");
     }
