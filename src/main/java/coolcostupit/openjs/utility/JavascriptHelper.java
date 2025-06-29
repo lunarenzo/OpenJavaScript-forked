@@ -25,7 +25,7 @@ public class JavascriptHelper {
                 
                 const addCommand = (commandName, commandHandler, permission = "") => {
                   if (typeof permission !== "string") permission = "";
-                  scriptManager.registerCommand(commandName, commandHandler, currentScriptName, scriptEngine, permission);
+                  scriptManager.registerCommand(commandName.toLowerCase(), commandHandler, currentScriptName, scriptEngine, permission);
                 };
                 
                 const importLib = libName => {
