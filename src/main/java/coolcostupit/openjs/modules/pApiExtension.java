@@ -26,6 +26,11 @@ public class pApiExtension extends PlaceholderExpansion {
     }
 
     @Override
+    public boolean persist() {
+        return true;
+    }
+
+    @Override
     public String onPlaceholderRequest(Player player, @NotNull String params) {
         String prefix;
         String param;
