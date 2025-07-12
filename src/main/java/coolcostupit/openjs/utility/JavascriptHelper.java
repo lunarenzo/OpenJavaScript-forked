@@ -89,7 +89,20 @@ public class JavascriptHelper {
                   }
                   return null;
                 };
-                
+                const getMethods = (clazz) => {
+                  const methods = clazz.getMethods();
+                  for (let i = 0; i < methods.length; i++) {
+                    const method = methods[i];
+                    const paramTypes = method.getParameterTypes();
+                    let paramStr = "";
+                    for (let j = 0; j < paramTypes.length; j++) {
+                      paramStr += paramTypes[j].getName();
+                      if (j < paramTypes.length - 1) paramStr += ", ";
+                    }
+                    log.info("Method name: " + method.getName());
+                    log.info("Method parameters: " + (paramStr || "none"));
+                  }
+                };
                 const DiskApi = Object.freeze({
                   loadFile(fileName, async, global) {
                     DiskStorage.loadFile(fileName, async, currentScriptName, global);
@@ -135,6 +148,9 @@ public class JavascriptHelper {
                   },
                   repeat(delay, period, func) {
                     return _task.repeat(currentScriptName, scriptEngine, parseFloat(delay), parseFloat(period), { f: func });
+                  },
+                  createListener(javaInterface, handlerObj) {
+                    return _task.createListener(javaInterface, scriptEngine, handlerObj);
                   }
                 });
                 """, pluginLogger.yieldKill);

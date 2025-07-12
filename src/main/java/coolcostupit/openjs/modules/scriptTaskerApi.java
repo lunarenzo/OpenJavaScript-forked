@@ -190,4 +190,35 @@ public class scriptTaskerApi {
             Logger.log(Level.WARNING, "[" + scriptName + "] Tried to unregister unknown task ID " + taskId, pluginLogger.ORANGE);
         }
     }
+
+    public <T> Object createListener(Class<T> interfaceClass, ScriptEngine engine, Object jsHandler) {
+        if (!(engine instanceof Invocable)) {
+            Logger.log(Level.WARNING, "Script engine is not invocable. Cannot bind handler.", pluginLogger.RED);
+            return null;
+        }
+
+        Invocable inv = (Invocable) engine;
+
+        return java.lang.reflect.Proxy.newProxyInstance(
+                interfaceClass.getClassLoader(),
+                new Class<?>[]{interfaceClass},
+                (proxy, method, args) -> {
+                    try {
+                        // Try calling handler[methodName](...args) in JS
+                        return inv.invokeMethod(jsHandler, method.getName(), args);
+                    } catch (NoSuchMethodException e) {
+                        // Method not defined in JS, return default
+                        if (method.getReturnType().isPrimitive()) {
+                            if (method.getReturnType() == boolean.class) return false;
+                            if (method.getReturnType() == char.class) return '\0';
+                            return 0;
+                        }
+                        return null;
+                    } catch (Exception e) {
+                        Logger.log(Level.SEVERE, "Listener handler error: " + e.getMessage(), pluginLogger.RED);
+                        return null;
+                    }
+                }
+        );
+    }
 }
