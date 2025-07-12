@@ -43,7 +43,8 @@ Version 1.1.0:
 🟩️ improve and release translation layer for java to javascript (allow scripts to access other plugin apis)
 
 Version 1.2.0:
-- Fix Commands not unregistering properly (cause, bukkit does not allow commands with uppercase, lowercase only. register commands lowercase)
+🟩️ Fix Commands not unregistering properly (cause, bukkit does not allow commands with uppercase, lowercase only. register commands lowercase)
+🟩️ Reduce plugin file size
 - add official support for folders
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==
