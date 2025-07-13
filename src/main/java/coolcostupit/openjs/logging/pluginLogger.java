@@ -42,4 +42,8 @@ public class pluginLogger {
             this.log(level, "[" + scriptName + "] " + message, colorCode);
         }
     }
+
+    public void internalException(String scriptName, String exception) {
+        this.scriptlog(Level.WARNING, scriptName, exception, RED);
+    }
 }

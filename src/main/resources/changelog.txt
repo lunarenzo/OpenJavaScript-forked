@@ -5,12 +5,14 @@ Version 1.0.3:
 - FeatureFlags system! You can now prevent scripts from loading automatically
 - LoadScript and UnloadScript and waitForScript function!
 - CUSTOM EVENTS: LoadScript and UnloadScript events
+
 Version 1.0.4:
 - Fixed update checker, it no longer uses cached versions because they have huge update delays
 - Renamed setStoredVar and getStoredVar to loadVar and saveVar
 - simplified statements for the command handler
 - added a version command to easily retrieve the plugin version
 - preparing for 1.0.5
+
 Version 1.0.5
 - Folia support (experemential)
 - native Nashorn /Javascript implementation
@@ -19,6 +21,7 @@ Version 1.0.5
 - Much faster script engine initialization
 - Support for custom commands
 - Compiled plugin in Java 17
+
 Version 1.0.6:
 🟩️ add PlaceholderApi support
 🟩️ Drop cache into storage after buffer limit reached (memory leak fix)
@@ -45,6 +48,11 @@ Version 1.1.0:
 Version 1.2.0:
 🟩️ Fix Commands not unregistering properly (cause, bukkit does not allow commands with uppercase, lowercase only. register commands lowercase)
 🟩️ Reduce plugin file size
+🟩️ Fix placeholders unregistering after reloading placeholderapi
+🟩️ add better error catching to prevent scripts from freezing
+🟩️ create a system in the task library that will allow scripts to create java listeners/proxies
+🟩️ add universal cleanup for listeners/proxies
+- stop using log.info on errors, use log.scriptLog instead to catch errors more better
 - add official support for folders
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==

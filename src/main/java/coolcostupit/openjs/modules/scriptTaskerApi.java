@@ -8,17 +8,32 @@ import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 
 import javax.script.Invocable;
-import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 public class scriptTaskerApi {
     private final scriptWrapper ScriptWrapper;
     private final @NotNull PluginManager pluginManager;
     private final pluginLogger Logger;
+    private static final Map<Object, ListenerEntry> listenerCleanupMap = new HashMap<>();
+
+    private static class ListenerEntry {
+        public final String scriptName;
+        public final Object cleanup;
+        public final ScriptEngine scriptEngine;
+
+        public ListenerEntry(String scriptName, ScriptEngine scriptEngine, Object cleanup) {
+            this.scriptName = scriptName;
+            this.cleanup = cleanup;
+            this.scriptEngine = scriptEngine;
+        }
+    }
 
     public scriptTaskerApi(scriptWrapper scriptWrapper) {
         this.ScriptWrapper = scriptWrapper;
@@ -176,22 +191,55 @@ public class scriptTaskerApi {
         return taskId;
     }
 
-    public void cancel(String scriptName, int taskId) {
-        List<Integer> taskIds = ScriptWrapper.scriptTasksMap.get(scriptName);
-
-        if (taskIds != null && taskIds.remove(Integer.valueOf(taskId))) {
-            FoliaSupport.CancelTask(taskId);
-            Logger.log(Level.INFO, "[" + scriptName + "] Unregistered task ID " + taskId, pluginLogger.LIGHT_BLUE);
-
-            if (taskIds.isEmpty()) {
-                ScriptWrapper.scriptTasksMap.remove(scriptName);
-            }
-        } else {
-            Logger.log(Level.WARNING, "[" + scriptName + "] Tried to unregister unknown task ID " + taskId, pluginLogger.ORANGE);
+    public void cleanupListener(String scriptName, ScriptEngine scriptEngine, Object handler) {
+        try {
+            Logger.log(Level.INFO, "[" + scriptName + "] Listener cleanup executed.", pluginLogger.LIGHT_BLUE);
+            ((Invocable) scriptEngine).invokeMethod(handler, "f");
+        } catch (ScriptException | NoSuchMethodException e) {
+            Logger.scriptlog(Level.WARNING, scriptName, "Listener cleanup failed: " + e.getMessage(), pluginLogger.RED);
         }
     }
 
-    public <T> Object createListener(Class<T> interfaceClass, ScriptEngine engine, Object jsHandler) {
+    public void cancel(String scriptName, Object thing) {
+        if (thing instanceof Integer) {
+            int taskId = (int) thing;
+            List<Integer> taskIds = ScriptWrapper.scriptTasksMap.get(scriptName);
+
+            if (taskIds != null && taskIds.remove(Integer.valueOf(taskId))) {
+                FoliaSupport.CancelTask(taskId);
+                Logger.log(Level.INFO, "[" + scriptName + "] Unregistered task ID " + taskId, pluginLogger.LIGHT_BLUE);
+
+                if (taskIds.isEmpty()) {
+                    ScriptWrapper.scriptTasksMap.remove(scriptName);
+                }
+            } else {
+                Logger.log(Level.WARNING, "[" + scriptName + "] Tried to unregister unknown task ID " + taskId, pluginLogger.ORANGE);
+            }
+            return;
+        }
+        ListenerEntry entry = listenerCleanupMap.remove(thing);
+        if (entry != null) {
+            cleanupListener(entry.scriptName, entry.scriptEngine, entry.cleanup);
+        } else {
+            Logger.log(Level.WARNING, "[" + scriptName + "] Tried to cancel unknown listener or missing cleanup.", pluginLogger.ORANGE);
+        }
+    }
+
+    public void clearListeners(String scriptName) {
+        List<Object> toRemove = new ArrayList<>();
+
+        for (Map.Entry<Object, ListenerEntry> entryValue : listenerCleanupMap.entrySet()) {
+            ListenerEntry entry = entryValue.getValue();
+            if (entry.scriptName.equals(scriptName)) {
+                cleanupListener(entry.scriptName, entry.scriptEngine, entry.cleanup);
+                toRemove.add(entryValue.getKey());
+            }
+        }
+
+        toRemove.forEach(listenerCleanupMap::remove);
+    }
+
+    public <T> Object createListener(String scriptName, ScriptEngine engine, Class<T> interfaceClass, Object jsHandler) {
         if (!(engine instanceof Invocable)) {
             Logger.log(Level.WARNING, "Script engine is not invocable. Cannot bind handler.", pluginLogger.RED);
             return null;
@@ -199,15 +247,13 @@ public class scriptTaskerApi {
 
         Invocable inv = (Invocable) engine;
 
-        return java.lang.reflect.Proxy.newProxyInstance(
+        Object proxy = Proxy.newProxyInstance(
                 interfaceClass.getClassLoader(),
                 new Class<?>[]{interfaceClass},
-                (proxy, method, args) -> {
+                (p, method, args) -> {
                     try {
-                        // Try calling handler[methodName](...args) in JS
                         return inv.invokeMethod(jsHandler, method.getName(), args);
                     } catch (NoSuchMethodException e) {
-                        // Method not defined in JS, return default
                         if (method.getReturnType().isPrimitive()) {
                             if (method.getReturnType() == boolean.class) return false;
                             if (method.getReturnType() == char.class) return '\0';
@@ -220,5 +266,15 @@ public class scriptTaskerApi {
                     }
                 }
         );
+
+        return proxy;
+    }
+
+    public void setListenerCleanup(String scriptName, ScriptEngine scriptEngine, Object proxy, Object cleanup) {
+        if (cleanup != null) {
+            listenerCleanupMap.put(proxy, new ListenerEntry(scriptName, scriptEngine, cleanup));
+        } else {
+            Logger.log(Level.WARNING, "[" + scriptName + "] Listener created without cleanup function. This may cause memory leaks.", pluginLogger.ORANGE);
+        }
     }
 }

@@ -149,8 +149,36 @@ public class JavascriptHelper {
                   repeat(delay, period, func) {
                     return _task.repeat(currentScriptName, scriptEngine, parseFloat(delay), parseFloat(period), { f: func });
                   },
-                  createListener(javaInterface, handlerObj) {
-                    return _task.createListener(javaInterface, scriptEngine, handlerObj);
+                  createListener(javaInterface, handlerObj, gcSet) {
+                    let isActive = true;
+                    let wrappedHandler = {};
+                
+                    if (gcSet) {
+                      for (const key in handlerObj) {
+                        const original = handlerObj[key];
+                        if (typeof original === "function") {
+                          wrappedHandler[key] = function() {
+                            if (gcSet[key] && !isActive) return;
+                            return original.apply(this, arguments);
+                          };
+                        } else {
+                          wrappedHandler[key] = original;
+                        }
+                      }
+                    } else {
+                      wrappedHandler = handlerObj;
+                      log.warn("No garbage collection instructions provided, all methods will never cleanup!");
+                    }
+                
+                    const listener = _task.createListener(currentScriptName, scriptEngine, javaInterface, wrappedHandler);
+                
+                    _task.setListenerCleanup(currentScriptName, scriptEngine, listener, {
+                      f: () => {
+                        isActive = false;
+                      }
+                    });
+                
+                    return listener;
                   }
                 });
                 """, pluginLogger.yieldKill);

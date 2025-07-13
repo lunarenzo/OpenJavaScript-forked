@@ -318,9 +318,11 @@ public class scriptWrapper {
             return;
         }
 
+        taskApi.clearListeners(scriptName);
         unregisterListenersFromScript(scriptName);
         unregisterCommands(scriptName);
         unregisterTasksFromScript(scriptName);
+
         if (placeholderApiJS != null) {
             placeholderApiJS.unregisterPlaceholder(scriptName);
         }
@@ -344,6 +346,7 @@ public class scriptWrapper {
 
             engine.getBindings(ScriptContext.ENGINE_SCOPE).clear();
             engine = null;
+            System.gc(); // I am not even sure if that will help
         }
 
         if (plugin.isEnabled()) {
@@ -386,7 +389,16 @@ public class scriptWrapper {
         }
 
         finalScript.append(scriptContent);
-        return finalScript.toString();
+
+        // Internal exception catcher
+        return """
+            try {
+                %s
+            } catch (e) {
+                _internalPluginLogger.internalException(currentScriptName, "Exception: " + e);
+                if (e && e.stack)  _internalPluginLogger.internalException(currentScriptName, "Stack: " + e.stack);
+            }
+            """.formatted(finalScript.toString());
     }
 
     public List<String> getNotLoadedScripts() {
@@ -403,7 +415,7 @@ public class scriptWrapper {
     }
 
     @SuppressWarnings("all")
-    public static class ScriptLoadResult {
+    public static class ScriptLoadResult { // this is ancient from 1.0.0 Alpha, may need to look into it
         private final boolean success;
         private final String message;
 
@@ -451,6 +463,7 @@ public class scriptWrapper {
             localScriptEngine.put("publicVarManager", PublicVarManager);
             localScriptEngine.put("_task", taskApi); // See class: JavascriptHelper
             localScriptEngine.put("_libImporter", sharedClass.LibImporterApi);
+            localScriptEngine.put("_internalPluginLogger", Logger);
             localScriptEngine.put("IsFoliaServer", FoliaSupport.isFolia());
 
             boolean LoadPapi;
