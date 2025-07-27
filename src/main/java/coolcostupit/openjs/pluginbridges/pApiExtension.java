@@ -1,5 +1,6 @@
-package coolcostupit.openjs.modules;
+package coolcostupit.openjs.pluginbridges;
 
+import coolcostupit.openjs.modules.sharedClass;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;

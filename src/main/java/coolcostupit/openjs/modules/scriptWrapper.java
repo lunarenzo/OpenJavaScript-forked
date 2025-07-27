@@ -4,6 +4,8 @@ import coolcostupit.openjs.events.ScriptLoadedEvent;
 import coolcostupit.openjs.events.ScriptUnloadedEvent;
 import coolcostupit.openjs.logging.ScriptLogger;
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.pluginbridges.PlaceHolderApiJS;
+import coolcostupit.openjs.pluginbridges.pApiExtension;
 import coolcostupit.openjs.utility.*;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;

@@ -1,6 +1,7 @@
 package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.pluginbridges.PlaceHolderApiJS;
 import coolcostupit.openjs.utility.DiskStorage;
 import coolcostupit.openjs.utility.configurationUtil;
 import org.bukkit.plugin.PluginDescriptionFile;
