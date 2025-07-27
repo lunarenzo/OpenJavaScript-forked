@@ -1,48 +1,68 @@
 package coolcostupit.openjs.utility;
 
+import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.modules.sharedClass;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
 
 public class FlagInterpreter {
 
-    // check if the flag is present in the first few lines of the script
+    private static final int SWELL_LIMIT = 10;
+
     public static boolean hasFlag(File scriptFile, String flag) {
         try (BufferedReader reader = new BufferedReader(new FileReader(scriptFile))) {
             String line;
-            int maxLinesToCheck = 5; // I might change this in the future :P
-            while ((line = reader.readLine()) != null && maxLinesToCheck > 0) {
-                if (isFlagLine(line, flag)) {
-                    return true;
-                }
-                maxLinesToCheck--;
-            }
-        } catch (IOException e) {
-            // I hate this, but I am too lazy to do it better
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    // check if the flag is present anywhere inside the script
-    public boolean containsFlag(File scriptFile, String flag) {
-        try (BufferedReader reader = new BufferedReader(new FileReader(scriptFile))) {
-            String line;
+            int swell = 0;
 
             while ((line = reader.readLine()) != null) {
-                if (isFlagLine(line, flag)) {
+                line = line.trim();
+
+                if (line.isEmpty() || line.startsWith("//")) {
+                    swell++;
+                } else if (line.startsWith("//!" + flag)) {
                     return true;
+                } else {
+                    swell++;
                 }
+
+                if (swell >= SWELL_LIMIT) break;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            sharedClass.logger.scriptlog(Level.WARNING, scriptFile.getName(), "Error during flag loading: " + e.getMessage(), pluginLogger.ORANGE);
         }
         return false;
     }
 
-    // check if a line contains the specified flag
-    private static boolean isFlagLine(String line, String flag) {
-        return line.trim().equals("//!" + flag);
+    public static List<String> getFlags(File scriptFile) {
+        List<String> flags = new ArrayList<>();
+        int swell = 0;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(scriptFile))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+
+                if (line.startsWith("//!")) {
+                    flags.add(line.substring(3).trim());
+                    swell = 0; // Reset on valid flag
+                } else if (line.isEmpty() || line.startsWith("//")) {
+                    swell++;
+                } else {
+                    swell++;
+                }
+
+                if (swell >= SWELL_LIMIT) break;
+            }
+        } catch (IOException e) {
+            sharedClass.logger.scriptlog(Level.WARNING, scriptFile.getName(), "Error during flag loading: " + e.getMessage(), pluginLogger.ORANGE);
+        }
+
+        return flags;
     }
 }

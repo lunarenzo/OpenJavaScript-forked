@@ -52,6 +52,11 @@ Version 1.2.0:
 🟩️ add better error catching to prevent scripts from freezing
 🟩️ create a system in the task library that will allow scripts to create java listeners/proxies
 🟩️ add universal cleanup for listeners/proxies
+🟩️ add internal official support for ProtocolLib
+🟩️ reduced IO operations during script loading
+🟩️ new system for loading external plugin support bridges
+- port PlaceholderApi to new BridgeEngine loader | current implementation messy
+- add commands: "documentation" and "page"
 - stop using log.info on errors, use log.scriptLog instead to catch errors more better
 - add official support for folders
 

@@ -4,6 +4,7 @@ import coolcostupit.openjs.events.ScriptLoadedEvent;
 import coolcostupit.openjs.events.ScriptUnloadedEvent;
 import coolcostupit.openjs.logging.ScriptLogger;
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.pluginbridges.BridgeLoader;
 import coolcostupit.openjs.pluginbridges.PlaceHolderApiJS;
 import coolcostupit.openjs.pluginbridges.pApiExtension;
 import coolcostupit.openjs.utility.*;
@@ -29,6 +30,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -46,6 +48,7 @@ public class scriptWrapper {
     private final Map<String, Future<?>> scriptFutures = new HashMap<>();
     private final Map<String, ScriptEngine> scriptEngines = new HashMap<>();
     private final Map<String, List<Command>> scriptCommands = new HashMap<>();
+    private static final Map<String, List<Runnable>> cleanUpMethods = new ConcurrentHashMap<>();
     private final JavaPlugin plugin;
     private final File disabledScriptsFile;
     private final pluginLogger Logger;
@@ -113,6 +116,12 @@ public class scriptWrapper {
         return runningScripts.contains(fileName);
     }
 
+    public static void addToCleanupMap(String scriptName, Runnable method) {
+        cleanUpMethods
+                .computeIfAbsent(scriptName, k -> new ArrayList<>())
+                .add(method);
+    }
+
     public List<Listener> getEventListenersFromScript(String scriptName) {
         return eventListenersMap.getOrDefault(scriptName, null);
     }
@@ -145,6 +154,19 @@ public class scriptWrapper {
                 FoliaSupport.CancelTask(taskId);
             }
             scriptTasksMap.remove(scriptName);
+        }
+    }
+
+    private static void invokeScriptCleanup(String scriptName) {
+        List<Runnable> tasks = cleanUpMethods.remove(scriptName);
+        if (tasks != null) {
+            for (Runnable cleanup : tasks) {
+                try {
+                    cleanup.run();
+                } catch (Exception e) {
+                    System.err.println("[OpenJS] Cleanup failed for script '" + scriptName + "': " + e.getMessage());
+                }
+            }
         }
     }
 
@@ -320,6 +342,7 @@ public class scriptWrapper {
             return;
         }
 
+        invokeScriptCleanup(scriptName);
         taskApi.clearListeners(scriptName);
         unregisterListenersFromScript(scriptName);
         unregisterCommands(scriptName);
@@ -449,17 +472,18 @@ public class scriptWrapper {
                 }
             }
 
-            unloadScript(scriptFile.getName());
+            String ScriptName = scriptFile.getName();
+            unloadScript(ScriptName);
 
             ScriptEngine localScriptEngine = coolcostupit.openjs.modules.ScriptEngine.getEngine();
-            scriptEngines.put(scriptFile.getName(), localScriptEngine);
+            scriptEngines.put(ScriptName, localScriptEngine);
 
             // Initialize the custom in-built stuff
             localScriptEngine.put("plugin", plugin);
             localScriptEngine.put("scriptManager", this);
             localScriptEngine.put("scriptEngine", localScriptEngine);
-            localScriptEngine.put("currentScriptName", scriptFile.getName());
-            localScriptEngine.put("log", new ScriptLogger(getLogger(), scriptFile.getName()));
+            localScriptEngine.put("currentScriptName", ScriptName);
+            localScriptEngine.put("log", new ScriptLogger(getLogger(), ScriptName));
             localScriptEngine.put("variableStorage", variableStorage);
             localScriptEngine.put("DiskStorage", sharedClass.DiskStorageApi);
             localScriptEngine.put("publicVarManager", PublicVarManager);
@@ -538,28 +562,33 @@ public class scriptWrapper {
                     }
 
                     localScriptEngine.eval(JavascriptHelper.JAVASCRIPT_CODE);
+                    List BridgesToLoad = FlagInterpreter.getFlags(scriptFile);
+
+                    if (!BridgesToLoad.isEmpty()) {
+                        BridgeLoader.loadBridges(BridgesToLoad, ScriptName, localScriptEngine);
+                    }
 
                     String processedScript = preprocessScript(scriptFile, localScriptEngine);
                     localScriptEngine.eval(processedScript);
                     if (configUtil.getConfigFromBuffer("PrintScriptActivations", true)) {
-                        Logger.log(Level.INFO, "Loaded the script " + scriptFile.getName(), pluginLogger.GREEN);
+                        Logger.log(Level.INFO, "Loaded the script " + ScriptName, pluginLogger.GREEN);
                     }
                     FoliaSupport.runTaskSynchronously(plugin, () -> //plugin.getServer().getScheduler().runTask(plugin, () ->
-                            plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(scriptFile.getName())));
+                            plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(ScriptName)));
                 } catch (IOException | ScriptException e) {
-                    Logger.scriptlog(Level.WARNING,  scriptFile.getName(), "Failed to load script " + e.getMessage(), pluginLogger.ORANGE);
+                    Logger.scriptlog(Level.WARNING,  ScriptName, "Failed to load script " + e.getMessage(), pluginLogger.ORANGE);
                 }
             });
 
-            if (!activeFiles.contains(scriptFile.getName())) {
-                activeFiles.add(scriptFile.getName());
+            if (!activeFiles.contains(ScriptName)) {
+                activeFiles.add(ScriptName);
             }
 
-            if (!runningScripts.contains(scriptFile.getName())) {
-                runningScripts.add(scriptFile.getName());
+            if (!runningScripts.contains(ScriptName)) {
+                runningScripts.add(ScriptName);
             }
 
-            scriptFutures.put(scriptFile.getName(), future);
+            scriptFutures.put(ScriptName, future);
             return new ScriptLoadResult(true, "Script loaded successfully.");
         }
         return new ScriptLoadResult(false, "Invalid script file.");

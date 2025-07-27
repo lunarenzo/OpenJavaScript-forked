@@ -1,17 +1,27 @@
 name: OpenJS
+author: coolcostupit
+website: https://modrinth.com/plugin/openjavascript/version/latest
+
 version: '${project.version}'
 main: coolcostupit.openjs.OpenJSPlugin
-author: coolcostupit
 api-version: '1.13'
+load: POSTWORLD
 folia-supported: true
+
 softdepend:
   - PlaceholderAPI
+  - ProtocolLib
+
 commands:
   oj:
     description: OpenJS command
     usage: /<command>
     permission: openjs.use
   openjavascript:
+    description: OpenJS command
+    usage: /<command>
+    permission: openjs.use
+  openjs:
     description: OpenJS command
     usage: /<command>
     permission: openjs.use
