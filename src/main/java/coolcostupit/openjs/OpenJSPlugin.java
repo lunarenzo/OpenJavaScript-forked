@@ -24,6 +24,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.util.*;
@@ -198,16 +199,19 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
     private void sendUsageMessage(CommandSender sender, String label) {
         sender.sendMessage(chatColors.LIGHT_PURPLE + "Usage: /" + label + " <command>");
-        sender.sendMessage(chatColors.LIGHT_PURPLE + "/" + label + " version <-- will output the version of this plugin");
-        sender.sendMessage(chatColors.LIGHT_PURPLE + "/" + label + " reload <script>(optional) <-- will reload the script");
-        sender.sendMessage(chatColors.LIGHT_PURPLE + "/" + label + " load <script> <-- will load the script");
-        sender.sendMessage(chatColors.LIGHT_PURPLE + "/" + label + " enable <disabled_script> <-- will enable the disabled script");
-        sender.sendMessage(chatColors.LIGHT_PURPLE + "/" + label + " disable <enabled_script> <-- will disable the enabled script");
-        sender.sendMessage(chatColors.LIGHT_PURPLE + "/" + label + " list *(enabled/disabled/not_loaded) <-- will list the specified parameter");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + "Available commands:");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " version               " + chatColors.GRAY + "» Shows the plugin version");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " wiki | documentation  " + chatColors.GRAY + "» Shows the documentation link");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " download              " + chatColors.GRAY + "» Shows the latest download link");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " reload [script]       " + chatColors.GRAY + "» Reloads a specific script or all scripts");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " load <script>         " + chatColors.GRAY + "» Loads a script by name");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " enable <script>       " + chatColors.GRAY + "» Enables a disabled script");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " disable <script>      " + chatColors.GRAY + "» Disables an enabled script");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " list <type>           " + chatColors.GRAY + "» Lists scripts by type: enabled, disabled, or not_loaded");
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
         if (args.length == 0) {
             sendUsageMessage(sender, label);
             return true;
@@ -216,6 +220,12 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             return true;
         } else if ("version".equalsIgnoreCase(args[0])) {
             sender.sendMessage(chatColors.LIGHT_BLUE + "Version: " + sharedClass.PluginDescription.getVersion());
+            return true;
+        } else if ("documentation".equalsIgnoreCase(args[0]) | "wiki".equalsIgnoreCase(args[0])) {
+            sender.sendMessage(pluginLinks.getLink("wiki"));
+            return true;
+        } else if ("download".equalsIgnoreCase(args[0])) {
+            sender.sendMessage(pluginLinks.getLink("download"));
             return true;
         } else if (args.length == 1 && "list".equalsIgnoreCase(args[0])) {
             list_enabled_scripts(sender);
@@ -328,9 +338,21 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String[] args) {
         List<String> completions = new ArrayList<>();
         if (args.length == 1) {
+            if ("version".startsWith(args[0].toLowerCase())) {
+                completions.add("version");
+            }
+            if ("wiki".startsWith(args[0].toLowerCase())) {
+                completions.add("wiki");
+            }
+            if ("documentation".startsWith(args[0].toLowerCase())) {
+                completions.add("documentation");
+            }
+            if ("download".startsWith(args[0].toLowerCase())) {
+                completions.add("download");
+            }
             if ("reload".startsWith(args[0].toLowerCase())) {
                 completions.add("reload");
             }

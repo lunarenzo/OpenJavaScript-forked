@@ -59,10 +59,14 @@ Version 1.2.0:
 🟩️ Lazy load PlaceholderApi support
 🟩️ fix "nullFailed to unregister all script commands"
 🟩️ add removePlaceholder(String : prefix) for scripts
-- add commands: "documentation" and "page"
+🟩️ add commands: "documentation" and "page"
+🟩️ add missing tab-completion version
+🟩️ stop using log.info on errors, use log.scriptLog instead to catch errors more better
+🟩️ fix missing script source name on rare error cases ( ghost errors )
+- update documentation, add missing things: getMethod, removePlaceholder, ProtocolLib, internal variables
 
 Version 1.3.0:
 - add official support for folders
-- stop using log.info on errors, use log.scriptLog instead to catch errors more better
+- add Overwrite variable to custom commands (force overwrites plugin scripts)
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==

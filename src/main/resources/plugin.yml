@@ -1,6 +1,5 @@
 name: OpenJS
 author: coolcostupit
-website: https://modrinth.com/plugin/openjavascript/version/latest
 
 version: '${project.version}'
 main: coolcostupit.openjs.OpenJSPlugin

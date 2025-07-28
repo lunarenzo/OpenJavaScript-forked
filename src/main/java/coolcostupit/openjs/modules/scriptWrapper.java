@@ -13,12 +13,14 @@ import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.pluginbridges.BridgeLoader;
 import coolcostupit.openjs.utility.*;
 import org.bukkit.Bukkit;
-import org.bukkit.command.*;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandMap;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
-
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.json.simple.JSONArray;
@@ -26,8 +28,8 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import javax.annotation.Nullable;
-import javax.script.*;
 import javax.script.ScriptEngine;
+import javax.script.*;
 import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -40,7 +42,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 
-import static org.bukkit.Bukkit.*;
+import static org.bukkit.Bukkit.getLogger;
+import static org.bukkit.Bukkit.getServer;
 
 // this is the main stuff, but I haven't added many to no comments because I was way too focused when coding all that
 public class scriptWrapper {
@@ -114,9 +117,7 @@ public class scriptWrapper {
     }
 
     public static void addToCleanupMap(String scriptName, Runnable method) {
-        cleanUpMethods
-                .computeIfAbsent(scriptName, k -> new ArrayList<>())
-                .add(method);
+        cleanUpMethods.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(method);
     }
 
     public List<Listener> getEventListenersFromScript(String scriptName) {
@@ -161,7 +162,7 @@ public class scriptWrapper {
                 try {
                     cleanup.run();
                 } catch (Exception e) {
-                    System.err.println("[OpenJS] Cleanup failed for script '" + scriptName + "': " + e.getMessage());
+                    sharedClass.logger.scriptlog(Level.INFO, scriptName, "External plugin methods cleanup failed: " + e.getMessage(), pluginLogger.ORANGE);
                 }
             }
         }
@@ -267,16 +268,16 @@ public class scriptWrapper {
                     boolean Unregistered = dynamicCommand.unregister(commandMap);
                     if (Unregistered) {
                         if (configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true)) {
-                            Logger.log(Level.INFO, "[" + scriptName + "] Unregistered command: " + dynamicCommand.getName(), pluginLogger.GREEN);
+                            Logger.scriptlog(Level.INFO, scriptName, "Unregistered command: " + dynamicCommand.getName(), pluginLogger.GREEN);
                         }
                         invokeSyncCommands();
                     } else {
-                        Logger.log(Level.INFO, "[" + scriptName + "] Failed to unregister command: " + dynamicCommand.getName(), pluginLogger.GREEN);
+                        Logger.scriptlog(Level.INFO, scriptName, "Failed to unregister command: " + dynamicCommand.getName(), pluginLogger.ORANGE);
                     }
                 }
             } catch (Exception e) {
-                Logger.log(Level.SEVERE, "Failed to unregister commands for script: " + scriptName + " " + e, pluginLogger.ORANGE);
-                Logger.log(Level.SEVERE, e.getMessage(), pluginLogger.RED);
+                Logger.scriptlog(Level.SEVERE, scriptName, "Failed to unregister commands: " + e, pluginLogger.RED);
+                Logger.scriptlog(Level.SEVERE, scriptName, e.getMessage(), pluginLogger.RED);
             }
         }
     }
@@ -290,7 +291,7 @@ public class scriptWrapper {
             }
             scriptCommands.clear();
         } catch (Exception e) {
-            Logger.log(Level.SEVERE, "Failed to unregister all script commands: " + e.toString(), pluginLogger.ORANGE);
+            Logger.log(Level.SEVERE, "Failed to unregister all script commands: " + e.getMessage(), pluginLogger.ORANGE);
         }
     }
 
@@ -358,7 +359,7 @@ public class scriptWrapper {
                 try {
                     invocable.invokeFunction("_unloadThis");
                 } catch (NoSuchMethodException | ScriptException e) {
-                    Logger.log(Level.WARNING, "[" + scriptName + "] Failed to garbage collect: " + e.getMessage(), pluginLogger.RED);
+                    Logger.scriptlog(Level.WARNING, scriptName, "Failed to garbage collect: " + e.getMessage(), pluginLogger.RED);
                 }
             }
 
@@ -402,7 +403,7 @@ public class scriptWrapper {
                 String simpleName = clazz.getSimpleName();
                 scriptEngine.put(simpleName, clazz);
             } catch (ClassNotFoundException e) {
-                Logger.log(Level.WARNING, "Class not found for import: " + importStatement, pluginLogger.ORANGE);
+                Logger.scriptlog(Level.WARNING, scriptFile.getName(), "Class not found for import: " + importStatement, pluginLogger.ORANGE);
             }
         }
 
@@ -599,7 +600,7 @@ public class scriptWrapper {
                         ((Invocable) scriptEngine).invokeMethod(commandHandler, "onCommand", sender, args);
                     } catch (Exception e) {
                         sender.sendMessage(chatColors.RED + "An error occurred while executing the command: " + e.getMessage());
-                        Logger.log(Level.SEVERE, "Error in script command execution for " + commandName + ": " + e.getMessage(), pluginLogger.ORANGE);
+                        Logger.scriptlog(Level.SEVERE, scriptName, "Error in script command execution for " + commandName + ": " + e.getMessage(), pluginLogger.ORANGE);
                     }
                     return true;
                 }
@@ -610,7 +611,7 @@ public class scriptWrapper {
                         try {
                             return (List<String>) ((Invocable) scriptEngine).invokeMethod(commandHandler, "onTabComplete", sender, args);
                         } catch (Exception e) {
-                            Logger.log(Level.WARNING, "[" + scriptName + "] Error during tab-completion for command " + commandName + ": " + e.getMessage(), pluginLogger.ORANGE);
+                            Logger.scriptlog(Level.WARNING, scriptName, "] Error during tab-completion for command " + commandName + ": " + e.getMessage(), pluginLogger.ORANGE);
                         }
                     }
                     return super.tabComplete(sender, alias, args);
@@ -629,7 +630,7 @@ public class scriptWrapper {
                 Logger.log(Level.INFO, "[" + scriptName + "] Registered command: " + commandName, pluginLogger.GREEN);
             }
         } catch (Exception e) {
-            Logger.log(Level.SEVERE, "[" + scriptName + "] Failed to register command " + commandName + ": " + e.getMessage(), pluginLogger.RED);
+            Logger.scriptlog(Level.SEVERE, scriptName, "Failed to register command " + commandName + ": " + e.getMessage(), pluginLogger.RED);
         }
     }
 
@@ -646,6 +647,7 @@ public class scriptWrapper {
         }
     }
 
+    // TODO: Remove in 1.1.3 (In favor of taskApi)
     @SuppressWarnings("all")
     public void registerSchedule(String scriptName, long delay, long period, Object handler, ScriptEngine scriptEngine, String methodName) {
         Logger.scriptlog(Level.WARNING, scriptName, "Do not use registerSchedule! This will get removed soon, use task.repeat instead!", pluginLogger.ORANGE);
@@ -660,10 +662,8 @@ public class scriptWrapper {
         int taskId;
         if (period > 0) {
             taskId = FoliaSupport.ScheduleRepeatingTask(plugin, task, delay, period);
-            //taskId = plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, task, delay, period);
         } else {
             taskId = FoliaSupport.ScheduleTask(plugin, task, delay);
-            //taskId = plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, task, delay);
         }
 
         scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
@@ -686,10 +686,10 @@ public class scriptWrapper {
 
                 eventListenersMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(listener);
             } else {
-                Logger.log(Level.WARNING, "Class " + eventClassName + " is not an Event.", pluginLogger.ORANGE);
+                Logger.scriptlog(Level.WARNING, scriptName, "Class " + eventClassName + " is not an Event.", pluginLogger.ORANGE);
             }
         } catch (ClassNotFoundException e) {
-            Logger.log(Level.WARNING, "Failed to register event " + eventClassName + ": " + e.getMessage(), pluginLogger.ORANGE);
+            Logger.scriptlog(Level.WARNING, scriptName, "Failed to register event " + eventClassName + ": " + e.getMessage(), pluginLogger.ORANGE);
         }
     }
 }
