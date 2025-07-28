@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 coolcostupit
+ * Licensed under AGPL-3.0
+ * You may not remove this notice or claim this work as your own.
+ */
+
 package coolcostupit.openjs.foliascheduler.util;
 
 /**

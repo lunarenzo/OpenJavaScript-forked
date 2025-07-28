@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 coolcostupit
+ * Licensed under AGPL-3.0
+ * You may not remove this notice or claim this work as your own.
+ */
+
 package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.events.ScriptLoadedEvent;
@@ -5,8 +11,6 @@ import coolcostupit.openjs.events.ScriptUnloadedEvent;
 import coolcostupit.openjs.logging.ScriptLogger;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.pluginbridges.BridgeLoader;
-import coolcostupit.openjs.pluginbridges.PlaceHolderApiJS;
-import coolcostupit.openjs.pluginbridges.pApiExtension;
 import coolcostupit.openjs.utility.*;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;
@@ -42,7 +46,6 @@ import static org.bukkit.Bukkit.*;
 public class scriptWrapper {
     private boolean scriptsReady = false;
     private boolean hasInit = false;
-    private PlaceHolderApiJS placeholderApiJS;
     private final Map<String, List<Listener>> eventListenersMap = new HashMap<>();
     public final Map<String, List<Integer>> scriptTasksMap = new HashMap<>();
     private final Map<String, Future<?>> scriptFutures = new HashMap<>();
@@ -72,12 +75,6 @@ public class scriptWrapper {
 
         // Experimental flag to enable ECMAScript 6.0
         System.setProperty("nashorn.args", "--language=es6");
-
-        if (sharedClass.IsPapiLoaded) {
-            new pApiExtension().register();
-            this.placeholderApiJS = new PlaceHolderApiJS();
-            sharedClass.PlaceHolderApiJavascript = placeholderApiJS;
-        }
 
         // Initialize script system on first use
         if (!hasInit) {
@@ -288,12 +285,12 @@ public class scriptWrapper {
     // Unregister all dynamically registered commands
     public void unregisterAllScriptCommands() {
         try {
-            for (String scriptName : scriptCommands.keySet()) {
+            for (String scriptName : new ArrayList<>(scriptCommands.keySet())) {
                 unregisterCommands(scriptName);
             }
             scriptCommands.clear();
         } catch (Exception e) {
-            Logger.log(Level.SEVERE, "Failed to unregister all script commands.", e.getMessage());
+            Logger.log(Level.SEVERE, "Failed to unregister all script commands: " + e.toString(), pluginLogger.ORANGE);
         }
     }
 
@@ -347,10 +344,6 @@ public class scriptWrapper {
         unregisterListenersFromScript(scriptName);
         unregisterCommands(scriptName);
         unregisterTasksFromScript(scriptName);
-
-        if (placeholderApiJS != null) {
-            placeholderApiJS.unregisterPlaceholder(scriptName);
-        }
 
         Future<?> future = scriptFutures.remove(scriptName);
         if (future != null) {
@@ -492,15 +485,6 @@ public class scriptWrapper {
             localScriptEngine.put("_internalPluginLogger", Logger);
             localScriptEngine.put("IsFoliaServer", FoliaSupport.isFolia());
 
-            boolean LoadPapi;
-
-            if (sharedClass.IsPapiLoaded && FlagInterpreter.hasFlag(scriptFile, "PlaceholderAPI")) {
-                localScriptEngine.put("PlaceholderAPI_", placeholderApiJS);
-                LoadPapi = true;
-            } else {
-                LoadPapi = false;
-            }
-
             Future<?> future = executorService.submit(() -> {
                 try {
                     // Developer protections and memory optimization (just a myth but freezing in-build variables should decrease memory overhead)
@@ -545,20 +529,6 @@ public class scriptWrapper {
                         if (FlagInterpreter.hasFlag(scriptFile, "waitForInit")) {
                             localScriptEngine.eval("scriptManager.waitForInit()");
                         }
-                    }
-
-                    if (LoadPapi) {
-                        localScriptEngine.eval("""
-                                const PlaceholderAPI = {
-                                    registerPlaceholder: function(placeholderPrefix, handler) {
-                                        PlaceholderAPI_.registerPlaceholder(placeholderPrefix, handler, currentScriptName, scriptEngine);
-                                    },
-                                    parseString: function(player, text) {
-                                        return PlaceholderAPI_.parseString(player, text);
-                                    }
-                                }
-                                Object.freeze(PlaceholderAPI);
-                                """);
                     }
 
                     localScriptEngine.eval(JavascriptHelper.JAVASCRIPT_CODE);

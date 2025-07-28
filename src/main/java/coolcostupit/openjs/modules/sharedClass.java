@@ -1,7 +1,12 @@
+/*
+ * Copyright (c) 2025 coolcostupit
+ * Licensed under AGPL-3.0
+ * You may not remove this notice or claim this work as your own.
+ */
+
 package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.logging.pluginLogger;
-import coolcostupit.openjs.pluginbridges.PlaceHolderApiJS;
 import coolcostupit.openjs.utility.DiskStorage;
 import coolcostupit.openjs.utility.configurationUtil;
 import org.bukkit.plugin.PluginDescriptionFile;
@@ -16,7 +21,6 @@ public class sharedClass {
     public static pluginLogger logger;
     public static JavaPlugin plugin;
     public static String Identifier;
-    public static PlaceHolderApiJS PlaceHolderApiJavascript;
     public static DiskStorage DiskStorageApi;
     public static ExecutorService TaskThreadPool;
     public static LibImporterApi LibImporterApi;

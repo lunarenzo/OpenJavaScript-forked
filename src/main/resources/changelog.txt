@@ -55,9 +55,14 @@ Version 1.2.0:
 🟩️ add internal official support for ProtocolLib
 🟩️ reduced IO operations during script loading
 🟩️ new system for loading external plugin support bridges
-- port PlaceholderApi to new BridgeEngine loader | current implementation messy
+🟩️ port PlaceholderApi to new BridgeEngine loader | current implementation messy
+🟩️ Lazy load PlaceholderApi support
+🟩️ fix "nullFailed to unregister all script commands"
+🟩️ add removePlaceholder(String : prefix) for scripts
 - add commands: "documentation" and "page"
-- stop using log.info on errors, use log.scriptLog instead to catch errors more better
+
+Version 1.3.0:
 - add official support for folders
+- stop using log.info on errors, use log.scriptLog instead to catch errors more better
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 coolcostupit
+ * Licensed under AGPL-3.0
+ * You may not remove this notice or claim this work as your own.
+ */
+
 package coolcostupit.openjs.pluginbridges;
 
 import coolcostupit.openjs.logging.pluginLogger;
@@ -47,7 +53,19 @@ public class PlaceHolderApiJS {
         }
     }
 
-    public void unregisterPlaceholder(String scriptName) {
+    public boolean unregisterPlaceholder(String prefix, String scriptName) {
+        PlaceholderData data = registeredPlaceholders.get(prefix);
+        if (data != null && data.scriptName.equals(scriptName)) {
+            registeredPlaceholders.remove(prefix);
+            if (sharedClass.configUtil.getConfigFromBuffer("LogPlaceHolderActivity", true)) {
+                sharedClass.logger.log(Level.INFO, "[" + scriptName + "] Placeholder %" + sharedClass.Identifier + "_" + prefix + "% has been unregistered.", pluginLogger.LIGHT_BLUE);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public void unregisterPlaceholders(String scriptName) {
         registeredPlaceholders.entrySet().removeIf(entry -> {
             boolean match = entry.getValue().scriptName.equals(scriptName);
             if (match) {

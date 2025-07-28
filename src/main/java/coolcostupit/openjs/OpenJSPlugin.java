@@ -1,7 +1,14 @@
+/*
+ * Copyright (c) 2025 coolcostupit
+ * Licensed under AGPL-3.0
+ * You may not remove this notice or claim this work as your own.
+ */
+
 package coolcostupit.openjs;
 
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.*;
+import coolcostupit.openjs.pluginbridges.pApiExtension;
 import coolcostupit.openjs.utility.*;
 import coolcostupit.openjs.logging.OpsLogger;
 
@@ -62,6 +69,10 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sharedClass.Identifier = this.getName().toLowerCase();
         sharedClass.DiskStorageApi = DiskStorageApi;
         sharedClass.LibImporterApi = new LibImporterApi();
+
+        if (sharedClass.IsPapiLoaded) {
+            new pApiExtension().register();
+        }
 
         this.scriptWrapper = new scriptWrapper(this, configUtil);
         this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);

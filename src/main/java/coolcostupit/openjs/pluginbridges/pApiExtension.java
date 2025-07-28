@@ -1,5 +1,12 @@
+/*
+ * Copyright (c) 2025 coolcostupit
+ * Licensed under AGPL-3.0
+ * You may not remove this notice or claim this work as your own.
+ */
+
 package coolcostupit.openjs.pluginbridges;
 
+import coolcostupit.openjs.BridgeLoaders.PlaceholderAPI;
 import coolcostupit.openjs.modules.sharedClass;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.entity.Player;
@@ -41,6 +48,6 @@ public class pApiExtension extends PlaceholderExpansion {
             param = params.substring(underscore + 1);
         }
 
-        return sharedClass.PlaceHolderApiJavascript.invokePrefix(prefix, player, param);
+        return PlaceholderAPI.placeholderApiJS.invokePrefix(prefix, player, param);
     }
 }

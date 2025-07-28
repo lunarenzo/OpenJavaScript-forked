@@ -1,4 +1,10 @@
 /*
+ * Copyright (c) 2025 coolcostupit
+ * Licensed under AGPL-3.0
+ * You may not remove this notice or claim this work as your own.
+ */
+
+/*
  * This Metrics class was auto-generated and can be copied into your project if you are
  * not using a build tool like Gradle or Maven for dependency management.
  *
