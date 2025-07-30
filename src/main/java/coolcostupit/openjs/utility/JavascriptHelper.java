@@ -195,17 +195,22 @@ public class JavascriptHelper {
         JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE +
                 (sharedClass.configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true)
                         ?
-                        "const registerEvent = function(eventClass, handler) {" +
-                        "   var wrappedHandler;" +
-                        "   if (typeof handler === 'function') {" +
-                        "       wrappedHandler = { handleEvent: handler };" +
-                        "   } else if (handler && typeof handler.handleEvent === 'function') {" +
-                        "       wrappedHandler = handler;" +
-                        "   } else {" +
-                        "       log.error('Invalid handler: must be a function or an object with a handleEvent method.');" +
-                        "   }" +
-                        "   scriptManager.registerEvent(eventClass, wrappedHandler, currentScriptName, scriptEngine);" +
-                        "};"
+                        """
+                            const registerEvent = function(eventClass, handler) {
+                               var wrappedHandler;
+                               if (typeof handler === 'function') {
+                                   wrappedHandler = { handleEvent: handler };
+                               } else if (handler && typeof handler.handleEvent === 'function') {
+                                   wrappedHandler = handler;
+                               } else {
+                                   log.error('Invalid handler: must be a function or an object with a handleEvent method.');
+                               }
+                               return scriptManager.registerEvent(eventClass, wrappedHandler, currentScriptName, scriptEngine);
+                            };
+                            const unregisterEvent = function(Listener) {
+                                scriptManager.unregisterListener(Listener, currentScriptName)
+                            }
+                            """
                         : "") +
                 (sharedClass.configUtil.getConfigFromBuffer("LoadCustomScheduler", true)
                         ? // TODO: Remove in next major update

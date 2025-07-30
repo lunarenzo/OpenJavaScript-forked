@@ -63,7 +63,10 @@ Version 1.2.0:
 🟩️ add missing tab-completion version
 🟩️ stop using log.info on errors, use log.scriptLog instead to catch errors more better
 🟩️ fix missing script source name on rare error cases ( ghost errors )
-- update documentation, add missing things: getMethod, removePlaceholder, ProtocolLib, internal variables
+🟩️ lift/remove feature flags limit
+🟩️ add missing unregisterEvent() method
+🟩️ update documentation, add missing things: getMethod, removePlaceholder, ProtocolLib, internal variables
+ - why did the update and up being so large lmao
 
 Version 1.3.0:
 - add official support for folders

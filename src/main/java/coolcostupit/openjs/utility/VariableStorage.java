@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 
+// TODO: Remove in 1.3.0 (Deprecated due to memory leak)
 @SuppressWarnings("all")
 public class VariableStorage {
     private final JavaPlugin plugin;

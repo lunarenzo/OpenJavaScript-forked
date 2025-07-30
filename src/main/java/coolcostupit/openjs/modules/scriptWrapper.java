@@ -474,7 +474,7 @@ public class scriptWrapper {
 
             // Initialize the custom in-built stuff
             localScriptEngine.put("plugin", plugin);
-            localScriptEngine.put("scriptManager", this);
+            localScriptEngine.put("scriptManager", this); // TODO: Try to lazy-load this, loading it on every script is memory intensive
             localScriptEngine.put("scriptEngine", localScriptEngine);
             localScriptEngine.put("currentScriptName", ScriptName);
             localScriptEngine.put("log", new ScriptLogger(getLogger(), ScriptName));
@@ -670,7 +670,7 @@ public class scriptWrapper {
     }
 
     @SuppressWarnings("unused")
-    public void registerEvent(String eventClassName, Object handler, String scriptName, ScriptEngine scriptEngine) {
+    public Listener registerEvent(String eventClassName, Object handler, String scriptName, ScriptEngine scriptEngine) {
         try {
             Class<?> eventClass = Class.forName(eventClassName);
             if (Event.class.isAssignableFrom(eventClass)) {
@@ -680,16 +680,19 @@ public class scriptWrapper {
                     try {
                         ((Invocable) scriptEngine).invokeMethod(handler, "handleEvent", e);
                     } catch (ScriptException | NoSuchMethodException ex) {
-                        Logger.log(Level.SEVERE, "["+scriptName+"] " + ex.getMessage(), pluginLogger.RED);
+                        Logger.log(Level.SEVERE, "[" + scriptName + "] " + ex.getMessage(), pluginLogger.RED);
                     }
                 }, plugin);
 
                 eventListenersMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(listener);
+                return listener;
             } else {
                 Logger.scriptlog(Level.WARNING, scriptName, "Class " + eventClassName + " is not an Event.", pluginLogger.ORANGE);
             }
         } catch (ClassNotFoundException e) {
             Logger.scriptlog(Level.WARNING, scriptName, "Failed to register event " + eventClassName + ": " + e.getMessage(), pluginLogger.ORANGE);
         }
+        return null;
     }
+
 }
