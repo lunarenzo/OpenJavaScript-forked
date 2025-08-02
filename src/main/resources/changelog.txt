@@ -71,5 +71,8 @@ Version 1.2.0:
 Version 1.3.0:
 - add official support for folders
 - add Overwrite variable to custom commands (force overwrites plugin scripts)
+- make the cache do not drop instantly, only drop the cache after completing I/O Operation
+- add FileApi for IO operations inside scripts within the plugin folder
+- on script errors/exceptions use ERROR() instead of WARN()
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==
