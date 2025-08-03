@@ -117,7 +117,12 @@ public class JavascriptHelper {
                     DiskStorage.saveFile(fileName, async, currentScriptName, global);
                   },
                   getVar(fileName, valueName, fallbackValue, global) {
-                    return JSON.parse(DiskStorage.getValue(currentScriptName, global, fileName, valueName, fallbackValue));
+                    let rawData = DiskStorage.getValue(currentScriptName, global, fileName, valueName, fallbackValue)
+                    if (rawData) {
+                        return JSON.parse(rawData)
+                    } else {
+                        return fallbackValue
+                    }
                   },
                   setVar(fileName, valueName, value, global) {
                     DiskStorage.setValue(currentScriptName, global, fileName, valueName, JSON.stringify(value));

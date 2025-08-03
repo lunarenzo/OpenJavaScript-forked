@@ -19,6 +19,7 @@ public class DiskStorage {
 
     private final File SAVE_DIR;
     private static final Map<String, Map<String, String>> cache = new ConcurrentHashMap<>();
+    private static final Map<String, Set<String>> privateCache = new ConcurrentHashMap<>();
     private static final Set<String> filesBeingSaved = ConcurrentHashMap.newKeySet();
 
     public DiskStorage(JavaPlugin Plugin) {
@@ -73,6 +74,9 @@ public class DiskStorage {
             }
 
             cache.put(fullName, fileData);
+            if (!global) {
+                privateCache.computeIfAbsent(scriptName, k -> ConcurrentHashMap.newKeySet()).add(fullName);
+            }
         };
 
         if (async) {
@@ -80,6 +84,17 @@ public class DiskStorage {
         } else {
             task.run();
         }
+    }
+
+    public void saveCaches(String scriptName) {
+        Set<String> files = privateCache.get(scriptName);
+        if (files == null) return;
+
+        for (String fullName : files) {
+            saveFile(fullName, false, "", true);
+        }
+
+        files.clear();
     }
 
     public void saveFile(String fileName, boolean async, String scriptName, boolean global) {
@@ -112,12 +127,18 @@ public class DiskStorage {
     public String getValue(String scriptName, boolean global, String fileName, String valueName, String fallbackValue) {
         String fullName = (global ? fileName : scriptName + "_" + fileName).replaceAll("[^a-zA-Z0-9._-]", "_");
         Map<String, String> fileCache = cache.get(fullName);
-        if (fileCache == null) return fallbackValue;
         return fileCache.getOrDefault(valueName, fallbackValue);
     }
 
     public void setValue(String scriptName, boolean global, String fileName, String valueName, String value) {
         String fullName = (global ? fileName : scriptName + "_" + fileName).replaceAll("[^a-zA-Z0-9._-]", "_");
-        cache.computeIfAbsent(fullName, k -> new ConcurrentHashMap<>()).put(valueName, value);
+        if ("null".equals(value)) {
+            Map<String, String> map = cache.get(fullName);
+            if (map != null) {
+                map.remove(valueName);
+            }
+        } else {
+            cache.computeIfAbsent(fullName, k -> new ConcurrentHashMap<>()).put(valueName, value);
+        }
     }
 }

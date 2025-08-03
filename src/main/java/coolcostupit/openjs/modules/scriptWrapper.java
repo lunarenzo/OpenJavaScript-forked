@@ -345,6 +345,7 @@ public class scriptWrapper {
         unregisterListenersFromScript(scriptName);
         unregisterCommands(scriptName);
         unregisterTasksFromScript(scriptName);
+        sharedClass.DiskStorageApi.saveCaches(scriptName); // ASYNC ?=> yields
 
         Future<?> future = scriptFutures.remove(scriptName);
         if (future != null) {
