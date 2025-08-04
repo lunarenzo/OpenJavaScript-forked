@@ -1,3 +1,7 @@
+# Acknowledgements
+This project is sponsored by **[GitBook](https://www.gitbook.com/)** through their Community plan.
+Huge thanks to GitBook for sponsoring open source projects like this one!
+
 # OpenJS
 
 **OpenJS** is a plugin for Minecraft servers (compatible with Bukkit-based APIs including Folia) that allows server logic to be written in JavaScript instead of Java. It acts as an embedded scripting engine with direct integration into the server environment.
