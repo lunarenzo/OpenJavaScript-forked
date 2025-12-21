@@ -7,8 +7,10 @@
 package coolcostupit.openjs.pluginbridges;
 
 import coolcostupit.openjs.BridgeLoaders.PlaceholderAPI;
+import coolcostupit.openjs.Services.PlaceholderApiService;
 import coolcostupit.openjs.modules.sharedClass;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -48,6 +50,34 @@ public class pApiExtension extends PlaceholderExpansion {
             param = params.substring(underscore + 1);
         }
 
-        return PlaceholderAPI.placeholderApiJS.invokePrefix(prefix, player, param);
+        // TODO: Set this to PlaceholderApiService in 1.4.0 when deprecated stuff is getting removed
+        if (PlaceholderAPI.placeholderApiJS == null) {
+            return PlaceholderApiService.backend.invokePrefix(prefix, player, param);
+        } else {
+            return PlaceholderAPI.placeholderApiJS.invokePrefix(prefix, player, param);
+        }
+    }
+
+    @Override
+    public String onRequest(OfflinePlayer player, @NotNull String params) {
+        String prefix;
+        String param;
+
+        int underscore = params.indexOf('_');
+        if (underscore == -1) {
+            // No params found
+            prefix = params;
+            param = "";
+        } else {
+            prefix = params.substring(0, underscore);
+            param = params.substring(underscore + 1);
+        }
+
+        // TODO: Set this to PlaceholderApiService in 1.4.0 when deprecated stuff is getting removed
+        if (PlaceholderAPI.placeholderApiJS == null) {
+            return PlaceholderApiService.backend.invokePrefixOffline(prefix, player, param);
+        } else {
+            return PlaceholderAPI.placeholderApiJS.invokePrefixOffline(prefix, player, param);
+        }
     }
 }

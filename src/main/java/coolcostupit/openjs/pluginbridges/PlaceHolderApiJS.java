@@ -9,6 +9,7 @@ package coolcostupit.openjs.pluginbridges;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.sharedClass;
 import me.clip.placeholderapi.PlaceholderAPI;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -19,7 +20,9 @@ import java.util.Map;
 import java.util.logging.Level;
 
 public class PlaceHolderApiJS {
-    private static final Map<String, PlaceholderData> registeredPlaceholders = new HashMap<>();
+    // Thread safe
+    private static final Map<String, PlaceholderData> registeredPlaceholders = new java.util.concurrent.ConcurrentHashMap<>();
+
 
     public static class PlaceholderData {
         public final Object handler;
@@ -78,6 +81,17 @@ public class PlaceHolderApiJS {
     }
 
     public String invokePrefix(String prefix, Player player, String params) {
+        PlaceholderData data = registeredPlaceholders.get(prefix);
+        if (data == null) return null;
+        try {
+            return (String) ((Invocable) data.engine).invokeMethod(data.handler, "onRequest", player, params);
+        } catch (Exception e) {
+            sharedClass.logger.log(Level.SEVERE, "[" + data.scriptName + "] Error invoking placeholder %" + sharedClass.Identifier + "_" + prefix + "% reason: " + e.getMessage(), pluginLogger.RED);
+            return null;
+        }
+    }
+
+    public String invokePrefixOffline(String prefix, OfflinePlayer player, String params) {
         PlaceholderData data = registeredPlaceholders.get(prefix);
         if (data == null) return null;
         try {

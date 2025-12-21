@@ -12,3 +12,4 @@ public interface ScriptService {
     Object load(String scriptName, ScriptEngine engine);
     default void unload(String scriptName) {}
 }
+

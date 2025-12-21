@@ -30,7 +30,7 @@ public class BridgeLoader {
                 Object bridgeInstance = clazz.getDeclaredConstructor().newInstance(); // Create an instance (must have public no-arg constructor)
                 Method loadMethod = clazz.getMethod("Load", String.class, ScriptEngine.class);
                 loadMethod.invoke(bridgeInstance, scriptName, engine);
-                //Logger.scriptlog(Level.INFO, scriptName, "[BridgeLoader] Loaded bridge: " + bridgeName, pluginLogger.LIGHT_BLUE);
+                Logger.scriptlog(Level.WARNING, scriptName, "[BridgeLoader] This is getting deprecated! Use Services.get(xx) instead! Loaded bridge: " + bridgeName, pluginLogger.ORANGE);
             } catch (ClassNotFoundException e) {
                 //("[BridgeLoader] Bridge class not found: " + bridgeName); Ignore
             } catch (Exception e) {
