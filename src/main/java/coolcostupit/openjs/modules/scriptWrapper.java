@@ -6,6 +6,7 @@
 
 package coolcostupit.openjs.modules;
 
+import coolcostupit.openjs.ServiceManager.ServiceLoader;
 import coolcostupit.openjs.events.ScriptLoadedEvent;
 import coolcostupit.openjs.events.ScriptUnloadedEvent;
 import coolcostupit.openjs.logging.ScriptLogger;
@@ -486,6 +487,7 @@ public class scriptWrapper {
             localScriptEngine.put("_libImporter", sharedClass.LibImporterApi);
             localScriptEngine.put("_internalPluginLogger", Logger);
             localScriptEngine.put("IsFoliaServer", FoliaSupport.isFolia());
+            localScriptEngine.put("Services", new ServiceLoader(localScriptEngine, ScriptName));
 
             Future<?> future = executorService.submit(() -> {
                 try {

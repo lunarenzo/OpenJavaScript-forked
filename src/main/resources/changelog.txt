@@ -74,6 +74,7 @@ Version 1.3.0:
 🟩️ add diskApi saving active files when reloading script (ITS COMPILED GNG TEST IT)
 - add official support for folders
 - add Overwrite variable to custom commands (force overwrites plugin scripts)
+- create system called "InventoryApi" which will simplify the process of menu and inventory management
 - make the cache do not drop instantly, only drop the cache after completing I/O Operation
 - add FileApi for IO operations inside scripts within the plugin folder
 - on script errors/exceptions use ERROR() instead of WARN()
