@@ -7,7 +7,6 @@
 package coolcostupit.openjs.utility;
 
 import coolcostupit.openjs.logging.pluginLogger;
-import coolcostupit.openjs.modules.sharedClass;
 
 public class JavascriptHelper {
     private static final String MAIN_JAVASCRIPT_CODE = String.format("""
@@ -26,6 +25,7 @@ public class JavascriptHelper {
                     configurable: false
                 });
                 
+                const importClass = className => _InternalModules.importClass(className);
                 const toArray = args => Array.prototype.slice.call(args);
                 const toJavaList = data => Java.to(data, 'java.util.List');
                 
@@ -63,12 +63,6 @@ public class JavascriptHelper {
                     return null;
                   }
                 };
-                
-                const loadVar = (varName, defaultVar, global) =>
-                  JSON.parse(variableStorage.getStoredVar(currentScriptName, varName, defaultVar, global));
-                
-                const saveVar = (varName, variable, global) =>
-                  variableStorage.setStoredVar(currentScriptName, varName, JSON.stringify(variable), global);
                 
                 const getMethod = (Package, MethodName, ExpectedParameters) => {
                   const Methods = Package.getMethods();
@@ -192,36 +186,25 @@ public class JavascriptHelper {
                     return listener;
                   }
                 });
+                
+                const registerEvent = function(eventClass, handler) {
+                    var wrappedHandler;
+                    if (typeof handler === 'function') {
+                        wrappedHandler = { handleEvent: handler };
+                    } else if (handler && typeof handler.handleEvent === 'function') {
+                        wrappedHandler = handler;
+                    } else {
+                        log.error('Invalid handler: must be a function or an object with a handleEvent method.');
+                    }
+                    return _InternalModules.registerEvent(eventClass, wrappedHandler);
+                };
+                const unregisterEvent = function(Listener) {
+                    _InternalModules.unregisterListenerInternal(Listener)
+                };
                 """, pluginLogger.yieldKill);
 
     public static String JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE;
-
     public static void updateSource() {
-        JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE +
-                (sharedClass.configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true)
-                        ?
-                        """
-                            const registerEvent = function(eventClass, handler) {
-                               var wrappedHandler;
-                               if (typeof handler === 'function') {
-                                   wrappedHandler = { handleEvent: handler };
-                               } else if (handler && typeof handler.handleEvent === 'function') {
-                                   wrappedHandler = handler;
-                               } else {
-                                   log.error('Invalid handler: must be a function or an object with a handleEvent method.');
-                               }
-                               return scriptManager.registerEvent(eventClass, wrappedHandler, currentScriptName, scriptEngine);
-                            };
-                            const unregisterEvent = function(Listener) {
-                                scriptManager.unregisterListener(Listener, currentScriptName)
-                            }
-                            """
-                        : "") +
-                (sharedClass.configUtil.getConfigFromBuffer("LoadCustomScheduler", true)
-                        ? // TODO: Remove in next major update
-                        "function registerSchedule(delay, period, handler, method) {" +
-                            "scriptManager.registerSchedule(currentScriptName, delay, period, handler, scriptEngine, method);" +
-                        "}"
-                        : "");
+        // JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE;
     }
 }

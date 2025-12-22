@@ -43,7 +43,6 @@ public class DiskStorage {
         }
     }
 
-    // TODO: If saveFile operation is running on the file while trying to load it, load from the cache
     public void loadFile(String fileName, boolean async, String scriptName, boolean global) {
         Runnable task = () -> {
             String fullName = (global ? fileName : scriptName + "_" + fileName).replaceAll("[^a-zA-Z0-9._-]", "_");

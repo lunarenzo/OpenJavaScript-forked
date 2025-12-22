@@ -43,6 +43,29 @@ public class scriptUtils {
         }
     }
 
+    public static Object importJavaToJsGC(javax.script.ScriptEngine engine, String scriptName, Object object) {
+        try {
+            String importUUID = randomString(12);
+            engine.put(importUUID, object);
+            Object result = engine.eval(
+                    "(function() {" +
+                            "   var cachedObject = " + importUUID + ";" +
+                            "   return cachedObject;" +
+                            "})()"
+            );
+            engine.put(importUUID, null); // remove reference from engine
+            return result;
+        } catch (Exception e) {
+            sharedClass.logger.scriptlog(
+                    Level.SEVERE,
+                    scriptName,
+                    "Failed to parse internal code: " + e.getMessage(),
+                    pluginLogger.ORANGE
+            );
+            throw new RuntimeException(e);
+        }
+    }
+
     public static Object executeJsCode(javax.script.ScriptEngine engine, String scriptName, String jsCode) {
         try {
             return engine.eval("(" + jsCode + ");})();");

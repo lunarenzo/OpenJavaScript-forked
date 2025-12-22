@@ -40,7 +40,6 @@ import java.util.logging.Level;
 public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabCompleter, Listener {
     public configurationUtil configUtil;
     private pluginLogger pluginLogger;
-    private VariableStorage variableStorage;
     private DiskStorage DiskStorageApi;
     private scriptWrapper scriptWrapper;
     private UpdateChecker updateChecker;
@@ -53,7 +52,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
         this.configUtil = new configurationUtil(this);
         this.pluginLogger = new pluginLogger(this, configUtil);
-        this.variableStorage = new VariableStorage(this);
         this.DiskStorageApi = new DiskStorage(this);
 
         if (ScriptEngine.getEngine() == null) {
@@ -88,14 +86,14 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
         // Default config values
         configUtil.getConfigFromBuffer("PrintScriptActivations", true);
-        configUtil.getConfigFromBuffer("UseCustomInterpreter", true);
-        configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true);
+        configUtil.getConfigFromBuffer("UseCustomInterpreter", true); // TODO Remove this in 1.4.0
+        configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true); // TODO Remove this in 1.4.0
         configUtil.getConfigFromBuffer("LogPlaceHolderActivity", true);
         configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true);
         configUtil.getConfigFromBuffer("AllowBstats", true);
-        configUtil.getConfigFromBuffer("LoadCustomScheduler", true);
+        configUtil.getConfigFromBuffer("LoadCustomScheduler", true); // TODO Remove this in 1.4.0
         configUtil.getConfigFromBuffer("UpdateNotifications", true);
-        configUtil.getConfigFromBuffer("AllowFeatureFlags", true);
+        configUtil.getConfigFromBuffer("AllowFeatureFlags", true); // TODO Remove this in 1.4.0
         configUtil.getConfigFromBuffer("BroadcastToOps", true);
         configUtil.saveBufferToConfig();
 
@@ -130,7 +128,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         pluginLogger.log(Level.INFO, "[<---------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
         pluginLogger.log(Level.INFO, "      [OpenJavascript shutdown]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Un-registering all listeners...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        scriptWrapper.unregisterAllListeners();
+        InternalSystems.unregisterAllListeners();
         pluginLogger.log(Level.INFO, "Un-registering all tasks...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         scriptWrapper.unregisterAllTasks();
         pluginLogger.log(Level.INFO, "Un-registering all script commands...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
@@ -140,8 +138,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         scriptWrapper.executorService.shutdown();
         scriptWrapper.unloadAllScripts();
         sharedClass.LibImporterApi.shutdown();
-        pluginLogger.log(Level.INFO, "Storing memory variables...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        variableStorage.saveVariables();
         pluginLogger.log(Level.INFO, "Saving disk storage files...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         DiskStorageApi.saveAllCaches(false);
         pluginLogger.log(Level.INFO, "[OpenJavascript shutdown successfully]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);

@@ -76,8 +76,10 @@ Version 1.3.0:
 🟩️ add support for parsing offline players with PlaceholderApi
 🟩️ make PlaceholderApi thread safe (fix Placeholders getting unregistered randomly if on thread)
 🟩️ deprecate feature flags/service flags
-- create new import() function which will allow scripts to import during runtime
-- deprecate //!import xxx.xxx in favor of import() function
+🟩️ Code cleanup and optimization
+🟩️ create new importClass() function which will allow scripts to import during runtime
+🟩️ deprecate //!import xxx.xxx in favor of importClass() function
+🟩️ Move unregisterEvent and RegisterListener to modules/InternalSystems.java
 - add official support for folders
 - add Overwrite variable to custom commands (force overwrites plugin scripts)
 - create system called "InventoryApi" which will simplify the process of menu and inventory management

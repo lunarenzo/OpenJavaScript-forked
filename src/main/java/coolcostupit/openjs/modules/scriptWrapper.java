@@ -18,10 +18,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.SimpleCommandMap;
-import org.bukkit.event.Event;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
-import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.json.simple.JSONArray;
@@ -44,13 +40,11 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 
 import static org.bukkit.Bukkit.getLogger;
-import static org.bukkit.Bukkit.getServer;
 
 // this is the main stuff, but I haven't added many to no comments because I was way too focused when coding all that
 public class scriptWrapper {
     private boolean scriptsReady = false;
     private boolean hasInit = false;
-    private final Map<String, List<Listener>> eventListenersMap = new HashMap<>();
     public final Map<String, List<Integer>> scriptTasksMap = new HashMap<>();
     private final Map<String, Future<?>> scriptFutures = new HashMap<>();
     private final Map<String, ScriptEngine> scriptEngines = new HashMap<>();
@@ -61,7 +55,6 @@ public class scriptWrapper {
     private final pluginLogger Logger;
     private final PublicVarManager PublicVarManager;
     private final configurationUtil configUtil;
-    private final VariableStorage variableStorage;
     public final List<String> disabledScripts = new ArrayList<>();
     public final List<String> activeFiles = new ArrayList<>();
     public final List<String> runningScripts = new ArrayList<>();
@@ -73,7 +66,6 @@ public class scriptWrapper {
         this.Logger = new pluginLogger(plugin, configUtil);
         this.PublicVarManager = new PublicVarManager();
         this.configUtil = configUtil;
-        this.variableStorage = new VariableStorage(plugin);
         this.executorService = Executors.newCachedThreadPool();
         this.taskApi = new scriptTaskerApi(this);
 
@@ -119,31 +111,6 @@ public class scriptWrapper {
 
     public static void addToCleanupMap(String scriptName, Runnable method) {
         cleanUpMethods.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(method);
-    }
-
-    public List<Listener> getEventListenersFromScript(String scriptName) {
-        return eventListenersMap.getOrDefault(scriptName, null);
-    }
-
-    public void unregisterListener(Listener listener, String scriptName) {
-        HandlerList.unregisterAll(listener);
-        List<Listener> listeners = eventListenersMap.get(scriptName);
-        if (listeners != null) {
-            listeners.remove(listener);
-            if (listeners.isEmpty()) {
-                eventListenersMap.remove(scriptName);
-            }
-        }
-    }
-
-    public void unregisterListenersFromScript(String scriptName) {
-        List<Listener> activeListeners = getEventListenersFromScript(scriptName);
-        if (activeListeners != null) {
-            List<Listener> listenersToRemove = new ArrayList<>(activeListeners);
-            for (Listener listener : listenersToRemove) {
-                unregisterListener(listener, scriptName);
-            }
-        }
     }
 
     public void unregisterTasksFromScript(String scriptName) {
@@ -194,16 +161,6 @@ public class scriptWrapper {
         } catch (IOException | ParseException e) {
             Logger.log(Level.SEVERE, "Failed to load disabled scripts." + e.getMessage(), pluginLogger.RED);
         }
-    }
-
-    public void unregisterAllListeners() {
-        for (Map.Entry<String, List<Listener>> entry : eventListenersMap.entrySet()) {
-            List<Listener> listeners = entry.getValue();
-            for (Listener listener : listeners) {
-                HandlerList.unregisterAll(listener);
-            }
-        }
-        eventListenersMap.clear();
     }
 
     public CommandMap getCommandMap() {
@@ -343,7 +300,7 @@ public class scriptWrapper {
 
         invokeScriptCleanup(scriptName);
         taskApi.clearListeners(scriptName);
-        unregisterListenersFromScript(scriptName);
+        InternalSystems.unregisterListenersFromScript(scriptName);
         unregisterCommands(scriptName);
         unregisterTasksFromScript(scriptName);
         sharedClass.DiskStorageApi.saveCaches(scriptName); // ASYNC ?=> yields
@@ -398,9 +355,14 @@ public class scriptWrapper {
         }
 
         StringBuilder finalScript = new StringBuilder();
+        boolean LoggedWarning = false;
 
         for (String importStatement : imports) {
             try {
+                if (!LoggedWarning) {
+                    Logger.scriptlog(Level.WARNING, scriptFile.getName(), "Using //!import is deprecated and will be removed in future versions. Please use import('xx') instead.", pluginLogger.ORANGE);
+                    LoggedWarning = true;
+                }
                 Class<?> clazz = Class.forName(importStatement);
                 String simpleName = clazz.getSimpleName();
                 scriptEngine.put(simpleName, clazz);
@@ -480,7 +442,6 @@ public class scriptWrapper {
             localScriptEngine.put("scriptEngine", localScriptEngine);
             localScriptEngine.put("currentScriptName", ScriptName);
             localScriptEngine.put("log", new ScriptLogger(getLogger(), ScriptName));
-            localScriptEngine.put("variableStorage", variableStorage);
             localScriptEngine.put("DiskStorage", sharedClass.DiskStorageApi);
             localScriptEngine.put("publicVarManager", PublicVarManager);
             localScriptEngine.put("_task", taskApi); // See class: JavascriptHelper
@@ -488,6 +449,7 @@ public class scriptWrapper {
             localScriptEngine.put("_internalPluginLogger", Logger);
             localScriptEngine.put("IsFoliaServer", FoliaSupport.isFolia());
             localScriptEngine.put("Services", new ServiceLoader(localScriptEngine, ScriptName));
+            localScriptEngine.put("_InternalModules", new InternalSystems(ScriptName, localScriptEngine));
 
             Future<?> future = executorService.submit(() -> {
                 try {
@@ -508,7 +470,6 @@ public class scriptWrapper {
                     deepFreeze(scriptManager);
                     deepFreeze(scriptEngine);
                     deepFreeze(log);
-                    deepFreeze(variableStorage);
                     deepFreeze(DiskStorage);
                     deepFreeze(publicVarManager);
                     deepFreeze(_task);
@@ -649,53 +610,4 @@ public class scriptWrapper {
             }
         }
     }
-
-    // TODO: Remove in 1.1.3 (In favor of taskApi)
-    @SuppressWarnings("all")
-    public void registerSchedule(String scriptName, long delay, long period, Object handler, ScriptEngine scriptEngine, String methodName) {
-        Logger.scriptlog(Level.WARNING, scriptName, "Do not use registerSchedule! This will get removed soon, use task.repeat instead!", pluginLogger.ORANGE);
-        Runnable task = () -> {
-            try {
-                ((Invocable) scriptEngine).invokeMethod(handler, methodName);
-            } catch (ScriptException | NoSuchMethodException e) {
-                Logger.log(Level.SEVERE, "["+scriptName+"] " + e.getMessage(), pluginLogger.RED);
-            }
-        };
-
-        int taskId;
-        if (period > 0) {
-            taskId = FoliaSupport.ScheduleRepeatingTask(plugin, task, delay, period);
-        } else {
-            taskId = FoliaSupport.ScheduleTask(plugin, task, delay);
-        }
-
-        scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
-    }
-
-    @SuppressWarnings("unused")
-    public Listener registerEvent(String eventClassName, Object handler, String scriptName, ScriptEngine scriptEngine) {
-        try {
-            Class<?> eventClass = Class.forName(eventClassName);
-            if (Event.class.isAssignableFrom(eventClass)) {
-                Class<? extends Event> eventClassCasted = (Class<? extends Event>) eventClass;
-                Listener listener = new EventListenerWrapper(scriptEngine, handler, plugin);
-                getServer().getPluginManager().registerEvent(eventClassCasted, listener, EventPriority.NORMAL, (l, e) -> {
-                    try {
-                        ((Invocable) scriptEngine).invokeMethod(handler, "handleEvent", e);
-                    } catch (ScriptException | NoSuchMethodException ex) {
-                        Logger.log(Level.SEVERE, "[" + scriptName + "] " + ex.getMessage(), pluginLogger.RED);
-                    }
-                }, plugin);
-
-                eventListenersMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(listener);
-                return listener;
-            } else {
-                Logger.scriptlog(Level.WARNING, scriptName, "Class " + eventClassName + " is not an Event.", pluginLogger.ORANGE);
-            }
-        } catch (ClassNotFoundException e) {
-            Logger.scriptlog(Level.WARNING, scriptName, "Failed to register event " + eventClassName + ": " + e.getMessage(), pluginLogger.ORANGE);
-        }
-        return null;
-    }
-
 }

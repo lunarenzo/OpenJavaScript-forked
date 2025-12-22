@@ -1,9 +1,11 @@
 # Disabling this will make it impossible for you to listen to events
 # in your javascript's
+# TODO Remove this in 1.4.0
 LoadCustomEventsHandler: true
 
 # DO NOT DISABLE! Unless you don't use the //!import feature
 # and the log.(...) feature inside event handlers
+# TODO Remove this in 1.4.0
 UseCustomInterpreter: true
 
 # Prints in the console, whenever a javascript has been loaded
@@ -24,6 +26,7 @@ BroadcastToOps: true
 
 # You can disable this, but if you use schedules inside your scripts
 # you need to keep it enabled
+# TODO Remove this in 1.4.0
 LoadCustomScheduler: true
 
 # Checks for updates and notifies admins and the console for an update
@@ -34,6 +37,7 @@ UpdateNotifications: true
 # feature flags are being used like this "//!Flagname"
 # see https://docs-mc-1.gitbook.io/openjs-docs/openjs-components/fflags
 # under the feature flags section for more info
+# TODO Remove this in 1.4.0
 AllowFeatureFlags: true
 
 # opt-in/out from Bstats https://bstats.org/plugin/bukkit/OpenJavaScript/22268
