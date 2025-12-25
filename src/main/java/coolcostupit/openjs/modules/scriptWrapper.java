@@ -20,9 +20,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
-import org.json.simple.JSONArray;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
 import javax.annotation.Nullable;
 import javax.script.ScriptEngine;
@@ -362,7 +359,7 @@ public class scriptWrapper {
             }
 
             String RelativePath = scriptManager.getRelativePath(scriptFile);
-            String ScriptName = scriptFile.getName();
+            String ScriptName = scriptManager.getScriptName(scriptFile);
             unloadScript(RelativePath);
 
             ScriptEngine localScriptEngine = coolcostupit.openjs.modules.ScriptEngine.getEngine();

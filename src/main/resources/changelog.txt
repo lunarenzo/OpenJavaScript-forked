@@ -80,9 +80,10 @@ Version 1.3.0:
 🟩️ create new importClass() function which will allow scripts to import during runtime
 🟩️ deprecate //!import xxx.xxx in favor of importClass() function
 🟩️ Move unregisterEvent and RegisterListener to modules/InternalSystems.java
-- add official support for folders
+🟩️ add official support for folders
 - add command "autoReload" to toggle if a script will get automatically reloaded when the script changes
-- Rewrite script management and IO system to reduce a lot of io operations
+🟩️ Rewrite script management and IO system to reduce a lot of io operations
+🟩️ Automatically load scripts that get added to the scripts folder while the server is running
 - add Overwrite variable to custom commands (force overwrites plugin scripts)
 - create system called "InventoryApi" which will simplify the process of menu and inventory management
 - make the cache do not drop instantly, only drop the cache after completing I/O Operation

@@ -7,7 +7,6 @@
 package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.logging.pluginLogger;
-import org.bukkit.plugin.Plugin;
 
 import java.io.File;
 import java.io.IOException;

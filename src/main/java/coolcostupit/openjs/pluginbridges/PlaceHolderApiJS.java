@@ -15,7 +15,6 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 

@@ -8,22 +8,17 @@ package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.foliascheduler.ServerImplementation;
 import coolcostupit.openjs.foliascheduler.TaskImplementation;
-import coolcostupit.openjs.logging.pluginLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import coolcostupit.openjs.foliascheduler.FoliaCompatibility;
 import org.bukkit.entity.Entity;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.util.Consumer;
 
-import javax.script.Invocable;
-import javax.script.ScriptException;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 
 public class FoliaSupport {
     private static Boolean cached = null;

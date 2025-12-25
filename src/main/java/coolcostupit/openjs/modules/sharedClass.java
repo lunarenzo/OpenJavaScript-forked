@@ -19,6 +19,7 @@ public class sharedClass {
     public static PluginDescriptionFile PluginDescription;
     public static configurationUtil configUtil;
     public static pluginLogger logger;
+    public static scriptWrapper scriptApi;
     public static JavaPlugin plugin;
     public static String Identifier;
     public static DiskStorage DiskStorageApi;

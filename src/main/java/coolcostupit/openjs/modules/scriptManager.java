@@ -96,6 +96,10 @@ public class scriptManager {
     }
 
     private static File getMainScript(File folder) {
+        if (folder.isFile() && folder.getName().endsWith(".js")) {
+            return folder;
+        }
+
         File mainLower = new File(folder, "main.js");
         File mainUpper = new File(folder, "Main.js");
 
@@ -174,20 +178,26 @@ public class scriptManager {
 
     public static void onScriptRemoved(File file) {
         SCRIPT_CACHE.entrySet().removeIf(e -> e.getValue().equals(file));
-        //logic here
+        removeDisabledScript(file);
     }
 
     public static void onScriptFileChanged(File file) {
         updateCacheFor(file);
-        //logic here
+        File MainScript = getMainScript(file);
+        if (MainScript != null) {
+            // loadScript == reloadScript
+            sharedClass.scriptApi.loadScript(MainScript, false);
+        }
     }
 
     private static void updateCacheFor(File file) {
         if (file.isFile() && file.getName().endsWith(".js")) {
             SCRIPT_CACHE.put(getRelativePath(file), file);
+            sharedClass.scriptApi.loadScript(file, false);
         } else if (file.isDirectory()) {
             File main = getMainScript(file);
             if (main != null) {
+                sharedClass.scriptApi.loadScript(main, false);
                 SCRIPT_CACHE.put(getRelativePath(main), main);
             }
         }
@@ -231,19 +241,16 @@ public class scriptManager {
         }
     }
 
-    public static void removeEnabledScript(File scriptFile) {
-        String key = getRelativePath(scriptFile);
-        if (key != null) {
-            DISABLED_SCRIPTS.add(key);
-        }
-    }
-
     public static Map<String, File> getScriptCache() {
         return new HashMap<>(SCRIPT_CACHE);
     }
 
-    public static boolean scriptExists(File scriptFile) {
-        String key = getRelativePath(scriptFile);
-        return key != null && SCRIPT_CACHE.containsKey(key);
+    public static String getScriptName(File scriptFile) {
+        String rel = getRelativePath(scriptFile);
+        if (rel == null) return scriptFile.getName();
+        if (rel.endsWith("/Main.js") || rel.endsWith("/main.js")) {
+            return rel.substring(0, rel.lastIndexOf('/'));
+        }
+        return rel;
     }
 }

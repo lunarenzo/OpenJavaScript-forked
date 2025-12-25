@@ -76,7 +76,8 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         this.scriptWrapper = new scriptWrapper(this, configUtil);
         this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
 
-        JavascriptHelper.updateSource();
+        sharedClass.scriptApi = scriptWrapper;
+        JavascriptHelper.updateSource(); //TODO Remove and check if its needed
         updateChecker.startChecking();
         scriptManager.initializeManager(this);
         scriptWrapper.checkDisabledScripts();
@@ -299,7 +300,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                 if (script == null) {
                     sender.sendMessage(chatColors.RED + "Script " + scriptName + " not found.");
                 } else if (scriptManager.isScriptEnabled(script)) {
-                    scriptManager.removeEnabledScript(script);
                     scriptManager.setScriptDisabled(script);
                     scriptWrapper.unloadScript(scriptName);
                     sender.sendMessage(chatColors.RED+"Script " + scriptName + " disabled.");
