@@ -51,12 +51,9 @@ public class scriptWrapper {
     private final Map<String, List<Command>> scriptCommands = new HashMap<>();
     private static final Map<String, List<Runnable>> cleanUpMethods = new ConcurrentHashMap<>();
     private final JavaPlugin plugin;
-    private final File disabledScriptsFile;
     private final pluginLogger Logger;
     private final PublicVarManager PublicVarManager;
     private final configurationUtil configUtil;
-    public final List<String> disabledScripts = new ArrayList<>();
-    public final List<String> activeFiles = new ArrayList<>();
     public final List<String> runningScripts = new ArrayList<>();
     public final ExecutorService executorService;
     private final scriptTaskerApi taskApi;
@@ -76,33 +73,7 @@ public class scriptWrapper {
         if (!hasInit) {
             hasInit = true;
             FoliaSupport.ScheduleTask(plugin, () -> scriptsReady = true, 20L);
-            //plugin.getServer().getScheduler().runTaskLater(plugin, () -> scriptsReady = true, 20L);
         }
-
-        File scriptsFolder = new File(plugin.getDataFolder(), "scripts");
-        boolean scriptsFolderCreated = scriptsFolder.mkdirs(); // Check the return value
-
-        disabledScriptsFile = new File(plugin.getDataFolder(), "disabledscripts.json");
-        if (!disabledScriptsFile.exists()) {
-            try {
-                boolean fileCreated = disabledScriptsFile.createNewFile(); // Check the return value
-                if (fileCreated) {
-                    try (FileWriter writer = new FileWriter(disabledScriptsFile)) {
-                        writer.write("[]");
-                    }
-                }
-            } catch (IOException e) {
-                Logger.log(Level.SEVERE, "Failed to create disabledscripts.json." + e.getMessage(), pluginLogger.RED);
-            }
-        }
-
-        if (!scriptsFolderCreated && !scriptsFolder.exists()) {
-            Logger.log(Level.WARNING, "Failed to create scripts folder.", pluginLogger.ORANGE);
-        }
-    }
-
-    public boolean isJavascriptFileActive(String fileName) {
-        return activeFiles.contains(fileName);
     }
 
     public boolean isJavascriptFileRunning(String fileName) {
@@ -137,8 +108,9 @@ public class scriptWrapper {
     }
 
     public void unloadAllScripts() {
-        for (String scriptName : new ArrayList<>(activeFiles)) {
-            unloadScript(scriptName);
+        for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
+            unloadScript(entry.getKey());
+            //File scriptFile = entry.getValue();
         }
     }
 
@@ -149,18 +121,6 @@ public class scriptWrapper {
             }
         }
         scriptTasksMap.clear();
-    }
-
-    public void loadDisabledScripts() {
-        try (FileReader reader = new FileReader(disabledScriptsFile)) {
-            JSONParser parser = new JSONParser();
-            JSONArray jsonArray = (JSONArray) parser.parse(reader);
-            for (Object obj : jsonArray) {
-                disabledScripts.add((String) obj);
-            }
-        } catch (IOException | ParseException e) {
-            Logger.log(Level.SEVERE, "Failed to load disabled scripts." + e.getMessage(), pluginLogger.RED);
-        }
     }
 
     public CommandMap getCommandMap() {
@@ -253,43 +213,14 @@ public class scriptWrapper {
         }
     }
 
-
-    @SuppressWarnings("all")
-    public void saveDisabledScripts() {
-        try (FileWriter writer = new FileWriter(disabledScriptsFile)) {
-            JSONArray jsonArray = new JSONArray();
-            jsonArray.addAll(disabledScripts);
-            writer.write(jsonArray.toJSONString());
-        } catch (IOException e) {
-            Logger.log(Level.SEVERE, "Failed to save disabled scripts." + e.getMessage(), pluginLogger.RED);
-        }
-    }
-
     public void checkDisabledScripts() {
-        File scriptsFolder = new File(plugin.getDataFolder(), "scripts");
-        List<String> scriptsInFolder = new ArrayList<>();
-
-        if (scriptsFolder.exists() && scriptsFolder.isDirectory()) {
-            for (File scriptFile : Objects.requireNonNull(scriptsFolder.listFiles())) {
-                if (scriptFile.isFile() && scriptFile.getName().endsWith(".js")) {
-                    scriptsInFolder.add(scriptFile.getName());
-                }
-            }
-        }
-
-        boolean modified = false;
-        Iterator<String> iterator = disabledScripts.iterator();
-        while (iterator.hasNext()) {
-            String scriptName = iterator.next();
-            if (!scriptsInFolder.contains(scriptName)) {
-                iterator.remove();
-                modified = true;
+        for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
+            String scriptName = entry.getKey();
+            File scriptFile = entry.getValue();
+            if (scriptManager.isScriptDisabled(scriptFile) && !scriptFile.exists()) {
+                scriptManager.removeDisabledScript(scriptFile);
                 Logger.log(Level.INFO, "Removed non-existent script " + scriptName + " from disabled scripts list.", pluginLogger.BLUE);
             }
-        }
-
-        if (modified) {
-            saveDisabledScripts();
         }
     }
 
@@ -389,7 +320,7 @@ public class scriptWrapper {
         List<String> notLoadedScripts = new ArrayList<>();
         if (scriptsFolder.exists() && scriptsFolder.isDirectory()) {
             for (File scriptFile : Objects.requireNonNull(scriptsFolder.listFiles())) {
-                if (scriptFile.isFile() && scriptFile.getName().endsWith(".js") && !activeFiles.contains(scriptFile.getName()) && !disabledScripts.contains(scriptFile.getName())) {
+                if (scriptFile.isFile() && scriptFile.getName().endsWith(".js") && !scriptManager.getScriptCache().containsKey(scriptFile.getName())) {
                     notLoadedScripts.add(scriptFile.getName());
                 }
             }
@@ -417,7 +348,7 @@ public class scriptWrapper {
     }
 
     public ScriptLoadResult loadScript(File scriptFile, boolean calledFromScript) {
-        if (scriptFile.isFile() && scriptFile.getName().endsWith(".js") && !disabledScripts.contains(scriptFile.getName())) {
+        if (scriptFile.isFile() && scriptFile.getName().endsWith(".js")) {
             if (calledFromScript) {
                 if (!hasInit || !scriptsReady) {
                     return new ScriptLoadResult(false, "Do not manually load scripts while they are being initialized!");
@@ -430,11 +361,12 @@ public class scriptWrapper {
                 }
             }
 
+            String RelativePath = scriptManager.getRelativePath(scriptFile);
             String ScriptName = scriptFile.getName();
-            unloadScript(ScriptName);
+            unloadScript(RelativePath);
 
             ScriptEngine localScriptEngine = coolcostupit.openjs.modules.ScriptEngine.getEngine();
-            scriptEngines.put(ScriptName, localScriptEngine);
+            scriptEngines.put(RelativePath, localScriptEngine);
 
             // Initialize the custom in-built stuff
             localScriptEngine.put("plugin", plugin);
@@ -508,22 +440,25 @@ public class scriptWrapper {
                     if (configUtil.getConfigFromBuffer("PrintScriptActivations", true)) {
                         Logger.log(Level.INFO, "Loaded the script " + ScriptName, pluginLogger.GREEN);
                     }
-                    FoliaSupport.runTaskSynchronously(plugin, () -> //plugin.getServer().getScheduler().runTask(plugin, () ->
-                            plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(ScriptName)));
+                    FoliaSupport.runTaskSynchronously(plugin, () -> plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(ScriptName)));
                 } catch (IOException | ScriptException e) {
                     Logger.scriptlog(Level.WARNING,  ScriptName, "Failed to load script " + e.getMessage(), pluginLogger.ORANGE);
                 }
             });
 
-            if (!activeFiles.contains(ScriptName)) {
-                activeFiles.add(ScriptName);
+            if (!scriptManager.isScriptEnabled(scriptFile)) {
+                scriptManager.setScriptEnabled(scriptFile);
             }
 
-            if (!runningScripts.contains(ScriptName)) {
-                runningScripts.add(ScriptName);
+            if (!scriptManager.isScriptDisabled(scriptFile)) {
+                scriptManager.removeDisabledScript(scriptFile);
             }
 
-            scriptFutures.put(ScriptName, future);
+            if (!runningScripts.contains(RelativePath)) {
+                runningScripts.add(RelativePath);
+            }
+
+            scriptFutures.put(RelativePath, future);
             return new ScriptLoadResult(true, "Script loaded successfully.");
         }
         return new ScriptLoadResult(false, "Invalid script file.");

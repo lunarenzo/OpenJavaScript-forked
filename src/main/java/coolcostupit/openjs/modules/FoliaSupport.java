@@ -103,6 +103,7 @@ public class FoliaSupport {
         }
     }
 
+    // Asynchronous task
     public static int runTask(JavaPlugin plugin, Runnable function) {
         if (isFolia()) {
             Future<?> task = threadPool.submit(function);

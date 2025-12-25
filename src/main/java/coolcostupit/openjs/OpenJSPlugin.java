@@ -78,7 +78,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
         JavascriptHelper.updateSource();
         updateChecker.startChecking();
-        scriptWrapper.loadDisabledScripts();
+        scriptManager.initializeManager(this);
         scriptWrapper.checkDisabledScripts();
         saveDefaultConfig();
         configUtil.loadBufferFromConfig();
@@ -161,23 +161,37 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
     private void list_enabled_scripts(CommandSender sender) {
         sender.sendMessage(chatColors.GREEN + "Enabled scripts:");
-        if (scriptWrapper.activeFiles.isEmpty()) {
-            sender.sendMessage(chatColors.GREEN + "- There are no enabled scripts.");
-        } else {
-            for (String script : scriptWrapper.activeFiles) {
-                sender.sendMessage(chatColors.GREEN + "- " + script);
+        boolean scriptFound = false;
+
+        for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
+            String scriptName = entry.getKey();
+            File scriptFile = entry.getValue();
+            if (scriptManager.isScriptEnabled(scriptFile)) {
+                scriptFound = true;
+                sender.sendMessage(chatColors.GREEN + "- " + scriptName);
             }
+        }
+
+        if (!scriptFound) {
+            sender.sendMessage(chatColors.GREEN + "- There are no enabled scripts.");
         }
     }
 
     private void list_disabled_scripts(CommandSender sender) {
-        sender.sendMessage(chatColors.RED + "Disabled scripts:");
-        if (scriptWrapper.disabledScripts.isEmpty()) {
-            sender.sendMessage(chatColors.RED + "- There are no disabled scripts.");
-        } else {
-            for (String script : scriptWrapper.disabledScripts) {
-                sender.sendMessage(chatColors.RED + "- " + script);
+        sender.sendMessage(chatColors.YELLOW + "Disabled scripts:");
+        boolean scriptFound = false;
+
+        for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
+            String scriptName = entry.getKey();
+            File scriptFile = entry.getValue();
+            if (scriptManager.isScriptDisabled(scriptFile)) {
+                scriptFound = true;
+                sender.sendMessage(chatColors.YELLOW + "- " + scriptName);
             }
+        }
+
+        if (!scriptFound) {
+            sender.sendMessage(chatColors.GREEN + "- There are no disabled scripts.");
         }
     }
 
@@ -241,8 +255,8 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                     return true;
                 } else {
                     String scriptToReload = args[1];
-                    if (scriptWrapper.isJavascriptFileActive(scriptToReload)) {
-                        File scriptFile = new File(getDataFolder(), "scripts/" + scriptToReload);
+                    File scriptFile = scriptManager.stringToScript(scriptToReload);
+                    if (scriptManager.isScriptEnabled(scriptFile)) {
                         if (scriptFile.exists()) {
                             scriptWrapper.loadScript(scriptFile, true);
                             sender.sendMessage(chatColors.GREEN+"Script " + scriptToReload + " has been reloaded.");
@@ -261,10 +275,9 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                     return true;
                 }
                 String scriptToEnable = args[1];
-                if (scriptWrapper.disabledScripts.contains(scriptToEnable)) {
-                    scriptWrapper.disabledScripts.remove(scriptToEnable);
-                    scriptWrapper.saveDisabledScripts();
-                    File scriptFile = new File(getDataFolder(), "scripts/" + scriptToEnable);
+                File scriptFile = scriptManager.stringToScript(scriptToEnable);
+                if (scriptManager.isScriptDisabled(scriptFile)) {
+                    scriptManager.setScriptEnabled(scriptFile);
                     if (scriptFile.exists()) {
                         scriptWrapper.loadScript(scriptFile, true);
                         sender.sendMessage(chatColors.GREEN+"Script " + scriptToEnable + " enabled.");
@@ -281,16 +294,18 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                     sender.sendMessage(chatColors.LIGHT_PURPLE+"Usage: /" + label + " " + subCommand + " <scriptName>");
                     return true;
                 }
-                String scriptToDisable = args[1];
-                if (scriptWrapper.isJavascriptFileActive(scriptToDisable)) {
-                    scriptWrapper.activeFiles.remove(scriptToDisable);
-                    scriptWrapper.disabledScripts.add(scriptToDisable);
-                    scriptWrapper.unloadScript(scriptToDisable);
-                    scriptWrapper.saveDisabledScripts();
-                    sender.sendMessage(chatColors.RED+"Script " + scriptToDisable + " disabled.");
+                String scriptName = args[1];
+                File script = scriptManager.stringToScript(scriptName);
+                if (script == null) {
+                    sender.sendMessage(chatColors.RED + "Script " + scriptName + " not found.");
+                } else if (scriptManager.isScriptEnabled(script)) {
+                    scriptManager.removeEnabledScript(script);
+                    scriptManager.setScriptDisabled(script);
+                    scriptWrapper.unloadScript(scriptName);
+                    sender.sendMessage(chatColors.RED+"Script " + scriptName + " disabled.");
                     return true;
                 } else {
-                    sender.sendMessage(chatColors.RED+"Script " + scriptToDisable + " is not active.");
+                    sender.sendMessage(chatColors.RED+"Script " + scriptName + " is not active.");
                 }
                 return true;
             case "load":
@@ -299,15 +314,17 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                     return true;
                 }
                 String scriptToLoad = args[1];
+                File scripToLoadFile = scriptManager.stringToScript(scriptToLoad);
 
-                if (scriptWrapper.disabledScripts.contains(scriptToLoad)) {
+                if (scriptManager.isScriptDisabled(scripToLoadFile)) {
                     sender.sendMessage(chatColors.RED+"Unable to load a disabled script. Use command /"+label+" enable "+scriptToLoad+" to load it.");
                     return true;
                 }
 
-                File scriptFile = new File(getDataFolder(), "scripts/" + scriptToLoad);
-                if (scriptFile.exists()) {
-                    scriptWrapper.loadScript(scriptFile, true);
+                // keep old method for backwards compatibility
+                File newScriptFile = new File(getDataFolder(), "scripts/" + scriptToLoad);
+                if (newScriptFile.exists()) {
+                    scriptWrapper.loadScript(newScriptFile, true);
                     sender.sendMessage(chatColors.GREEN+"Script " + scriptToLoad + " loaded.");
                     return  true;
                 } else {
@@ -369,21 +386,33 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             }
         } else if (args.length == 2) {
             if (args[0].equalsIgnoreCase("enable")) {
-                for (String script : scriptWrapper.disabledScripts) {
-                    if (script.startsWith(args[1].toLowerCase())) {
-                        completions.add(script);
+                for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
+                    String scriptName = entry.getKey();
+                    File scriptFile = entry.getValue();
+                    if (scriptManager.isScriptDisabled(scriptFile)) {
+                        if (scriptName.startsWith(args[1].toLowerCase())) {
+                            completions.add(scriptName);
+                        }
                     }
                 }
             } else if (args[0].equalsIgnoreCase("disable")) {
-                for (String script : scriptWrapper.activeFiles) {
-                    if (script.startsWith(args[1].toLowerCase())) {
-                        completions.add(script);
+                for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
+                    String scriptName = entry.getKey();
+                    File scriptFile = entry.getValue();
+                    if (scriptManager.isScriptEnabled(scriptFile)) {
+                        if (scriptName.startsWith(args[1].toLowerCase())) {
+                            completions.add(scriptName);
+                        }
                     }
                 }
             } else if (args[0].equalsIgnoreCase("reload")) {
-                for (String script : scriptWrapper.activeFiles) {
-                    if (script.startsWith(args[1].toLowerCase())) {
-                        completions.add(script);
+                for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
+                    String scriptName = entry.getKey();
+                    File scriptFile = entry.getValue();
+                    if (scriptManager.isScriptEnabled(scriptFile)) {
+                        if (scriptName.startsWith(args[1].toLowerCase())) {
+                            completions.add(scriptName);
+                        }
                     }
                 }
             } else if (args[0].equalsIgnoreCase("list")) {
@@ -394,7 +423,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                 File scriptsFolder = new File(getDataFolder(), "scripts");
                 if (scriptsFolder.exists() && scriptsFolder.isDirectory()) {
                     for (File scriptFile : Objects.requireNonNull(scriptsFolder.listFiles())) {
-                        if (scriptFile.isFile() && scriptFile.getName().endsWith(".js") && !scriptWrapper.activeFiles.contains(scriptFile.getName()) && !scriptWrapper.disabledScripts.contains(scriptFile.getName())) {
+                        if (scriptFile.isFile() && scriptFile.getName().endsWith(".js") && !scriptManager.getScriptCache().containsKey(scriptFile.getName())) {
                             if (scriptFile.getName().startsWith(args[1].toLowerCase())) {
                                 completions.add(scriptFile.getName());
                             }
