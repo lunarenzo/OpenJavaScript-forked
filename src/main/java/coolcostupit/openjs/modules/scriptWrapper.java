@@ -23,6 +23,9 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
+import javax.script.ScriptEngine;
 import javax.script.*;
 import java.io.*;
 import java.lang.reflect.Field;
@@ -30,10 +33,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.logging.Level;
 
 import static org.bukkit.Bukkit.getLogger;
@@ -240,6 +240,7 @@ public class scriptWrapper {
 
         ScriptEngine engine = scriptEngines.remove(scriptName);
         runningScripts.remove(scriptName);
+
         if (engine != null) {
 
             if (engine instanceof Invocable invocable) {
@@ -251,14 +252,21 @@ public class scriptWrapper {
             }
 
             engine.getBindings(ScriptContext.ENGINE_SCOPE).clear();
+
+            if (engine instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) engine).close();
+                } catch (Exception e) {
+                    Logger.scriptlog(Level.SEVERE, scriptName, "Failed to close script engine: " + e.getMessage(), pluginLogger.RED);
+                }
+            }
+
             engine = null;
             System.gc(); // I am not even sure if that will help
         }
 
         if (plugin.isEnabled()) {
-            // Folia fallback
             FoliaSupport.runTaskSynchronously(plugin, () -> plugin.getServer().getPluginManager().callEvent(new ScriptUnloadedEvent(scriptName)));
-            //plugin.getServer().getScheduler().runTask(plugin, () -> plugin.getServer().getPluginManager().callEvent(new ScriptUnloadedEvent(scriptName)));
         }
     }
 
@@ -360,8 +368,14 @@ public class scriptWrapper {
 
             String RelativePath = scriptManager.getRelativePath(scriptFile);
             String ScriptName = scriptManager.getScriptName(scriptFile);
-            unloadScript(RelativePath);
 
+            if (scriptManager.isScriptLoading(RelativePath)) {
+                return new ScriptLoadResult(false, "Script is already loading.");
+            }
+
+            scriptManager.setScriptLoading(RelativePath, true);
+            Logger.scriptlog(Level.INFO, ScriptName, "Loading script...", pluginLogger.BLUE);
+            unloadScriptAsync(RelativePath);
             ScriptEngine localScriptEngine = coolcostupit.openjs.modules.ScriptEngine.getEngine();
             scriptEngines.put(RelativePath, localScriptEngine);
 
@@ -443,12 +457,8 @@ public class scriptWrapper {
                 }
             });
 
-            if (!scriptManager.isScriptEnabled(scriptFile)) {
+            if (scriptManager.isScriptDisabled(scriptFile)) {
                 scriptManager.setScriptEnabled(scriptFile);
-            }
-
-            if (!scriptManager.isScriptDisabled(scriptFile)) {
-                scriptManager.removeDisabledScript(scriptFile);
             }
 
             if (!runningScripts.contains(RelativePath)) {
@@ -456,28 +466,50 @@ public class scriptWrapper {
             }
 
             scriptFutures.put(RelativePath, future);
+            FoliaSupport.runTask(plugin, () -> {
+                try {
+                    future.get(1, TimeUnit.SECONDS);
+                } catch (TimeoutException e) {
+                    Logger.scriptlog(Level.WARNING, ScriptName, "Script loading timed out", pluginLogger.ORANGE);
+                } catch (Exception e) {
+                    Logger.scriptlog(Level.SEVERE, ScriptName, "Error while loading script: " + e.getMessage(), pluginLogger.ORANGE);
+                } finally {
+                    // Always mark as not loading
+                    scriptManager.setScriptLoading(RelativePath, false);
+                }
+            });
+
+            Logger.scriptlog(Level.INFO, ScriptName, "Script loaded.", pluginLogger.GREEN);
             return new ScriptLoadResult(true, "Script loaded successfully.");
         }
         return new ScriptLoadResult(false, "Invalid script file.");
     }
 
+    public void loadScriptAsync(File scriptFile, boolean calledFromScript) {
+        Future<?> future = executorService.submit(() -> loadScript(scriptFile, false));
+        try {
+            future.get();
+        } catch (Exception e) {
+            Logger.scriptlog(Level.SEVERE, scriptManager.getScriptName(scriptFile), "Error while loading script asynchronously: " + e.getMessage(), pluginLogger.ORANGE);
+        }
+    }
+
+    public void unloadScriptAsync(String scriptName) {
+        Future<?> future = executorService.submit(() -> unloadScript(scriptName));
+        try {
+            future.get();
+        } catch (Exception e) {
+            Logger.scriptlog(Level.SEVERE, scriptName, "Error while unloading script asynchronously: " + e.getMessage(), pluginLogger.ORANGE);
+        }
+    }
+
     public void loadScripts() {
-        File scriptsFolder = new File(plugin.getDataFolder(), "scripts");
         unloadAllScripts(); // simple fix, unload all scripts before loading them again, this is why I love programming
-        if (scriptsFolder.exists() && scriptsFolder.isDirectory()) {
-            List<Future<?>> futures = new ArrayList<>();
 
-            for (File scriptFile : Objects.requireNonNull(scriptsFolder.listFiles())) {
-                Future<?> future = executorService.submit(() -> loadScript(scriptFile, false));
-                futures.add(future);
-            }
-
-            for (Future<?> future : futures) {
-                try {
-                    future.get();
-                } catch (Exception e) {
-                    Logger.log(Level.WARNING, "An error occurred while waiting for script loading tasks to complete: " + e.getMessage(), pluginLogger.ORANGE);
-                }
+        for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
+            File scriptFile = entry.getValue();
+            if (scriptManager.isScriptEnabled(scriptFile)) {
+                loadScriptAsync(scriptFile, false);
             }
         }
     }
@@ -487,7 +519,6 @@ public class scriptWrapper {
     public void registerCommand(String commandName, Object commandHandler, String scriptName, ScriptEngine scriptEngine, @Nullable String permission) {
         try {
             CommandMap commandMap = getCommandMap();
-
             Command dynamicCommand = new Command(commandName) {
                 @Override
                 public boolean execute(@NotNull CommandSender sender, @NotNull String label, String[] args) {

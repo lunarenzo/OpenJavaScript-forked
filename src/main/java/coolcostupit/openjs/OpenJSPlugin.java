@@ -77,7 +77,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
 
         sharedClass.scriptApi = scriptWrapper;
-        JavascriptHelper.updateSource(); //TODO Remove and check if its needed
         updateChecker.startChecking();
         scriptManager.initializeManager(this);
         scriptWrapper.checkDisabledScripts();
@@ -139,6 +138,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         scriptWrapper.executorService.shutdown();
         scriptWrapper.unloadAllScripts();
         sharedClass.LibImporterApi.shutdown();
+        scriptManager.saveDisabledScripts();
         pluginLogger.log(Level.INFO, "Saving disk storage files...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         DiskStorageApi.saveAllCaches(false);
         pluginLogger.log(Level.INFO, "[OpenJavascript shutdown successfully]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
@@ -192,7 +192,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         }
 
         if (!scriptFound) {
-            sender.sendMessage(chatColors.GREEN + "- There are no disabled scripts.");
+            sender.sendMessage(chatColors.YELLOW + "- There are no disabled scripts.");
         }
     }
 
@@ -250,7 +250,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             case "reload":
                 if (args.length < 2) {
                     configUtil.reloadConfigBuffer();
-                    JavascriptHelper.updateSource();
                     scriptWrapper.loadScripts();
                     sender.sendMessage(chatColors.GREEN+"All scripts and the config have been reloaded.");
                     return true;

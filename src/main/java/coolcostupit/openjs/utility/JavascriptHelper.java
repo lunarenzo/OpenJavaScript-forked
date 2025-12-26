@@ -202,9 +202,5 @@ public class JavascriptHelper {
                     _InternalModules.unregisterListenerInternal(Listener)
                 };
                 """, pluginLogger.yieldKill);
-
     public static String JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE;
-    public static void updateSource() {
-        // JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE;
-    }
 }
