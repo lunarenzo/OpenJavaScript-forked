@@ -23,6 +23,7 @@ public class scriptManager {
     private static final Map<String, File> SCRIPT_CACHE = new ConcurrentHashMap<>();
     private static final Set<String> DISABLED_SCRIPTS = ConcurrentHashMap.newKeySet();
     private static final Set<String> LOADING_SCRIPTS = ConcurrentHashMap.newKeySet();
+    private static final Map<String, String> CODE_CACHE = new ConcurrentHashMap<>();
     private static WatchService watchService;
     private static boolean initialized = false;
     private static File disabledScriptsFile;
@@ -42,12 +43,10 @@ public class scriptManager {
 
     private static void loadDisabledScripts(JavaPlugin plugin) {
         DISABLED_SCRIPTS.clear();
-
         disabledScriptsFile = new File(plugin.getDataFolder(), "disabledscripts.json");
 
         if (!disabledScriptsFile.exists()) {
             try {
-                logger.log(Level.INFO, "Creating disabledscripts.json", pluginLogger.BLUE);
                 Files.writeString(disabledScriptsFile.toPath(), "[]");
             } catch (IOException e) {
                 logger.log(Level.SEVERE, "Failed to create disabledscripts.json", pluginLogger.RED);
@@ -57,7 +56,6 @@ public class scriptManager {
 
         try {
             String json = Files.readString(disabledScriptsFile.toPath()).trim();
-            logger.log(Level.INFO, "Loading disabled scripts: " + json, pluginLogger.BLUE);
             if (!json.startsWith("[") || !json.endsWith("]")) return;
 
             json = json.substring(1, json.length() - 1).trim();
@@ -68,7 +66,6 @@ public class scriptManager {
                 if (entry.startsWith("\"") && entry.endsWith("\"")) {
                     entry = entry.substring(1, entry.length() - 1);
                 }
-                logger.log(Level.INFO, "Disabled script loaded: " + entry, pluginLogger.BLUE);
                 if (!entry.isEmpty()) {
                     DISABLED_SCRIPTS.add(entry);
                 }
@@ -123,6 +120,7 @@ public class scriptManager {
         loadDisabledScripts(plugin);
         scanScripts(scriptsFolder);
         startWatcher(plugin, scriptsFolder);
+        initializeCodeCache();
     }
 
     private static void scanScripts(File scriptsFolder) {
@@ -162,15 +160,33 @@ public class scriptManager {
         return null;
     }
 
+    private static void registerRecursiveWatcher(Path start) throws IOException {
+        try {
+            Files.walk(start)
+                    .filter(Files::isDirectory)
+                    .forEach(path -> {
+                        try {
+                            path.register(
+                                    watchService,
+                                    StandardWatchEventKinds.ENTRY_CREATE,
+                                    StandardWatchEventKinds.ENTRY_DELETE,
+                                    StandardWatchEventKinds.ENTRY_MODIFY
+                            );
+                        } catch (IOException e) {
+                            logger.log(Level.INFO, "Restricted path: " + path.toAbsolutePath(), pluginLogger.RED);
+                            logger.log(Level.SEVERE, "Failed to register watcher for path: " + e.getMessage(), pluginLogger.RED);
+                        }
+                    });
+        } catch (IOException e) {
+            logger.log(Level.INFO, "Restricted path: " + start.toAbsolutePath(), pluginLogger.RED);
+            logger.log(Level.SEVERE, "Failed to register recursive watcher: " + e.getMessage(), pluginLogger.RED);
+        }
+    }
+
     private static void startWatcher(JavaPlugin plugin, File scriptsFolder) {
         try {
             watchService = FileSystems.getDefault().newWatchService();
-            scriptsFolder.toPath().register(
-                    watchService,
-                    StandardWatchEventKinds.ENTRY_CREATE,
-                    StandardWatchEventKinds.ENTRY_DELETE,
-                    StandardWatchEventKinds.ENTRY_MODIFY
-            );
+            registerRecursiveWatcher(scriptsFolder.toPath());
 
             FoliaSupport.runTask(plugin, () -> {
                 while (plugin.isEnabled()) {
@@ -185,7 +201,9 @@ public class scriptManager {
                             handleFileEvent(kind, affected);
                         }
 
-                        key.reset();
+                        if (!key.reset()) {
+                            break;
+                        }
                     } catch (InterruptedException ignored) {
                         break;
                     }
@@ -199,6 +217,11 @@ public class scriptManager {
 
     private static void handleFileEvent(WatchEvent.Kind<?> kind, File file) {
         if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
+            if (file.isDirectory()) {
+                try {
+                    registerRecursiveWatcher(file.toPath());
+                } catch (IOException ignored) {}
+            }
             onScriptAdded(file);
         }
 
@@ -207,9 +230,12 @@ public class scriptManager {
         }
 
         if (kind == StandardWatchEventKinds.ENTRY_MODIFY) {
-            logger.log(Level.INFO, "File modified: " + file.length(), pluginLogger.BLUE);
             onScriptFileChanged(file);
         }
+    }
+
+    public static boolean isJavascript(String relativePath) {
+        return relativePath.endsWith(".js");
     }
 
     public static String getRelativePath(File file) {
@@ -229,26 +255,34 @@ public class scriptManager {
     public static void onScriptAdded(File file) {
         updateCacheFor(file);
         File MainScript = getMainScript(file);
-        if (MainScript != null) {
-            sharedClass.logger.log(Level.INFO, "Reloading script due to file added: " + getRelativePath(MainScript), pluginLogger.BLUE);
+        logger.log(Level.INFO, "Script added: " + file.getAbsolutePath(), pluginLogger.GREEN);
+        if (MainScript != null && isScriptEnabled(MainScript)) {
             sharedClass.scriptApi.loadScript(MainScript, false);
         }
     }
 
     public static void onScriptRemoved(File file) {
-        SCRIPT_CACHE.entrySet().removeIf(e -> e.getValue().equals(file));
-        if (isScriptEnabled(file)) {
-            sharedClass.scriptApi.unloadScript(getRelativePath(file));
+        File script = getMainScript(file);
+        removeCodeCache(file);
+        if (script != null) {
+            SCRIPT_CACHE.entrySet().removeIf(e -> e.getValue().equals(script));
+            logger.log(Level.INFO, "Script removed: " + script.getAbsolutePath(), pluginLogger.ORANGE);
+            if (isScriptEnabled(script)) {
+                sharedClass.scriptApi.unloadScript(getRelativePath(script));
+            }
+            removeDisabledScript(script);
         }
-        removeDisabledScript(file);
     }
 
     public static void onScriptFileChanged(File file) {
         updateCacheFor(file);
-        File MainScript = getMainScript(file);
-        if (MainScript != null) {
-            sharedClass.logger.log(Level.INFO, "Reloading script due to file change: " + getRelativePath(MainScript), pluginLogger.BLUE);
-            sharedClass.scriptApi.loadScript(MainScript, false);
+        cacheCode(file);
+        File script = getMainScript(file);
+
+        if (script != null && isScriptEnabled(script)) {
+            logger.log(Level.INFO, "Script changed: " + file.getAbsolutePath(), pluginLogger.LIGHT_BLUE);
+            scriptWrapper.ScriptLoadResult result = sharedClass.scriptApi.loadScript(script, false);
+            logger.log(Level.INFO, result.getMessage(), pluginLogger.LIGHT_BLUE);
         }
     }
 
@@ -322,5 +356,79 @@ public class scriptManager {
             return rel.substring(0, rel.lastIndexOf('/'));
         }
         return rel;
+    }
+
+    private static void initializeCodeCache() {
+        if (scriptsFolder == null || !scriptsFolder.exists()) return;
+
+        try {
+            Files.walk(scriptsFolder.toPath()).filter(Files::isRegularFile).filter(path -> isJavascript(path.getFileName().toString())).forEach(path -> cacheCode(path.toFile()));
+            logger.log(Level.INFO, "Code cache initialized (" + CODE_CACHE.size() + " scripts cached)", pluginLogger.BLUE);
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Failed to initialize code cache: " + e.getMessage(), pluginLogger.RED);
+        }
+    }
+
+    public static void cacheCode(File file) {
+        if (file == null || !file.exists()) return;
+        if (!isJavascript(file.getName())) return;
+
+        try {
+            String code = Files.readString(file.toPath());
+            CODE_CACHE.put(getRelativePath(file), code); // overwrite = update
+        } catch (IOException e) {
+            logger.log(
+                    Level.SEVERE,
+                    "Failed to cache script code: " + file.getAbsolutePath(),
+                    pluginLogger.RED
+            );
+        }
+    }
+
+    public static String getRelativeParentFolder(File file) {
+        try {
+            Path base = scriptsFolder.toPath().toAbsolutePath().normalize();
+            Path target = file.toPath().toAbsolutePath().normalize();
+            Path relative = base.relativize(target);
+
+            if (relative.getNameCount() <= 1) {
+                return "";
+            }
+
+            Path parent = relative.getParent();
+            if (parent == null) return "";
+
+            return parent.toString().replace(File.separatorChar, '/');
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    public static String readCode(String relativePath) {
+        String cached = CODE_CACHE.get(relativePath);
+        if (cached != null) {
+            return cached;
+        }
+
+        // Lazy-load fallback
+        File file = new File(scriptsFolder.getAbsolutePath(), relativePath);
+        if (file == null || !file.exists()) return null;
+
+        try {
+            String code = Files.readString(file.toPath());
+            CODE_CACHE.put(relativePath, code);
+            return code;
+        } catch (IOException e) {
+            logger.log(
+                    Level.SEVERE,
+                    "Failed to read script code: " + relativePath,
+                    pluginLogger.RED
+            );
+            return null;
+        }
+    }
+
+    public static void removeCodeCache(File file) {
+        CODE_CACHE.remove(getRelativePath(file));
     }
 }

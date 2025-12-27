@@ -28,6 +28,7 @@ public class JavascriptHelper {
                 const importClass = className => _InternalModules.importClass(className);
                 const toArray = args => Array.prototype.slice.call(args);
                 const toJavaList = data => Java.to(data, 'java.util.List');
+                const requireScript = relativePath => _InternalModules.requireScript(relativePath);
                 
                 const addCommand = (commandName, commandHandler, permission = "") => {
                   if (typeof permission !== "string") permission = "";

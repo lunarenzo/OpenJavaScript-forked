@@ -16,6 +16,7 @@ import org.bukkit.event.Listener;
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,10 +29,12 @@ import static org.bukkit.Bukkit.getServer;
 public class InternalSystems {
     private final String ScriptName;
     private final ScriptEngine Engine;
+    private final String parentFolder;
     static private final Map<String, List<Listener>> eventListenersMap = new HashMap<>();
 
-    public InternalSystems(String scriptName, ScriptEngine engine) {
+    public InternalSystems(String scriptName, String parentFolder, ScriptEngine engine) {
         this.ScriptName = scriptName;
+        this.parentFolder = parentFolder;
         this.Engine = engine;
     }
 
@@ -45,6 +48,24 @@ public class InternalSystems {
             sharedClass.logger.scriptlog(Level.WARNING, ScriptName, "Class not found for import: " + className, pluginLogger.ORANGE);
         }
         return null;
+    }
+
+    public Object requireScript(String relativePath) {
+        String absoluteTarget = parentFolder + "/" + relativePath.replace(File.separatorChar, '/'); // Normalize to forward slashes
+        String javascriptCode = scriptManager.readCode(absoluteTarget);
+
+        if (javascriptCode != null) {
+            Object result = scriptUtils.executeJsCode(Engine, absoluteTarget, javascriptCode);
+            if (result == null) {
+                sharedClass.logger.scriptlog(Level.WARNING, ScriptName, " [" + absoluteTarget + "] Did not return anything.", pluginLogger.ORANGE);
+                return null;
+            } else {
+                return result;
+            }
+        } else {
+            sharedClass.logger.scriptlog(Level.SEVERE, ScriptName, "Failed to require script: " + absoluteTarget, pluginLogger.ORANGE);
+            return null;
+        }
     }
 
     static public List<Listener> getEventListenersFromScript(String scriptName) {

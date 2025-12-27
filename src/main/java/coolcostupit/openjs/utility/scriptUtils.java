@@ -68,7 +68,11 @@ public class scriptUtils {
 
     public static Object executeJsCode(javax.script.ScriptEngine engine, String scriptName, String jsCode) {
         try {
-            return engine.eval("(" + jsCode + ");})();");
+            return engine.eval(
+                    "(function() {" +
+                                jsCode +
+                            "})()"
+            );
         } catch (Exception e) {
             sharedClass.logger.scriptlog(
                     Level.SEVERE,

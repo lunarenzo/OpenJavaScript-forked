@@ -23,9 +23,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
-import javax.script.ScriptEngine;
 import javax.script.*;
 import java.io.*;
 import java.lang.reflect.Field;
@@ -270,9 +268,11 @@ public class scriptWrapper {
         }
     }
 
+    //TODO: deprecate this
     public String preprocessScript(File scriptFile, ScriptEngine scriptEngine) throws IOException {
+        //TODO: Remove in future version
         if (!configUtil.getConfigFromBuffer("UseCustomInterpreter", true)) {
-            return new String(Files.readAllBytes(scriptFile.toPath()));
+            return scriptManager.readCode(scriptManager.getRelativePath(scriptFile));
         }
 
         StringBuilder scriptContent = new StringBuilder();
@@ -284,9 +284,8 @@ public class scriptWrapper {
                 if (line.startsWith("//!import ")) {
                     String importLine = line.substring(9).trim();
                     imports.add(importLine);
-                } else {
-                    scriptContent.append(line).append("\n");
                 }
+                scriptContent.append(line).append("\n");
             }
         }
 
@@ -374,7 +373,6 @@ public class scriptWrapper {
             }
 
             scriptManager.setScriptLoading(RelativePath, true);
-            Logger.scriptlog(Level.INFO, ScriptName, "Loading script...", pluginLogger.BLUE);
             unloadScriptAsync(RelativePath);
             ScriptEngine localScriptEngine = coolcostupit.openjs.modules.ScriptEngine.getEngine();
             scriptEngines.put(RelativePath, localScriptEngine);
@@ -392,7 +390,7 @@ public class scriptWrapper {
             localScriptEngine.put("_internalPluginLogger", Logger);
             localScriptEngine.put("IsFoliaServer", FoliaSupport.isFolia());
             localScriptEngine.put("Services", new ServiceLoader(localScriptEngine, ScriptName));
-            localScriptEngine.put("_InternalModules", new InternalSystems(ScriptName, localScriptEngine));
+            localScriptEngine.put("_InternalModules", new InternalSystems(ScriptName,  scriptManager.getRelativeParentFolder(scriptFile), localScriptEngine));
 
             Future<?> future = executorService.submit(() -> {
                 try {
@@ -469,6 +467,7 @@ public class scriptWrapper {
             FoliaSupport.runTask(plugin, () -> {
                 try {
                     future.get(1, TimeUnit.SECONDS);
+                    Logger.scriptlog(Level.WARNING, ScriptName, "Script loading finished", pluginLogger.ORANGE);
                 } catch (TimeoutException e) {
                     Logger.scriptlog(Level.WARNING, ScriptName, "Script loading timed out", pluginLogger.ORANGE);
                 } catch (Exception e) {
@@ -479,7 +478,6 @@ public class scriptWrapper {
                 }
             });
 
-            Logger.scriptlog(Level.INFO, ScriptName, "Script loaded.", pluginLogger.GREEN);
             return new ScriptLoadResult(true, "Script loaded successfully.");
         }
         return new ScriptLoadResult(false, "Invalid script file.");
