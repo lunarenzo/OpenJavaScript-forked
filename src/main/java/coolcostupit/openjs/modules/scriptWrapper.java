@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 coolcostupit
+ * Copyright (c) 2026 coolcostupit
  * Licensed under AGPL-3.0
  * You may not remove this notice or claim this work as your own.
  */
@@ -12,6 +12,7 @@ import coolcostupit.openjs.events.ScriptUnloadedEvent;
 import coolcostupit.openjs.logging.ScriptLogger;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.pluginbridges.BridgeLoader;
+import coolcostupit.openjs.ServiceObjects.ScriptClassObject;
 import coolcostupit.openjs.utility.*;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -29,7 +30,6 @@ import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.logging.Level;
@@ -261,6 +261,7 @@ public class scriptWrapper {
 
             engine = null;
             System.gc(); // I am not even sure if that will help
+            Logger.scriptlog(Level.INFO, scriptName, "has been unloaded!", pluginLogger.LIGHT_BLUE);
         }
 
         if (plugin.isEnabled()) {
@@ -389,8 +390,12 @@ public class scriptWrapper {
             localScriptEngine.put("_libImporter", sharedClass.LibImporterApi);
             localScriptEngine.put("_internalPluginLogger", Logger);
             localScriptEngine.put("IsFoliaServer", FoliaSupport.isFolia());
-            localScriptEngine.put("Services", new ServiceLoader(localScriptEngine, ScriptName));
-            localScriptEngine.put("_InternalModules", new InternalSystems(ScriptName,  scriptManager.getRelativeParentFolder(scriptFile), localScriptEngine));
+
+            ScriptClassObject scriptClass = new ScriptClassObject(RelativePath);
+
+            localScriptEngine.put("script", scriptClass);
+            localScriptEngine.put("Services", new ServiceLoader(localScriptEngine, ScriptName, scriptClass));
+            localScriptEngine.put("_InternalModules", new InternalSystems(ScriptName, localScriptEngine, scriptClass));
 
             Future<?> future = executorService.submit(() -> {
                 try {
@@ -467,13 +472,11 @@ public class scriptWrapper {
             FoliaSupport.runTask(plugin, () -> {
                 try {
                     future.get(1, TimeUnit.SECONDS);
-                    Logger.scriptlog(Level.WARNING, ScriptName, "Script loading finished", pluginLogger.ORANGE);
                 } catch (TimeoutException e) {
-                    Logger.scriptlog(Level.WARNING, ScriptName, "Script loading timed out", pluginLogger.ORANGE);
+                    Logger.scriptlog(Level.WARNING, ScriptName, "Script is taking long to load!", pluginLogger.ORANGE);
                 } catch (Exception e) {
                     Logger.scriptlog(Level.SEVERE, ScriptName, "Error while loading script: " + e.getMessage(), pluginLogger.ORANGE);
                 } finally {
-                    // Always mark as not loading
                     scriptManager.setScriptLoading(RelativePath, false);
                 }
             });

@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 coolcostupit
+ * Copyright (c) 2026 coolcostupit
  * Licensed under AGPL-3.0
  * You may not remove this notice or claim this work as your own.
  */
 
 package coolcostupit.openjs.modules;
 
+import coolcostupit.openjs.ServiceObjects.ScriptClassObject;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.utility.scriptUtils;
 import org.bukkit.event.Event;
@@ -29,13 +30,15 @@ import static org.bukkit.Bukkit.getServer;
 public class InternalSystems {
     private final String ScriptName;
     private final ScriptEngine Engine;
-    private final String parentFolder;
+    private final ScriptClassObject scriptClass;
     static private final Map<String, List<Listener>> eventListenersMap = new HashMap<>();
+    private final Map<String, Object> requireCache;
 
-    public InternalSystems(String scriptName, String parentFolder, ScriptEngine engine) {
+    public InternalSystems(String scriptName, ScriptEngine engine, ScriptClassObject scriptClass) {
         this.ScriptName = scriptName;
-        this.parentFolder = parentFolder;
         this.Engine = engine;
+        this.requireCache = new HashMap<>();
+        this.scriptClass = scriptClass;
     }
 
     public Object importClass(String className) {
@@ -51,13 +54,35 @@ public class InternalSystems {
     }
 
     public Object requireScript(String relativePath) {
+        if (!scriptManager.isRelativePath(relativePath)) {
+            File targetFile = new File(relativePath);
+            if (!targetFile.exists()) {
+                sharedClass.logger.scriptlog(Level.SEVERE, ScriptName, "Require path is not relative and file does not exist: " + relativePath, pluginLogger.ORANGE);
+                return null;
+            }
+            relativePath = scriptManager.getRelativePath(targetFile);
+        }
+
+        String parentFolder = scriptManager.getRelativeParentFolder(scriptClass.File);
         String absoluteTarget = parentFolder + "/" + relativePath.replace(File.separatorChar, '/'); // Normalize to forward slashes
+
+        if (requireCache.containsKey(absoluteTarget)) {
+            return requireCache.get(absoluteTarget);
+        }
+
+        File targetFile = scriptManager.stringToScript(absoluteTarget);
         String javascriptCode = scriptManager.readCode(absoluteTarget);
 
-        if (javascriptCode != null) {
+        if (javascriptCode != null && targetFile != null) {
+            File originalScriptFile = scriptClass.File;
+
+            scriptClass.setPath(absoluteTarget);
             Object result = scriptUtils.executeJsCode(Engine, absoluteTarget, javascriptCode);
+            requireCache.put(absoluteTarget, result);
+            scriptClass.setPath(scriptManager.getRelativePath(originalScriptFile));
+
             if (result == null) {
-                sharedClass.logger.scriptlog(Level.WARNING, ScriptName, " [" + absoluteTarget + "] Did not return anything.", pluginLogger.ORANGE);
+                sharedClass.logger.scriptlog(Level.WARNING, ScriptName, "[" + absoluteTarget + "] Did not return anything.", pluginLogger.ORANGE);
                 return null;
             } else {
                 return result;

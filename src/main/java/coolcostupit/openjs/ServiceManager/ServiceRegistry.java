@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2025 coolcostupit
+ * Copyright (c) 2026 coolcostupit
  * Licensed under AGPL-3.0
  * You may not remove this notice or claim this work as your own.
  */
 
 package coolcostupit.openjs.ServiceManager;
+
+import coolcostupit.openjs.ServiceObjects.ScriptClassObject;
 
 import javax.script.ScriptEngine;
 import java.util.Map;
@@ -18,7 +20,8 @@ public final class ServiceRegistry {
     public static Object get(
             String name,
             String scriptName,
-            ScriptEngine engine
+            ScriptEngine engine,
+            ScriptClassObject scriptClass
     ) {
 
         String key = name.toLowerCase();
@@ -31,7 +34,7 @@ public final class ServiceRegistry {
             throw new RuntimeException("Service not found: " + name);
         }
 
-        return service.load(scriptName, engine);
+        return service.load(scriptName, engine, scriptClass);
     }
 
     private static ScriptService discoverService(String name) {

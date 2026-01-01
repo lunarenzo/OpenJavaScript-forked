@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 coolcostupit
+ * Copyright (c) 2026 coolcostupit
  * Licensed under AGPL-3.0
  * You may not remove this notice or claim this work as your own.
  */
@@ -13,9 +13,7 @@ import java.security.SecureRandom;
 import java.util.logging.Level;
 
 public class scriptUtils {
-    private static final String LETTERS =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
+    private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     public static String randomString(int length) {

@@ -84,11 +84,22 @@ Version 1.3.0:
 - add command "autoReload" to toggle if a script will get automatically reloaded when the script changes
 🟩️ Rewrite script management and IO system to reduce a lot of io operations
 🟩️ Automatically load scripts that get added to the scripts folder while the server is running
-von gestern: Next commit: Debug cleanup, 1.2.8 is already correct
+🟩️ cache load result from requireScript
+🟩️ requireScript folder support
+🟩️ add global named [script] which contains: script.Name, script.File <= direct file reference, script.MainFolder, script.RelativePath
+🟩️ requireScript will automatically adjust [script] based on the script being required
+🟩️ add FileSystem service: https://gitlab.com/spidermodders/openjs/-/milestones/3#tab-issues
+- add onUnload() to scripts, scripts can overwrite this so that they can implement custom cleanup and filesaving logic.
+- use futures to catch onUnload and wait for it to complete to allow scripts to execute properly
 - add Overwrite variable to custom commands (force overwrites plugin scripts)
 - create system called "InventoryApi" which will simplify the process of menu and inventory management
 - make the cache do not drop instantly, only drop the cache after completing I/O Operation
-- add FileApi for IO operations inside scripts within the plugin folder
-- on script errors/exceptions use ERROR() instead of WARN() <-- is this really necessary?
+🟩️ on script errors/exceptions use ERROR() instead of WARN() <-- is this really necessary?
+
+Version 1.4.0
+- Cleanup a lot of code
+- remove anything that is deprecated
+- remove plugin bridges, rename any bridge to "xxxObject" and put it into ServiceObjects
+- Clear up todos
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==

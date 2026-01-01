@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 coolcostupit
+ * Copyright (c) 2026 coolcostupit
  * Licensed under AGPL-3.0
  * You may not remove this notice or claim this work as your own.
  */
@@ -49,7 +49,34 @@ public class pluginLogger {
         }
     }
 
-    public void internalException(String scriptName, String exception) {
+    public void logScriptError(Exception error, String scriptName) {
+        if (error == null) return;
+
+        String Message = error.getMessage();
+        Throwable cause = error.getCause();
+        StackTraceElement[] stack = error.getStackTrace();
+
+        if (Message != null) {
+            scriptlog(Level.SEVERE, scriptName, "Message: " + Message, RED);
+        }
+
+        scriptlog(Level.SEVERE, scriptName, "Class: " + error.getClass().getName(), RED);
+
+        if (cause != null) {
+            scriptlog(Level.SEVERE, scriptName, "Cause: " + cause.toString(), RED);
+        }
+
+        if (stack != null && stack.length > 0) {
+            scriptlog(Level.SEVERE, scriptName, "Stacktrace:", RED);
+            for (StackTraceElement element : stack) {
+                String traceLine = "    at " + element.getClassName() + "." + element.getMethodName() +
+                        "(" + element.getFileName() + ":" + element.getLineNumber() + ")";
+                scriptlog(Level.SEVERE, scriptName, traceLine, RED);
+            }
+        }
+    }
+
+    public void logScriptError(String exception, String scriptName) {
         this.scriptlog(Level.WARNING, scriptName, exception, RED);
     }
 }

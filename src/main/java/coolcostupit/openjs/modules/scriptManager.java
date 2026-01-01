@@ -1,8 +1,7 @@
 /*
- * Copyright (c) 2025 coolcostupit
+ * Copyright (c) 2026 coolcostupit
  * Licensed under AGPL-3.0
- * You may not remove this notice.
- * Reference from https://github.com/World-of-Eldin/eldin-openjavascript/blob/main/src/main/java/coolcostupit/openjs/utility/ScriptPathUtils.java
+ * You may not remove this notice or claim this work as your own.
  */
 
 package coolcostupit.openjs.modules;
@@ -24,6 +23,7 @@ public class scriptManager {
     private static final Set<String> DISABLED_SCRIPTS = ConcurrentHashMap.newKeySet();
     private static final Set<String> LOADING_SCRIPTS = ConcurrentHashMap.newKeySet();
     private static final Map<String, String> CODE_CACHE = new ConcurrentHashMap<>();
+    private static final Map<WatchKey, Path> WATCH_KEYS = new ConcurrentHashMap<>();
     private static WatchService watchService;
     private static boolean initialized = false;
     private static File disabledScriptsFile;
@@ -93,20 +93,9 @@ public class scriptManager {
             }
 
             json.append("]");
-
-            Files.writeString(
-                    disabledScriptsFile.toPath(),
-                    json.toString(),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING
-            );
-
+            Files.writeString(disabledScriptsFile.toPath(), json.toString(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException e) {
-            logger.log(
-                    Level.SEVERE,
-                    "Failed to save disabled scripts list: " + e.getMessage(),
-                    pluginLogger.RED
-            );
+            logger.log(Level.SEVERE, "Failed to save disabled scripts list: " + e.getMessage(), pluginLogger.RED);
         }
     }
 
@@ -116,6 +105,7 @@ public class scriptManager {
         SCRIPT_CACHE.clear();
         logger = sharedClass.logger;
         scriptsFolder = getScriptFolder(plugin);
+        sharedClass.scriptFolder = scriptsFolder;
 
         loadDisabledScripts(plugin);
         scanScripts(scriptsFolder);
@@ -147,16 +137,22 @@ public class scriptManager {
         }
     }
 
-    private static File getMainScript(File folder) {
-        if (folder.isFile() && folder.getName().endsWith(".js")) {
-            return folder;
+    private static File getMainScript(File file) {
+        if (file == null) return null;
+        if (isJavascript(file.getName()) && file.getParentFile() == scriptsFolder) return file;
+
+        File current = file.isDirectory() ? file : file.getParentFile();
+
+        while (current != null && !current.equals(scriptsFolder)) {
+            File mainLower = new File(current, "main.js");
+            if (mainLower.exists()) return mainLower;
+
+            File mainUpper = new File(current, "Main.js");
+            if (mainUpper.exists()) return mainUpper;
+
+            current = current.getParentFile();
         }
 
-        File mainLower = new File(folder, "main.js");
-        File mainUpper = new File(folder, "Main.js");
-
-        if (mainLower.exists()) return mainLower;
-        if (mainUpper.exists()) return mainUpper;
         return null;
     }
 
@@ -166,14 +162,15 @@ public class scriptManager {
                     .filter(Files::isDirectory)
                     .forEach(path -> {
                         try {
-                            path.register(
+                            WatchKey key = path.register(
                                     watchService,
                                     StandardWatchEventKinds.ENTRY_CREATE,
                                     StandardWatchEventKinds.ENTRY_DELETE,
                                     StandardWatchEventKinds.ENTRY_MODIFY
                             );
+                            WATCH_KEYS.put(key, path);
                         } catch (IOException e) {
-                            logger.log(Level.INFO, "Restricted path: " + path.toAbsolutePath(), pluginLogger.RED);
+                            logger.log(Level.SEVERE, "Restricted path: " + path.toAbsolutePath(), pluginLogger.RED);
                             logger.log(Level.SEVERE, "Failed to register watcher for path: " + e.getMessage(), pluginLogger.RED);
                         }
                     });
@@ -192,20 +189,22 @@ public class scriptManager {
                 while (plugin.isEnabled()) {
                     try {
                         WatchKey key = watchService.take();
+                        Path dir = WATCH_KEYS.get(key);
+                        if (dir == null) continue;
 
                         for (WatchEvent<?> event : key.pollEvents()) {
                             WatchEvent.Kind<?> kind = event.kind();
-                            Path changed = (Path) event.context();
-                            File affected = new File(scriptsFolder, changed.toString());
+                            Path changed = dir.resolve((Path) event.context());
+                            File affected = changed.toFile();
 
                             handleFileEvent(kind, affected);
                         }
 
                         if (!key.reset()) {
-                            break;
+                            WATCH_KEYS.remove(key);
                         }
-                    } catch (InterruptedException ignored) {
-                        break;
+                    } catch (InterruptedException e) {
+                        logger.log(Level.INFO, "An error caused a watcher interruption: " + e.getMessage(), pluginLogger.RED);
                     }
                 }
             });
@@ -216,21 +215,26 @@ public class scriptManager {
     }
 
     private static void handleFileEvent(WatchEvent.Kind<?> kind, File file) {
-        if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
-            if (file.isDirectory()) {
-                try {
-                    registerRecursiveWatcher(file.toPath());
-                } catch (IOException ignored) {}
+        try {
+            if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
+                if (file.isDirectory()) {
+                    try {
+                        registerRecursiveWatcher(file.toPath());
+                    } catch (IOException ignored) {
+                    }
+                }
+                onScriptAdded(file);
             }
-            onScriptAdded(file);
-        }
 
-        if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
-            onScriptRemoved(file);
-        }
+            if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
+                onScriptRemoved(file);
+            }
 
-        if (kind == StandardWatchEventKinds.ENTRY_MODIFY) {
-            onScriptFileChanged(file);
+            if (kind == StandardWatchEventKinds.ENTRY_MODIFY) {
+                onScriptFileChanged(file);
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error handling file event for " + file.getAbsolutePath() + ": " + e.getMessage(), pluginLogger.RED);
         }
     }
 
@@ -254,58 +258,51 @@ public class scriptManager {
 
     public static void onScriptAdded(File file) {
         updateCacheFor(file);
-        File MainScript = getMainScript(file);
-        logger.log(Level.INFO, "Script added: " + file.getAbsolutePath(), pluginLogger.GREEN);
-        if (MainScript != null && isScriptEnabled(MainScript)) {
-            sharedClass.scriptApi.loadScript(MainScript, false);
+        if (isJavascript(file.getName())) {
+            File MainScript = getMainScript(file);
+            if (MainScript != null && isScriptEnabled(MainScript)) {
+                sharedClass.scriptApi.loadScript(MainScript, false);
+            }
         }
     }
 
     public static void onScriptRemoved(File file) {
-        File script = getMainScript(file);
         removeCodeCache(file);
-        if (script != null) {
-            SCRIPT_CACHE.entrySet().removeIf(e -> e.getValue().equals(script));
-            logger.log(Level.INFO, "Script removed: " + script.getAbsolutePath(), pluginLogger.ORANGE);
-            if (isScriptEnabled(script)) {
-                sharedClass.scriptApi.unloadScript(getRelativePath(script));
+        if (isJavascript(file.getName())) {
+            SCRIPT_CACHE.entrySet().removeIf(e -> e.getValue().equals(file));
+            if (isScriptEnabled(file)) {
+                sharedClass.scriptApi.unloadScript(getRelativePath(file));
             }
-            removeDisabledScript(script);
+            if (!file.exists()) {
+                removeDisabledScript(file);
+            }
         }
     }
 
     public static void onScriptFileChanged(File file) {
         updateCacheFor(file);
         cacheCode(file);
-        File script = getMainScript(file);
+        if (isJavascript(file.getName())) {
+            File script = getMainScript(file);
 
-        if (script != null && isScriptEnabled(script)) {
-            logger.log(Level.INFO, "Script changed: " + file.getAbsolutePath(), pluginLogger.LIGHT_BLUE);
-            scriptWrapper.ScriptLoadResult result = sharedClass.scriptApi.loadScript(script, false);
-            logger.log(Level.INFO, result.getMessage(), pluginLogger.LIGHT_BLUE);
+            if (script != null && isScriptEnabled(script)) {
+                scriptWrapper.ScriptLoadResult result = sharedClass.scriptApi.loadScript(script, false);
+            }
         }
     }
 
     private static void updateCacheFor(File file) {
-        if (file.isFile() && file.getName().endsWith(".js")) {
-            String key = getRelativePath(file);
+        File main = getMainScript(file);
+        if (main != null) {
+            String key = getRelativePath(main);
             if (key != null && !SCRIPT_CACHE.containsKey(key)) {
-                SCRIPT_CACHE.put(key, file);
-            }
-        }
-        else if (file.isDirectory()) {
-            File main = getMainScript(file);
-            if (main != null) {
-                String key = getRelativePath(main);
-                if (key != null && !SCRIPT_CACHE.containsKey(key)) {
-                    SCRIPT_CACHE.put(key, main);
-                }
+                SCRIPT_CACHE.put(key, main);
             }
         }
     }
 
     public static File stringToScript(String relativePath) {
-        return SCRIPT_CACHE.get(relativePath);
+        return Objects.requireNonNullElseGet(SCRIPT_CACHE.get(relativePath), () -> new File(scriptsFolder.getAbsolutePath(), relativePath));
     }
 
     public static boolean isScriptLoading(String relativeScriptPath) {
@@ -430,5 +427,10 @@ public class scriptManager {
 
     public static void removeCodeCache(File file) {
         CODE_CACHE.remove(getRelativePath(file));
+    }
+
+    public static boolean isRelativePath(String path) {
+        if (path == null || path.isEmpty()) return false;
+        return !Paths.get(path).isAbsolute();
     }
 }

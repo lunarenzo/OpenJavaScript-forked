@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 coolcostupit
+ * Copyright (c) 2026 coolcostupit
  * Licensed under AGPL-3.0
  * You may not remove this notice or claim this work as your own.
  */
@@ -12,6 +12,7 @@ import coolcostupit.openjs.utility.configurationUtil;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
 import java.util.concurrent.ExecutorService;
 
 public class sharedClass {
@@ -20,6 +21,7 @@ public class sharedClass {
     public static configurationUtil configUtil;
     public static pluginLogger logger;
     public static scriptWrapper scriptApi;
+    public static File scriptFolder;
     public static JavaPlugin plugin;
     public static String Identifier;
     public static DiskStorage DiskStorageApi;

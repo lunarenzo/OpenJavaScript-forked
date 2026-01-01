@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 coolcostupit
+ * Copyright (c) 2026 coolcostupit
  * Licensed under AGPL-3.0
  * You may not remove this notice or claim this work as your own.
  */
@@ -276,17 +276,17 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                 }
                 String scriptToEnable = args[1];
                 File scriptFile = scriptManager.stringToScript(scriptToEnable);
-                if (scriptManager.isScriptDisabled(scriptFile)) {
-                    scriptManager.setScriptEnabled(scriptFile);
-                    if (scriptFile.exists()) {
-                        scriptWrapper.loadScript(scriptFile, true);
-                        sender.sendMessage(chatColors.GREEN+"Script " + scriptToEnable + " enabled.");
-                        return  true;
-                    } else {
-                        sender.sendMessage(chatColors.RED+"Script " + scriptToEnable + " not found.");
-                    }
+
+                if (scriptFile == null || scriptFile.exists()) {
+                    sender.sendMessage(chatColors.RED + "Script " + scriptToEnable + " not found.");
                 } else {
-                    sender.sendMessage(chatColors.RED+"Script " + scriptToEnable + " is not disabled.");
+                    if (scriptManager.isScriptDisabled(scriptFile)) {
+                        scriptWrapper.loadScript(scriptFile, true);
+                        scriptManager.setScriptEnabled(scriptFile);
+                        sender.sendMessage(chatColors.GREEN+"Script " + scriptToEnable + " enabled.");
+                    } else {
+                        sender.sendMessage(chatColors.RED+"Script " + scriptToEnable + " is not disabled.");
+                    }
                 }
                 return true;
             case "disable":
@@ -296,7 +296,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                 }
                 String scriptName = args[1];
                 File script = scriptManager.stringToScript(scriptName);
-                if (script == null) {
+                if (script == null || !script.exists()) {
                     sender.sendMessage(chatColors.RED + "Script " + scriptName + " not found.");
                 } else if (scriptManager.isScriptEnabled(script)) {
                     scriptManager.setScriptDisabled(script);
