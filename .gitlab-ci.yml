@@ -7,9 +7,9 @@ badge:
     - mkdir -p public
     - |
       RAW="$CI_COMMIT_TITLE"
-      SHORT=$(printf "%.7s" "$RAW")
+      SHORT=$(printf "%.12s" "$RAW")
 
-      if [ "${#RAW}" -gt 7 ]; then
+      if [ "${#RAW}" -gt 12 ]; then
         TITLE="${SHORT}.."
       else
         TITLE="$RAW"
@@ -27,3 +27,12 @@ badge:
     paths:
       - public/commit-badge.json
     public: true
+pages:
+  stage: deploy
+  script:
+    - echo "Publishing Pages"
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
