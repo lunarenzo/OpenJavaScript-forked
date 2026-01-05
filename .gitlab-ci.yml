@@ -1,10 +1,11 @@
-badge:
+pages:
   stage: deploy
   image: alpine:latest
   rules:
-    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_BRANCH == "main"
   script:
     - mkdir -p public
+
     - |
       RAW="$CI_COMMIT_TITLE"
       SHORT=$(printf "%.12s" "$RAW")
@@ -23,16 +24,7 @@ badge:
         "color": "9b59b6"
       }
       EOF
+
   artifacts:
     paths:
       - public
-    public: true
-pages:
-  stage: deploy
-  script:
-    - echo "Publishing Pages"
-  artifacts:
-    paths:
-      - public
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
