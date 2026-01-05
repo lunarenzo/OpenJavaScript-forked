@@ -3,7 +3,7 @@
  * Licensed under AGPL-3.0
  * You may not remove this notice or claim this work as your own.
  */
-
+// TODO: Remove after 1.3.0
 package coolcostupit.openjs.utility;
 
 import coolcostupit.openjs.logging.pluginLogger;

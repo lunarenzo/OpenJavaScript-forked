@@ -139,7 +139,7 @@ public class scriptManager {
 
     private static File getMainScript(File file) {
         if (file == null) return null;
-        if (isJavascript(file.getName()) && file.getParentFile() == scriptsFolder) return file;
+        if (isJavascript(file.getName()) && file.getParentFile().equals(scriptsFolder)) return file;
 
         File current = file.isDirectory() ? file : file.getParentFile();
 
@@ -284,7 +284,6 @@ public class scriptManager {
         cacheCode(file);
         if (isJavascript(file.getName())) {
             File script = getMainScript(file);
-
             if (script != null && isScriptEnabled(script)) {
                 scriptWrapper.ScriptLoadResult result = sharedClass.scriptApi.loadScript(script, false);
             }

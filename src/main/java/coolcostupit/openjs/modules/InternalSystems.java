@@ -8,16 +8,28 @@ package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.ServiceObjects.ScriptClassObject;
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.utility.chatColors;
 import coolcostupit.openjs.utility.scriptUtils;
+import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandMap;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.jetbrains.annotations.NotNull;
 
+import javax.annotation.Nullable;
+import javax.script.Bindings;
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,8 +43,9 @@ public class InternalSystems {
     private final String ScriptName;
     private final ScriptEngine Engine;
     private final ScriptClassObject scriptClass;
-    static private final Map<String, List<Listener>> eventListenersMap = new HashMap<>();
     private final Map<String, Object> requireCache;
+    private static final pluginLogger Logger = sharedClass.logger;
+    static private final Map<String, List<Listener>> eventListenersMap = new HashMap<>();
 
     public InternalSystems(String scriptName, ScriptEngine engine, ScriptClassObject scriptClass) {
         this.ScriptName = scriptName;
@@ -45,10 +58,9 @@ public class InternalSystems {
         try {
             Class<?> clazz = Class.forName(className);
             String simpleName = clazz.getSimpleName();
-            //sharedClass.logger.scriptlog(Level.INFO, ScriptName, "Class found for import: " + className, pluginLogger.LIGHT_BLUE);
             return scriptUtils.importJavaToJsGC(Engine, ScriptName, clazz);
         } catch (ClassNotFoundException e) {
-            sharedClass.logger.scriptlog(Level.WARNING, ScriptName, "Class not found for import: " + className, pluginLogger.ORANGE);
+            Logger.scriptlog(Level.WARNING, ScriptName, "Class not found for import: " + className, pluginLogger.ORANGE);
         }
         return null;
     }
@@ -57,7 +69,7 @@ public class InternalSystems {
         if (!scriptManager.isRelativePath(relativePath)) {
             File targetFile = new File(relativePath);
             if (!targetFile.exists()) {
-                sharedClass.logger.scriptlog(Level.SEVERE, ScriptName, "Require path is not relative and file does not exist: " + relativePath, pluginLogger.ORANGE);
+                Logger.scriptlog(Level.SEVERE, ScriptName, "Require path is not relative and file does not exist: " + relativePath, pluginLogger.ORANGE);
                 return null;
             }
             relativePath = scriptManager.getRelativePath(targetFile);
@@ -82,13 +94,13 @@ public class InternalSystems {
             scriptClass.setPath(scriptManager.getRelativePath(originalScriptFile));
 
             if (result == null) {
-                sharedClass.logger.scriptlog(Level.WARNING, ScriptName, "[" + absoluteTarget + "] Did not return anything.", pluginLogger.ORANGE);
+                Logger.scriptlog(Level.WARNING, ScriptName, "[" + absoluteTarget + "] Did not return anything.", pluginLogger.ORANGE);
                 return null;
             } else {
                 return result;
             }
         } else {
-            sharedClass.logger.scriptlog(Level.SEVERE, ScriptName, "Failed to require script: " + absoluteTarget, pluginLogger.ORANGE);
+            Logger.scriptlog(Level.SEVERE, ScriptName, "Failed to require script: " + absoluteTarget, pluginLogger.ORANGE);
             return null;
         }
     }
@@ -150,18 +162,137 @@ public class InternalSystems {
                     try {
                         ((Invocable) Engine).invokeMethod(handler, "handleEvent", e);
                     } catch (ScriptException | NoSuchMethodException ex) {
-                        sharedClass.logger.scriptlog(Level.SEVERE, ScriptName, ex.getMessage(), pluginLogger.RED);
+                        Logger.scriptlog(Level.SEVERE, ScriptName, "Failed to handle event:", pluginLogger.RED);
+                        Logger.logScriptError(ex, ScriptName);
                     }
                 }, plugin);
 
                 eventListenersMap.computeIfAbsent(ScriptName, k -> new ArrayList<>()).add(listener);
                 return listener;
             } else {
-                sharedClass.logger.scriptlog(Level.WARNING, ScriptName, "Class " + eventClassName + " is not an Event.", pluginLogger.ORANGE);
+                Logger.scriptlog(Level.WARNING, ScriptName, "Class " + eventClassName + " is not an Event.", pluginLogger.ORANGE);
             }
         } catch (ClassNotFoundException e) {
-            sharedClass.logger.scriptlog(Level.WARNING, ScriptName, "Failed to register event " + eventClassName + ": " + e.getMessage(), pluginLogger.ORANGE);
+            Logger.scriptlog(Level.WARNING, ScriptName, "Failed to register event " + eventClassName + ": " + e.getMessage(), pluginLogger.ORANGE);
         }
         return null;
+    }
+
+    private static Method getMethod(Class<?> clazz, String methodName) throws NoSuchMethodException {
+        try {
+            return clazz.getDeclaredMethod(methodName);
+        } catch (NoSuchMethodException e) {
+            Class<?> superClass = clazz.getSuperclass();
+            if (superClass == null) {
+                throw e;
+            } else {
+                return getMethod(superClass, methodName);
+            }
+        }
+    }
+
+    private static Map<String, Command> getKnownCommands(CommandMap commandMap) throws Exception {
+        Field field = SimpleCommandMap.class.getDeclaredField("knownCommands");
+        field.setAccessible(true);
+        return (Map<String, Command>) field.get(commandMap);
+    }
+
+    private CommandMap getCommandMap() {
+        CommandMap commandMap = null;
+
+        try {
+            Field f = Bukkit.getPluginManager().getClass().getDeclaredField("commandMap");
+            f.setAccessible(true);
+
+            commandMap = (CommandMap) f.get(Bukkit.getPluginManager());
+        } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException | SecurityException e) {
+            Logger.scriptlog(Level.SEVERE, ScriptName, "Failed to load get CommandMap:", pluginLogger.RED);
+            Logger.logScriptError(e, ScriptName);
+        }
+
+        return commandMap;
+    }
+
+    private static void invokeSyncCommands() {
+        FoliaSupport.runTaskSynchronously(plugin, () -> {
+            try {
+                Class<?> serverClass = Bukkit.getServer().getClass();
+                Method method = getMethod(serverClass, "syncCommands");
+                method.setAccessible(true);
+                method.invoke(Bukkit.getServer());
+                method.setAccessible(false);
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                Logger.log(Level.WARNING, "Failed to sync commands:", pluginLogger.RED);
+                Logger.logException(e, Level.WARNING); // Warning cuz it is not that bad of an error
+            }
+        });
+    }
+
+    public void registerCommand(String commandName, Object commandHandler, @Nullable String permission) {
+        try {
+            CommandMap commandMap = getCommandMap();
+            Command dynamicCommand = new Command(commandName) {
+                @Override
+                public boolean execute(@NotNull CommandSender sender, @NotNull String label, String[] args) {
+                    if (!testPermission(sender)) return true; // permission check, may be redundant
+                    try {
+                        ((Invocable) Engine).invokeMethod(commandHandler, "onCommand", sender, args);
+                    } catch (Exception e) {
+                        sender.sendMessage(chatColors.RED + "An error occurred while executing the command: " + e.getMessage());
+                        Logger.scriptlog(Level.SEVERE, ScriptName, "Error in script command execution for " + commandName + ":", pluginLogger.RED);
+                        Logger.logScriptError(e, ScriptName);
+                    }
+                    return true;
+                }
+
+                @Override
+                public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, String[] args) {
+                    if (commandHandler instanceof Bindings && ((Bindings) commandHandler).containsKey("onTabComplete")) {
+                        try {
+                            return (List<String>) ((Invocable) Engine).invokeMethod(commandHandler, "onTabComplete", sender, args);
+                        } catch (Exception e) {
+                            Logger.logScriptError("Error during tab-completion for command " + commandName + ":", ScriptName);
+                            Logger.logScriptError(e, ScriptName);
+                        }
+                    }
+                    return super.tabComplete(sender, alias, args);
+                }
+            };
+
+            if (permission != null && !permission.isEmpty()) {
+                dynamicCommand.setPermission(permission);
+            }
+
+            commandMap.register(plugin.getName(), dynamicCommand);
+            scriptWrapper.addToCleanupMap(scriptClass.MainRelativePath, () -> unregisterCommand(commandName));
+            invokeSyncCommands(); // Update command map for tab completion
+
+            if (sharedClass.configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true)) {
+                Logger.scriptlog(Level.INFO, ScriptName, "Registered command: " + commandName, pluginLogger.GREEN);
+            }
+        } catch (Exception e) {
+            Logger.scriptlog(Level.WARNING, ScriptName, "Failed to register command " + commandName + ":", pluginLogger.RED);
+            Logger.logException(e, Level.WARNING);
+        }
+    }
+
+    public void unregisterCommand(String commandName) {
+        try {
+            CommandMap commandMap = getCommandMap();
+            Map<String, Command> knownCommands = getKnownCommands(commandMap);
+            Command existing = knownCommands.remove(commandName);
+
+            if (existing != null) {
+                boolean unregistered = existing.unregister(commandMap);
+                if (unregistered) {
+                    if (sharedClass.configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true)) {
+                        Logger.scriptlog(Level.INFO,ScriptName, "Unregistered command: " + commandName, pluginLogger.GREEN);
+                    }
+                }
+            }
+        } catch (Exception exception) {
+            Logger.scriptlog(Level.WARNING, ScriptName, "Failed to unregister command " + commandName + ":", pluginLogger.RED);
+            Logger.logException(exception, Level.WARNING);
+        }
     }
 }

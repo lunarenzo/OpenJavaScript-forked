@@ -14,21 +14,12 @@ import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.pluginbridges.BridgeLoader;
 import coolcostupit.openjs.ServiceObjects.ScriptClassObject;
 import coolcostupit.openjs.utility.*;
-import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandMap;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.jetbrains.annotations.NotNull;
 
-import javax.annotation.Nullable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 import javax.script.*;
 import java.io.*;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.*;
@@ -37,13 +28,17 @@ import java.util.logging.Level;
 import static org.bukkit.Bukkit.getLogger;
 
 // this is the main stuff, but I haven't added many to no comments because I was way too focused when coding all that
+// TODO: This is flooded with so much stupid stuff I did; Refactor and fix inconsistencies (especially with script logging)
+// Currently before folder support has been added, scripts logged errors and infos by their name, this should change.
+// WARNS and ERRORS should show the relative path, so devs know which script is causing the error
+// INFOS should show the computed name (on super-scripts it will be their folder, anything else will be relative path)
+
 public class scriptWrapper {
     private boolean scriptsReady = false;
     private boolean hasInit = false;
     public final Map<String, List<Integer>> scriptTasksMap = new HashMap<>();
     private final Map<String, Future<?>> scriptFutures = new HashMap<>();
     private final Map<String, ScriptEngine> scriptEngines = new HashMap<>();
-    private final Map<String, List<Command>> scriptCommands = new HashMap<>();
     private static final Map<String, List<Runnable>> cleanUpMethods = new ConcurrentHashMap<>();
     private final JavaPlugin plugin;
     private final pluginLogger Logger;
@@ -118,43 +113,6 @@ public class scriptWrapper {
         scriptTasksMap.clear();
     }
 
-    public CommandMap getCommandMap() {
-        CommandMap commandMap = null;
-
-        try {
-            Field f = Bukkit.getPluginManager().getClass().getDeclaredField("commandMap");
-            f.setAccessible(true);
-
-            commandMap = (CommandMap) f.get(Bukkit.getPluginManager());
-        } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException | SecurityException e) {
-            Logger.log(Level.SEVERE, "Failed to load CommandMap: " + e.getMessage(), pluginLogger.RED);
-        }
-
-        return commandMap;
-    }
-
-    private void removeCommandFromKnownCommands(String commandName) throws Exception {
-        CommandMap commandMap = getCommandMap();
-
-        Field knownCommandsField = SimpleCommandMap.class.getDeclaredField("knownCommands");
-        knownCommandsField.setAccessible(true);
-
-        Map<String, Command> knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
-        knownCommands.remove(commandName); // Remove the command
-    }
-
-    private void invokeSyncCommands() {
-        try {
-            Class<?> serverClass = Bukkit.getServer().getClass();
-            Method method = getMethod(serverClass, "syncCommands");
-            method.setAccessible(true);
-            method.invoke(Bukkit.getServer());
-            method.setAccessible(false);
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            Logger.log(Level.SEVERE, "Failed to sync commands: " + e.getMessage(), pluginLogger.RED);
-        }
-    }
-
     private Method getMethod(Class<?> clazz, String methodName) throws NoSuchMethodException {
         try {
             return clazz.getDeclaredMethod(methodName);
@@ -165,46 +123,6 @@ public class scriptWrapper {
             } else {
                 return getMethod(superClass, methodName);
             }
-        }
-    }
-
-    // Unregister all commands for a specific script
-    public void unregisterCommands(String scriptName) {
-        List<Command> commands = scriptCommands.remove(scriptName);
-        if (commands != null) {
-            try {
-                CommandMap commandMap = getCommandMap();
-
-                for (Command dynamicCommand : commands) {
-                    // Unregister the command using CommandMap directly
-                    removeCommandFromKnownCommands(dynamicCommand.getName());
-                    boolean Unregistered = dynamicCommand.unregister(commandMap);
-                    if (Unregistered) {
-                        if (configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true)) {
-                            Logger.scriptlog(Level.INFO, scriptName, "Unregistered command: " + dynamicCommand.getName(), pluginLogger.GREEN);
-                        }
-                        invokeSyncCommands();
-                    } else {
-                        Logger.scriptlog(Level.INFO, scriptName, "Failed to unregister command: " + dynamicCommand.getName(), pluginLogger.ORANGE);
-                    }
-                }
-            } catch (Exception e) {
-                Logger.scriptlog(Level.SEVERE, scriptName, "Failed to unregister commands: " + e, pluginLogger.RED);
-                Logger.scriptlog(Level.SEVERE, scriptName, e.getMessage(), pluginLogger.RED);
-            }
-        }
-    }
-
-
-    // Unregister all dynamically registered commands
-    public void unregisterAllScriptCommands() {
-        try {
-            for (String scriptName : new ArrayList<>(scriptCommands.keySet())) {
-                unregisterCommands(scriptName);
-            }
-            scriptCommands.clear();
-        } catch (Exception e) {
-            Logger.log(Level.SEVERE, "Failed to unregister all script commands: " + e.getMessage(), pluginLogger.ORANGE);
         }
     }
 
@@ -223,20 +141,31 @@ public class scriptWrapper {
         if (!runningScripts.contains(scriptName)) {
             return;
         }
+        ScriptEngine engine = scriptEngines.get(scriptName);
+
+        if (engine != null) {
+            if (engine instanceof Invocable invocable) {
+                try {
+                    invocable.invokeFunction("__runUnloadBinds");
+                } catch (ScriptException e) {
+                    Logger.logScriptError("There was a problem running onUnload:", scriptName);
+                    Logger.logScriptError(e, scriptName);
+                } catch (NoSuchMethodException ignored) {} // its optional so yea, if it does not exist, then ignore
+            }
+        }
 
         invokeScriptCleanup(scriptName);
         taskApi.clearListeners(scriptName);
         InternalSystems.unregisterListenersFromScript(scriptName);
-        unregisterCommands(scriptName);
         unregisterTasksFromScript(scriptName);
         sharedClass.DiskStorageApi.saveCaches(scriptName); // ASYNC ?=> yields
-
         Future<?> future = scriptFutures.remove(scriptName);
+
         if (future != null) {
             future.cancel(true);
         }
 
-        ScriptEngine engine = scriptEngines.remove(scriptName);
+        scriptEngines.remove(scriptName);
         runningScripts.remove(scriptName);
 
         if (engine != null) {
@@ -350,7 +279,7 @@ public class scriptWrapper {
         public String getMessage() {
             return message;
         }
-    }
+    } // Took a look at it, somehow it is perfect! (but ancient)
 
     public ScriptLoadResult loadScript(File scriptFile, boolean calledFromScript) {
         if (scriptFile.isFile() && scriptFile.getName().endsWith(".js")) {
@@ -373,6 +302,11 @@ public class scriptWrapper {
                 return new ScriptLoadResult(false, "Script is already loading.");
             }
 
+            // HEY, this is the main process of loading any script.
+            // Currently, there is no sandboxing/security. This will not change in the future
+            // It should be up to the developer what they want to create with OpenJS; just like it is with Plugins.
+            // Those have no enforced security, everything is up to the developer
+            // OK thank you for reading, have a nice day!
             scriptManager.setScriptLoading(RelativePath, true);
             unloadScriptAsync(RelativePath);
             ScriptEngine localScriptEngine = coolcostupit.openjs.modules.ScriptEngine.getEngine();
@@ -399,7 +333,7 @@ public class scriptWrapper {
 
             Future<?> future = executorService.submit(() -> {
                 try {
-                    // Developer protections and memory optimization (just a myth but freezing in-build variables should decrease memory overhead)
+                    // Developer protections and memory optimization (just a myth but freezing in-build variables should decrease memory overhead; right?)
                     localScriptEngine.eval("""
                     const deepFreeze = function(obj) {
                         if (obj === null || typeof obj !== 'object') return obj;
@@ -486,7 +420,7 @@ public class scriptWrapper {
         return new ScriptLoadResult(false, "Invalid script file.");
     }
 
-    public void loadScriptAsync(File scriptFile, boolean calledFromScript) {
+    public void loadScriptAsync(File scriptFile) {
         Future<?> future = executorService.submit(() -> loadScript(scriptFile, false));
         try {
             future.get();
@@ -510,55 +444,8 @@ public class scriptWrapper {
         for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
             File scriptFile = entry.getValue();
             if (scriptManager.isScriptEnabled(scriptFile)) {
-                loadScriptAsync(scriptFile, false);
+                loadScriptAsync(scriptFile);
             }
-        }
-    }
-
-    // In-Build script functions: (HELPERS)
-    @SuppressWarnings("unused")
-    public void registerCommand(String commandName, Object commandHandler, String scriptName, ScriptEngine scriptEngine, @Nullable String permission) {
-        try {
-            CommandMap commandMap = getCommandMap();
-            Command dynamicCommand = new Command(commandName) {
-                @Override
-                public boolean execute(@NotNull CommandSender sender, @NotNull String label, String[] args) {
-                    if (!testPermission(sender)) return true; // permission check, may be redundant
-                    try {
-                        ((Invocable) scriptEngine).invokeMethod(commandHandler, "onCommand", sender, args);
-                    } catch (Exception e) {
-                        sender.sendMessage(chatColors.RED + "An error occurred while executing the command: " + e.getMessage());
-                        Logger.scriptlog(Level.SEVERE, scriptName, "Error in script command execution for " + commandName + ": " + e.getMessage(), pluginLogger.ORANGE);
-                    }
-                    return true;
-                }
-
-                @Override
-                public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, String[] args) {
-                    if (commandHandler instanceof Bindings && ((Bindings) commandHandler).containsKey("onTabComplete")) {
-                        try {
-                            return (List<String>) ((Invocable) scriptEngine).invokeMethod(commandHandler, "onTabComplete", sender, args);
-                        } catch (Exception e) {
-                            Logger.scriptlog(Level.WARNING, scriptName, "] Error during tab-completion for command " + commandName + ": " + e.getMessage(), pluginLogger.ORANGE);
-                        }
-                    }
-                    return super.tabComplete(sender, alias, args);
-                }
-            };
-
-            if (permission != null && !permission.isEmpty()) {
-                dynamicCommand.setPermission(permission);
-            }
-
-            commandMap.register(plugin.getName(), dynamicCommand);
-            scriptCommands.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(dynamicCommand);
-            invokeSyncCommands(); // Update command map for tab completion
-
-            if (configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true)) {
-                Logger.log(Level.INFO, "[" + scriptName + "] Registered command: " + commandName, pluginLogger.GREEN);
-            }
-        } catch (Exception e) {
-            Logger.scriptlog(Level.SEVERE, scriptName, "Failed to register command " + commandName + ": " + e.getMessage(), pluginLogger.RED);
         }
     }
 

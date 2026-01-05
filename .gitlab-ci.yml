@@ -1,0 +1,22 @@
+badge:
+  stage: deploy
+  image: alpine:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH
+  script:
+    - mkdir -p public
+    - |
+      TITLE=$(echo "$CI_COMMIT_TITLE" | tr '\n' ' ' | cut -c1-50)
+
+      cat > public/commit-badge.json <<EOF
+      {
+        "schemaVersion": 1,
+        "label": "Nightly",
+        "message": "$TITLE",
+        "color": "9b59b6"
+      }
+      EOF
+  artifacts:
+    paths:
+      - public/commit-badge.json
+    public: true

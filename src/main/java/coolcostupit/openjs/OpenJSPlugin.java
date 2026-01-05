@@ -127,16 +127,14 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
     public void onDisable() {
         pluginLogger.log(Level.INFO, "[<---------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
         pluginLogger.log(Level.INFO, "      [OpenJavascript shutdown]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+        pluginLogger.log(Level.INFO, "Un-loading all scripts...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
+        scriptWrapper.unloadAllScripts();
         pluginLogger.log(Level.INFO, "Un-registering all listeners...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         InternalSystems.unregisterAllListeners();
         pluginLogger.log(Level.INFO, "Un-registering all tasks...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         scriptWrapper.unregisterAllTasks();
-        pluginLogger.log(Level.INFO, "Un-registering all script commands...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        scriptWrapper.unregisterAllScriptCommands();
-        pluginLogger.log(Level.INFO, "Un-loading all scripts...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         sharedClass.TaskThreadPool.shutdown();
         scriptWrapper.executorService.shutdown();
-        scriptWrapper.unloadAllScripts();
         sharedClass.LibImporterApi.shutdown();
         scriptManager.saveDisabledScripts();
         pluginLogger.log(Level.INFO, "Saving disk storage files...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
@@ -277,7 +275,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                 String scriptToEnable = args[1];
                 File scriptFile = scriptManager.stringToScript(scriptToEnable);
 
-                if (scriptFile == null || scriptFile.exists()) {
+                if (scriptFile == null || !scriptFile.exists()) {
                     sender.sendMessage(chatColors.RED + "Script " + scriptToEnable + " not found.");
                 } else {
                     if (scriptManager.isScriptDisabled(scriptFile)) {

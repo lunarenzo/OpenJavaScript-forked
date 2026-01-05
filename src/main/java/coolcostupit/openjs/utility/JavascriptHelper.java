@@ -11,6 +11,7 @@ import coolcostupit.openjs.logging.pluginLogger;
 public class JavascriptHelper {
     private static final String MAIN_JAVASCRIPT_CODE = String.format("""
                 var _gc = false;
+                var __unloadBinds = [];
                 
                 function _unloadThis() {
                   const keys = Object.keys(this);
@@ -20,19 +21,28 @@ public class JavascriptHelper {
                   _gc = true;
                 };
                 
-                Object.defineProperty(this, "_unloadThis", {
-                    writable: false,
-                    configurable: false
-                });
+                function __runUnloadBinds() {
+                    for (var i = 0; i < __unloadBinds.length; i++) {
+                        try {
+                            __unloadBinds[i]();
+                        } catch (e) {
+                            if (typeof log !== "undefined" && log.error) {
+                                log.error("Error in unload bind: " + e);
+                            }
+                        }
+                    }
+                    __unloadBinds = null;
+                }
+            
                 
                 const importClass = className => _InternalModules.importClass(className);
                 const toArray = args => Array.prototype.slice.call(args);
                 const toJavaList = data => Java.to(data, 'java.util.List');
                 const requireScript = relativePath => _InternalModules.requireScript(relativePath);
-                
+                const removeCommand = commandName => _InternalModules.unregisterCommand(commandName.toLowerCase());
                 const addCommand = (commandName, commandHandler, permission = "") => {
                   if (typeof permission !== "string") permission = "";
-                  scriptManager.registerCommand(commandName.toLowerCase(), commandHandler, currentScriptName, scriptEngine, permission);
+                  _InternalModules.registerCommand(commandName.toLowerCase(), commandHandler, permission);
                 };
                 
                 const importLib = libName => {
@@ -185,6 +195,12 @@ public class JavascriptHelper {
                     });
                 
                     return listener;
+                  },
+                  bindToUnload(fn) {
+                    if (typeof fn !== "function") {
+                        throw new TypeError("bindToUnload expects a function");
+                    }
+                    __unloadBinds.push(fn);
                   }
                 });
                 

@@ -79,4 +79,34 @@ public class pluginLogger {
     public void logScriptError(String exception, String scriptName) {
         this.scriptlog(Level.WARNING, scriptName, exception, RED);
     }
+
+    public void logException(Exception error, Level level) {
+        if (error == null) return;
+
+        String Message = error.getMessage();
+        Throwable cause = error.getCause();
+        StackTraceElement[] stack = error.getStackTrace();
+
+        if (Message != null) {
+            log(level,"Message: " + Message, RED);
+        }
+
+        log(level, "Class: " + error.getClass().getName(), RED);
+
+        if (cause != null) {
+            log(level, "Cause: " + cause.toString(), RED);
+        }
+
+        if (stack != null && stack.length > 0) {
+            log(level, "Stacktrace:", RED);
+            for (StackTraceElement element : stack) {
+                String traceLine = "    at " + element.getClassName() + "." + element.getMethodName() + "(" + element.getFileName() + ":" + element.getLineNumber() + ")";
+                log(level, traceLine, RED);
+            }
+        }
+    }
+
+    public void logException(Exception error) { // Is this genius or stupid?
+        logException(error, Level.SEVERE);
+    }
 }
