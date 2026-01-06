@@ -60,7 +60,7 @@ public class FileManagerObject {
             try {
                 ((Invocable) Engine).invokeMethod(handler, "e", path.resolve((Path) event.context()).toFile(), event.kind().name());
             } catch (Exception e) {
-                sharedClass.logger.scriptlog(Level.SEVERE, scriptManager.getRelativePath(scriptClass.File), "Error during file event: "+e.getMessage(), pluginLogger.ORANGE);
+                sharedClass.logger.scriptlog(Level.SEVERE, scriptClass.RelativePath, "Error during file event: "+e.getMessage(), pluginLogger.ORANGE);
             }
         }
     }

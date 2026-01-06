@@ -52,7 +52,7 @@ public class FileManagerService implements ScriptService {
             scriptWrapper.addToCleanupMap(scriptClass.MainRelativePath, manager::clearFileListeners);
             return api;
         } catch (Exception e) {
-            sharedClass.logger.scriptlog(Level.SEVERE, scriptName, "Failed to load FileManagerService: " + e.getMessage(), pluginLogger.RED);
+            sharedClass.logger.scriptlog(Level.SEVERE, scriptClass.RelativePath, "Failed to load FileManagerService: " + e.getMessage(), pluginLogger.RED);
             throw new RuntimeException(e);
         }
     }

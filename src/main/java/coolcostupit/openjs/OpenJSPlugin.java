@@ -95,12 +95,14 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         configUtil.getConfigFromBuffer("UpdateNotifications", true);
         configUtil.getConfigFromBuffer("AllowFeatureFlags", true); // TODO Remove this in 1.4.0
         configUtil.getConfigFromBuffer("BroadcastToOps", true);
-        configUtil.saveBufferToConfig();
+        configUtil.getConfigFromBuffer("AutoReloadScriptsOnChange", true);
 
         if (configUtil.getConfigFromBuffer("AllowBstats", true)) {
             // here ya go chads, you can opt-out bstats if u want to :)
             Metrics metrics = new Metrics(this, 22268);
         };
+
+        configUtil.saveBufferToConfig();
 
         getCommand("oj").setExecutor(this);
         getCommand("oj").setTabCompleter(this);

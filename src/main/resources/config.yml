@@ -40,5 +40,10 @@ UpdateNotifications: true
 # TODO Remove this in 1.4.0
 AllowFeatureFlags: true
 
+# Automatically reloads scripts when they are changed
+# Changes include: modifications, creations and deletions
+# Scripts that are also newly created will be loaded automatically
+AutoReloadScriptsOnChange: true
+
 # opt-in/out from Bstats https://bstats.org/plugin/bukkit/OpenJavaScript/22268
 AllowBstats: true

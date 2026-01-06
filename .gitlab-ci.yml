@@ -8,9 +8,9 @@ pages:
 
     - |
       RAW="$CI_COMMIT_TITLE"
-      SHORT=$(printf "%.12s" "$RAW")
+      SHORT=$(printf "%.18s" "$RAW")
 
-      if [ "${#RAW}" -gt 12 ]; then
+      if [ "${#RAW}" -gt 18 ]; then
         TITLE="${SHORT}.."
       else
         TITLE="$RAW"
@@ -19,7 +19,7 @@ pages:
       cat > public/commit-badge.json <<EOF
       {
         "schemaVersion": 1,
-        "label": "Nightly",
+        "label": "Nightly Build",
         "message": "$TITLE",
         "color": "9b59b6"
       }

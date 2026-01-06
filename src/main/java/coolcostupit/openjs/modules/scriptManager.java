@@ -258,10 +258,12 @@ public class scriptManager {
 
     public static void onScriptAdded(File file) {
         updateCacheFor(file);
-        if (isJavascript(file.getName())) {
-            File MainScript = getMainScript(file);
-            if (MainScript != null && isScriptEnabled(MainScript)) {
-                sharedClass.scriptApi.loadScript(MainScript, false);
+        if (sharedClass.configUtil.getConfigFromBuffer("AutoReloadScriptsOnChange", true)) {
+            if (isJavascript(file.getName())) {
+                File MainScript = getMainScript(file);
+                if (MainScript != null && isScriptEnabled(MainScript)) {
+                    sharedClass.scriptApi.loadScript(MainScript, false);
+                }
             }
         }
     }
@@ -282,10 +284,12 @@ public class scriptManager {
     public static void onScriptFileChanged(File file) {
         updateCacheFor(file);
         cacheCode(file);
-        if (isJavascript(file.getName())) {
-            File script = getMainScript(file);
-            if (script != null && isScriptEnabled(script)) {
-                scriptWrapper.ScriptLoadResult result = sharedClass.scriptApi.loadScript(script, false);
+        if (sharedClass.configUtil.getConfigFromBuffer("AutoReloadScriptsOnChange", true)) {
+            if (isJavascript(file.getName())) {
+                File script = getMainScript(file);
+                if (script != null && isScriptEnabled(script)) {
+                    scriptWrapper.ScriptLoadResult result = sharedClass.scriptApi.loadScript(script, false);
+                }
             }
         }
     }

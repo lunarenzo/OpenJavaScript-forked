@@ -109,4 +109,8 @@ public class pluginLogger {
     public void logException(Exception error) { // Is this genius or stupid?
         logException(error, Level.SEVERE);
     }
+
+    public void internalException(String scriptName, String exception) {
+        this.scriptlog(Level.SEVERE, scriptName, exception, RED);
+    }
 }

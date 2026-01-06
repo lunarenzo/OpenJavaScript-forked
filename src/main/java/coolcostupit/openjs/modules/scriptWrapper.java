@@ -311,22 +311,20 @@ public class scriptWrapper {
             unloadScriptAsync(RelativePath);
             ScriptEngine localScriptEngine = coolcostupit.openjs.modules.ScriptEngine.getEngine();
             scriptEngines.put(RelativePath, localScriptEngine);
+            ScriptClassObject scriptClass = new ScriptClassObject(RelativePath);
 
             // Initialize the custom in-built stuff
             localScriptEngine.put("plugin", plugin);
+            localScriptEngine.put("log", new ScriptLogger(getLogger(), scriptClass));
             localScriptEngine.put("scriptManager", this); // TODO: Try to lazy-load this, loading it on every script is memory intensive
             localScriptEngine.put("scriptEngine", localScriptEngine);
             localScriptEngine.put("currentScriptName", ScriptName);
-            localScriptEngine.put("log", new ScriptLogger(getLogger(), ScriptName));
             localScriptEngine.put("DiskStorage", sharedClass.DiskStorageApi);
             localScriptEngine.put("publicVarManager", PublicVarManager);
             localScriptEngine.put("_task", taskApi); // See class: JavascriptHelper
             localScriptEngine.put("_libImporter", sharedClass.LibImporterApi);
             localScriptEngine.put("_internalPluginLogger", Logger);
             localScriptEngine.put("IsFoliaServer", FoliaSupport.isFolia());
-
-            ScriptClassObject scriptClass = new ScriptClassObject(RelativePath);
-
             localScriptEngine.put("script", scriptClass);
             localScriptEngine.put("Services", new ServiceLoader(localScriptEngine, ScriptName, scriptClass));
             localScriptEngine.put("_InternalModules", new InternalSystems(ScriptName, localScriptEngine, scriptClass));

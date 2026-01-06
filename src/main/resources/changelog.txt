@@ -97,20 +97,24 @@ Version 1.3.0:
 🟩️ Fix rare ConcurrentModificationException when syncing commands
 🟩️ add removeCommand(CommandName) for scripts, to also gives the ability to overwrite existing plugins
 🟩️ refactor addCommand/registerCommand
-- create Service called "UserInterface" which will simplify the process of menu and inventory management
+🟩️ create Service called "InventoryApi" which will simplify the process of menu and inventory management
 🟩️ make the cache do not drop instantly, only drop the cache after completing I/O Operation; This is handled by scripts automatically now.
 🟩️ unload scripts async on the main thread during unload to allow script finish tasks before plugin shutdown
 🟩️ on script errors/exceptions use ERROR() instead of WARN() <-- is this really necessary?
 🟩️ unload all scripts before doing anything else during plugin shutdown
-- add autoReloadScripts in config so that users can toggle if scripts will get automatically reloaded upon changes or adding them
+🟩️ add autoReloadScripts in config so that users can toggle if scripts will get automatically reloaded upon changes or adding them
 
 Version 1.4.0
 - Cleanup a lot of code
+- create custom mappings to add support for 1.13+ up to current version (a whole lots of refactoring again ;-;)
+- create new Service "SpatialUi" https://github.com/FabiPunktExe/PaperUI/tree/main
+- create "ConnectionObject" under ServiceObject that will be a wrapper that handles handler connections. Internally this will be used, exposes .disconnect() .connect() and .remove() on js
 - fix stupid organisation mistakes (logging does not always use the same filename, ONLY Error logs should use relative path. Computed name should be used instead)
 - remove anything that is deprecated
 - remove plugin bridges, rename any bridge to "xxxObject" and put it into ServiceObjects
 - Clear up todos
 - add Javadocs comments
 - add Script/Nashorn sandboxing (https://github.com/javadelight/delight-nashorn-sandbox)
+- add ALOT of internal support for plugins (Example: PlayerNPC, CoreProtect, etc)
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==

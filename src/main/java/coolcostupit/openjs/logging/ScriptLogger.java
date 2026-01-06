@@ -6,21 +6,23 @@
 
 package coolcostupit.openjs.logging;
 
+import coolcostupit.openjs.ServiceObjects.ScriptClassObject;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ScriptLogger {
     private final Logger logger;
-    private final String scriptName;
+    private final ScriptClassObject scriptClass;
 
-    public ScriptLogger(Logger logger, String scriptName) {
+    public ScriptLogger(Logger logger, ScriptClassObject scriptClass) {
         this.logger = logger;
-        this.scriptName = scriptName;
+        this.scriptClass = scriptClass;
     }
 
     @SuppressWarnings("unused")
     private void log(Level level, String message) {
-        logger.log(level, "[" + scriptName + "] " + message);
+        logger.log(level, "[" + scriptClass.Name + "] " + message);
     }
     @SuppressWarnings("unused")
     public void warn(String message) {

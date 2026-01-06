@@ -46,7 +46,7 @@ public class JavascriptHelper {
                 };
                 
                 const importLib = libName => {
-                  return _libImporter.getLib(libName)
+                    return _libImporter.getLib(libName)
                 };
                 
                 const LoadScript = scriptName => {

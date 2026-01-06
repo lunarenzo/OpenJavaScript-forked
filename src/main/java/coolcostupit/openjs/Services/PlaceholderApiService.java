@@ -25,10 +25,10 @@ public class PlaceholderApiService implements ScriptService {
         try {
             if (backend == null) {
                 if (!sharedClass.IsPapiLoaded) {
-                    sharedClass.logger.scriptlog(Level.WARNING, scriptName, "PlaceholderApi plugin missing or not loaded!", pluginLogger.ORANGE);
+                    sharedClass.logger.scriptlog(Level.WARNING, scriptClass.RelativePath, "PlaceholderApi plugin missing or not loaded!", pluginLogger.ORANGE);
                 } else {
                     backend = new PlaceHolderApiJS();
-                    sharedClass.logger.scriptlog(Level.INFO, scriptName, "PlaceholderApi support loaded!", pluginLogger.GREEN);
+                    sharedClass.logger.scriptlog(Level.INFO, scriptClass.Name, "PlaceholderApi support loaded!", pluginLogger.GREEN);
                 }
             }
 
@@ -52,7 +52,7 @@ public class PlaceholderApiService implements ScriptService {
             scriptWrapper.addToCleanupMap(scriptClass.MainRelativePath, () -> backend.unregisterPlaceholders(scriptClass.MainRelativePath));
             return api;
         } catch (Exception e) {
-            sharedClass.logger.scriptlog(Level.WARNING, scriptName, "Failed to load PlaceholderAPI service: " + e.getMessage(), pluginLogger.ORANGE);
+            sharedClass.logger.scriptlog(Level.WARNING, scriptClass.RelativePath, "Failed to load PlaceholderAPI service: " + e.getMessage(), pluginLogger.ORANGE);
             throw new RuntimeException(e);
         }
     }

@@ -14,9 +14,10 @@ import java.io.File;
 public class ScriptClassObject {
 
     public String Name;             // script.js
+    public String RelativePath;     // ExampleFolder/script.js
     public File File;               // full file reference
     public File MainFolder;         // folder containing main.js OR scripts root
-    public File MainScript;         // main.js or Main.js (nullable)
+    public File MainScript;         // main.js or Main.js
     public final String MainRelativePath; // the original relative path, use this internally for GC
 
     public ScriptClassObject(String relativePath) {
@@ -36,9 +37,8 @@ public class ScriptClassObject {
             return;
         }
 
-        this.Name = File.getName();
-
-        // Resolve main folder + main script
+        this.Name = getName();
+        this.RelativePath = getRelativePath();
         resolveMainFolderAndScript(File);
     }
 
@@ -65,9 +65,8 @@ public class ScriptClassObject {
             current = current.getParentFile();
         }
 
-        // No main.js found → fallback to scripts root
         this.MainFolder = scriptsRoot;
-        this.MainScript = null;
+        this.MainScript = scriptFile;
     }
 
     private void clear() {
@@ -78,7 +77,11 @@ public class ScriptClassObject {
     }
 
     public String getName() {
-        return Name;
+        if (this.File.exists()) {
+            return scriptManager.getScriptName(this.File);
+        } else {
+            return "Unknown";
+        }
     }
 
     public File getFile() {
