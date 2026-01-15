@@ -103,9 +103,30 @@ Version 1.3.0:
 🟩️ on script errors/exceptions use ERROR() instead of WARN() <-- is this really necessary?
 🟩️ unload all scripts before doing anything else during plugin shutdown
 🟩️ add autoReloadScripts in config so that users can toggle if scripts will get automatically reloaded upon changes or adding them
+🟩️ add task.thread(function) to allow scripts to create threaded functions, which execute parallel
+🟩️ Test task.thread on folia and paper
+
+Version 1.3.1 (hotfix):
+🟩️ Fix task.bindToUnload causes error because plugin cannot run tasks when shutdown
+🟩️ on InventoryApi, when setting slot to "null" it will set the slot to "air" instead of throwing an error (also document that)
+🟩️ move to Nashorn 15.7 from 15.6
+🟩️ Fix ConcurrentModificationException when destroying inventory upon player closing it
+🟩️ reduce file size (almost 1000kb less)
+🟩️ update ancient code of UpdateChecker to reduce file size
+🟩️ Add new/missing features to FileManager:
+    🟩️ FileManager.getFile(RelativePath String)
+    🟩️ FileManager.removeFile(RelativePath String)
+    🟩️ FileManager.getFolder(RelativePath String)
+    🟩️ FileManager.removeFolder(RelativePath String)
+    🟩️ FileManager.getFiles(FolderPath String) <= returns list of all files in the folder
+- document FileManager new features
+- add that special prefixes on the relative path (.., /) will do cool stuff.
+    - ".." will go up one folder (jump out of the folder)
+    - "/" will be where the current script is e.x FileManager.getFiles("/"); will return all of the files in the folder the script is in
 
 Version 1.4.0
 - Cleanup a lot of code
+- create system called "GlobalsLoader" which will manage all the globals, put GlobalsLoader into modules, put globals into "ScriptGlobals"
 - create custom mappings to add support for 1.13+ up to current version (a whole lots of refactoring again ;-;)
 - create new Service "SpatialUi" https://github.com/FabiPunktExe/PaperUI/tree/main
 - create "ConnectionObject" under ServiceObject that will be a wrapper that handles handler connections. Internally this will be used, exposes .disconnect() .connect() and .remove() on js

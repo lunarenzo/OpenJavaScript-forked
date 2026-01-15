@@ -91,7 +91,8 @@ public class scriptWrapper {
                 try {
                     cleanup.run();
                 } catch (Exception e) {
-                    sharedClass.logger.scriptlog(Level.INFO, scriptName, "External plugin methods cleanup failed: " + e.getMessage(), pluginLogger.ORANGE);
+                    sharedClass.logger.logScriptError("External plugin methods cleanup failed:", scriptName);
+                    sharedClass.logger.logScriptError(e, scriptName);
                 }
             }
         }

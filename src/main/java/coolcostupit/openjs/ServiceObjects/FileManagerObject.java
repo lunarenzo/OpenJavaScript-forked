@@ -243,4 +243,53 @@ public class FileManagerObject {
         File base = scriptClass.File.getParentFile();
         return new File(base, relativePath.replace('\\', '/'));
     }
+
+    public File getFile(String relativePath) {
+        File target = resolveTargetFile(relativePath);
+        return (target != null && target.exists() && target.isFile()) ? target : null;
+    }
+
+    public boolean removeFile(String relativePath) {
+        File target = resolveTargetFile(relativePath);
+        if (target == null || !target.exists() || !target.isFile()) return false;
+
+        try {
+            return Files.deleteIfExists(target.toPath());
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    public File getFolder(String relativePath) {
+        File target = resolveTargetFile(relativePath);
+        return (target != null && target.exists() && target.isDirectory()) ? target : null;
+    }
+
+    public boolean removeFolder(String relativePath) {
+        File target = resolveTargetFile(relativePath);
+        if (target == null || !target.exists() || !target.isDirectory()) return false;
+
+        try {
+            Files.walk(target.toPath())
+                    .sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException ignored) {}
+                    });
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    public List<File> getFiles(String folderPath) {
+        File target = resolveTargetFile(folderPath);
+        if (target == null || !target.exists() || !target.isDirectory()) {
+            return Collections.emptyList();
+        }
+
+        File[] files = target.listFiles();
+        return files != null ? Arrays.asList(files) : Collections.emptyList();
+    }
 }

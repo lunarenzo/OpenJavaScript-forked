@@ -109,6 +109,11 @@ public class FoliaSupport {
         }
     }
 
+    public static int runThreadPoolTask(Runnable function) {
+        Future<?> task = threadPool.submit(function);
+        return addTask(task, TaskType.THREADPOOL);
+    }
+
     public static int runTaskSynchronously(JavaPlugin plugin, Runnable function) {
         Object task;
         if (isFolia()) {
@@ -119,6 +124,14 @@ public class FoliaSupport {
             task = Bukkit.getScheduler().runTask(plugin, function);
             return addTask(task, TaskType.BUKKIT);
         }
+    }
+
+    public static void runTasklessSynchronously(JavaPlugin plugin, Runnable task) {
+        if (Bukkit.isPrimaryThread()) {
+            task.run();
+            return;
+        }
+        runTaskSynchronously(plugin, task);
     }
 
     public static int ScheduleRepeatingTask(JavaPlugin plugin, Runnable function, long delay, long period) {

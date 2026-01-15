@@ -9,16 +9,14 @@ package coolcostupit.openjs.utility;
 import coolcostupit.openjs.logging.pluginLogger;
 
 import coolcostupit.openjs.modules.FoliaSupport;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
+import coolcostupit.openjs.modules.sharedClass;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -39,37 +37,46 @@ public class UpdateChecker {
         this.config = config;
     }
 
+    private String fetchLatestVersion() throws Exception {
+        URL url = new URL(VERSION_URL + "?t=" + System.currentTimeMillis());
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+        conn.setRequestProperty("User-Agent", "OpenJS Update Checker");
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(conn.getInputStream()))) {
+            return reader.readLine().trim();
+        }
+    }
+
     public void startChecking() {
         FoliaSupport.ScheduleRepeatingTask(plugin, new BukkitRunnable() {
             @Override
             public void run() {
                 CheckForUpdates();
             }}, 0L, CHECK_INTERVAL);
-
-        //}.runTaskTimerAsynchronously(plugin, 0L, CHECK_INTERVAL);
     }
     public void CheckForUpdates() {
         if (config.getConfigFromBuffer("UpdateNotifications", true)) {
             executorService.submit(() -> {
-                String currentVersion = plugin.getDescription().getVersion();
-                try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-                    HttpGet request = new HttpGet(VERSION_URL+"t="+System.currentTimeMillis());
-                    HttpResponse response = httpClient.execute(request);
-                    HttpEntity entity = response.getEntity();
-                    if (entity != null) {
-                        String latestVersion = EntityUtils.toString(entity).trim();
-                        if (compareVersions(currentVersion, latestVersion) < 0) {
-                            UpdateAvailable = true;
-                            CurrentVersion = currentVersion;
-                            LatestVersion = latestVersion;
-                            Logger.log(Level.INFO, "A new version of OpenJS is available!", pluginLogger.ORANGE);
-                            Logger.log(Level.INFO, "Current version: " + pluginLogger.RED + currentVersion, pluginLogger.ORANGE);
-                            Logger.log(Level.INFO, "Latest version: " + pluginLogger.GREEN + latestVersion, pluginLogger.ORANGE);
-                            Logger.log(Level.INFO, "Download it here: " + pluginLogger.LIGHT_BLUE + "https://www.spigotmc.org/resources/117328/", pluginLogger.ORANGE);
-                        }
+                try {
+                    String currentVersion = sharedClass.PluginDescription.getVersion();
+                    String latestVersion = fetchLatestVersion();
+                    if (compareVersions(currentVersion, latestVersion) < 0) {
+                        UpdateAvailable = true;
+                        CurrentVersion = currentVersion;
+                        LatestVersion = latestVersion;
+                        Logger.log(Level.INFO, "A new version of OpenJS is available!", pluginLogger.ORANGE);
+                        Logger.log(Level.INFO, "Current version: " + pluginLogger.RED + currentVersion, pluginLogger.ORANGE);
+                        Logger.log(Level.INFO, "Latest version: " + pluginLogger.GREEN + latestVersion, pluginLogger.ORANGE);
+                        Logger.log(Level.INFO, "Download it here: " + pluginLogger.LIGHT_BLUE + "https://www.spigotmc.org/resources/117328/", pluginLogger.ORANGE);
                     }
-                } catch (IOException e) {
-                    Logger.log(Level.SEVERE, "Failed to check for updates: " + e.getMessage(), pluginLogger.RED);
+                } catch (Exception e) {
+                    Logger.log(Level.WARNING, "Failed to check for updates: ", pluginLogger.RED);
+                    Logger.logException(e);
                 }
             });
         }

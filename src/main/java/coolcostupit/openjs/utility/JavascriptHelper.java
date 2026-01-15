@@ -156,6 +156,9 @@ public class JavascriptHelper {
                   main(func) {
                     return _task.main(currentScriptName, scriptEngine, { f: func });
                   },
+                  thread(func) {
+                    return _task.thread(currentScriptName, scriptEngine, { f: func });
+                  },
                   entitySchedule(entity, func) {
                     return _task.entitySchedule(currentScriptName, scriptEngine, entity, { f: func });
                   },

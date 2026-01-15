@@ -123,6 +123,20 @@ public class scriptTaskerApi {
         return taskId;
     }
 
+    public int thread(String scriptName, ScriptEngine scriptEngine, Object handler) {
+        Runnable task = () -> {
+            try {
+                ((Invocable) scriptEngine).invokeMethod(handler, "f");
+            } catch (ScriptException | NoSuchMethodException e) {
+                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
+            }
+        };
+        int taskId = FoliaSupport.runThreadPoolTask(task);
+        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
+
+        return taskId;
+    }
+
     public int entitySchedule(String scriptName, ScriptEngine scriptEngine, Entity entity, Object handler) {
         Runnable task = () -> {
             try {
@@ -213,7 +227,6 @@ public class scriptTaskerApi {
 
             if (taskIds != null && taskIds.remove(Integer.valueOf(taskId))) {
                 FoliaSupport.CancelTask(taskId);
-                Logger.log(Level.INFO, "[" + scriptName + "] Unregistered task ID " + taskId, pluginLogger.LIGHT_BLUE);
 
                 if (taskIds.isEmpty()) {
                     ScriptWrapper.scriptTasksMap.remove(scriptName);

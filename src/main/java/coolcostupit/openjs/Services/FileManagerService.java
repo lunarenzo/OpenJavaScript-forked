@@ -40,6 +40,21 @@ public class FileManagerService implements ScriptService {
                     createFolder: function(relativePath) {
                         return __FileManagerObject.createFolder(relativePath);
                     },
+                    getFile: function(relativePath) {
+                        return __FileManagerObject.getFile(relativePath);
+                    },
+                    removeFile: function(relativePath) {
+                        return __FileManagerObject.removeFile(relativePath);
+                    },
+                    getFolder: function(relativePath) {
+                        return __FileManagerObject.getFolder(relativePath);
+                    },
+                    removeFolder: function(relativePath) {
+                        return __FileManagerObject.removeFolder(relativePath);
+                    },
+                    getFiles: function(folderPath) {
+                        return __FileManagerObject.getFiles(folderPath);
+                    },
                     listenOnPath: function(relativePath, listenerType, handler) {
                         return __FileManagerObject.listenOnPath(relativePath, listenerType, { e: handler });
                     },

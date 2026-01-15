@@ -49,6 +49,9 @@ public class InventoryApiService implements ScriptService {
                             inventoryApi.setType(size);
                         };
                         wrapperMeta.setSlot = function(slot, item) {
+                            if (item == null) {
+                                item = __InventoryApiObject.createItem({id: "minecraft:air"});
+                            }
                             inventoryApi.setSlot(slot, item);
                         };
                         wrapperMeta.destroy = function() {

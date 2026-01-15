@@ -211,8 +211,9 @@ public class InventoryApiObject {
 
         void handleClose(InventoryCloseEvent e) {
             Object player = e.getPlayer();
+            List<Object> handlersSnapshot = new ArrayList<>(closeHandlers);
 
-            for (Object cb : closeHandlers) {
+            for (Object cb : handlersSnapshot) {
                 invoke(cb, player, e);
             }
         }
@@ -242,7 +243,7 @@ public class InventoryApiObject {
         }
 
         void destroy() {
-            FoliaSupport.runTaskSynchronously(sharedClass.plugin, () -> {
+            FoliaSupport.runTasklessSynchronously(sharedClass.plugin, () -> {
                 leftClickHandlers.clear();
                 rightClickHandlers.clear();
                 itemPlaceHandlers.clear();
