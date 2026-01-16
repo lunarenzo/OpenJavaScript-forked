@@ -132,7 +132,13 @@ public class InventoryApiObject {
 
         public void setTitle(String title) {
             this.title = title;
-            rebuild();
+            for (HumanEntity viewer : new ArrayList<>(inventory.getViewers())) {
+                if (viewer instanceof Player player) {
+                    try {
+                        player.getOpenInventory().setTitle(title);
+                    } catch (NoSuchMethodError ignored) {}
+                }
+            }
         }
 
         public void setType(String type) {

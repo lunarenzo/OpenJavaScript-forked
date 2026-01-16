@@ -48,6 +48,9 @@ public class InventoryApiService implements ScriptService {
                         wrapperMeta.setSize = function(size) {
                             inventoryApi.setType(size);
                         };
+                        wrapperMeta.setTitle = function(title) {
+                            inventoryApi.setTitle(title);
+                        };
                         wrapperMeta.setSlot = function(slot, item) {
                             if (item == null) {
                                 item = __InventoryApiObject.createItem({id: "minecraft:air"});

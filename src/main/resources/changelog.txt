@@ -119,6 +119,10 @@ Version 1.3.1 (hotfix):
     🟩️ FileManager.getFolder(RelativePath String)
     🟩️ FileManager.removeFolder(RelativePath String)
     🟩️ FileManager.getFiles(FolderPath String) <= returns list of all files in the folder
+
+Version 1.3.2 (hotfix 2):
+🟩️ Implement missing method (InventoryUI.setTitle(String Title))
+🟩️ On versions above 1.20, make sure setTitle updates with no flickers
 - document FileManager new features
 - add that special prefixes on the relative path (.., /) will do cool stuff.
     - ".." will go up one folder (jump out of the folder)
