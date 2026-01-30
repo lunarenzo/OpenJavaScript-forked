@@ -128,6 +128,7 @@ Version 1.3.2 (hotfix 2):
     - ".." will go up one folder (jump out of the folder)
     - "/" will be where the current script is e.x FileManager.getFiles("/"); will return all of the files in the folder the script is in
 
+
 Version 1.4.0
 - Cleanup a lot of code
 - create system called "GlobalsLoader" which will manage all the globals, put GlobalsLoader into modules, put globals into "ScriptGlobals"
