@@ -128,16 +128,21 @@ Version 1.3.2 (hotfix 2):
     - ".." will go up one folder (jump out of the folder)
     - "/" will be where the current script is e.x FileManager.getFiles("/"); will return all of the files in the folder the script is in
 
+Version 1.3.3:
+🟩️ Remove old bridge api systems
+🟩️ Port Bridged plugins to ServiceObjects
+🟩️ remove plugin bridges, rename any bridge to "xxxObject" and put it into ServiceObjects
+🟩️ Compile on Java 21
+🟩️ create test version of the Spatial UI
 
 Version 1.4.0
+- Add FileManager.getRelativePath(File) which will return the relative path of the file based on the script's folder
 - Cleanup a lot of code
 - create system called "GlobalsLoader" which will manage all the globals, put GlobalsLoader into modules, put globals into "ScriptGlobals"
 - create custom mappings to add support for 1.13+ up to current version (a whole lots of refactoring again ;-;)
-- create new Service "SpatialUi" https://github.com/FabiPunktExe/PaperUI/tree/main
 - create "ConnectionObject" under ServiceObject that will be a wrapper that handles handler connections. Internally this will be used, exposes .disconnect() .connect() and .remove() on js
 - fix stupid organisation mistakes (logging does not always use the same filename, ONLY Error logs should use relative path. Computed name should be used instead)
 - remove anything that is deprecated
-- remove plugin bridges, rename any bridge to "xxxObject" and put it into ServiceObjects
 - Clear up todos
 - add Javadocs comments
 - add Script/Nashorn sandboxing (https://github.com/javadelight/delight-nashorn-sandbox)

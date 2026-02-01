@@ -8,7 +8,7 @@ package coolcostupit.openjs;
 
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.*;
-import coolcostupit.openjs.pluginbridges.pApiExtension;
+import coolcostupit.openjs.ServiceObjects.PlaceholderApiObject;
 import coolcostupit.openjs.utility.*;
 import coolcostupit.openjs.logging.OpsLogger;
 
@@ -70,7 +70,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sharedClass.LibImporterApi = new LibImporterApi();
 
         if (sharedClass.IsPapiLoaded) {
-            new pApiExtension().register();
+            new PlaceholderApiObject.Extension().register();
         }
 
         this.scriptWrapper = new scriptWrapper(this, configUtil);
@@ -247,6 +247,9 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
         String subCommand = args[0].toLowerCase();
         switch (subCommand) {
+            case "test":
+                DialogReflectionUtil.showNoticeDialog((Bukkit.getPlayerExact(sender.getName())), "Test Title", "This is a test message.");
+                return true;
             case "reload":
                 if (args.length < 2) {
                     configUtil.reloadConfigBuffer();

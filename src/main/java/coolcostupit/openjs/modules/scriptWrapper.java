@@ -11,7 +11,6 @@ import coolcostupit.openjs.events.ScriptLoadedEvent;
 import coolcostupit.openjs.events.ScriptUnloadedEvent;
 import coolcostupit.openjs.logging.ScriptLogger;
 import coolcostupit.openjs.logging.pluginLogger;
-import coolcostupit.openjs.pluginbridges.BridgeLoader;
 import coolcostupit.openjs.ServiceObjects.ScriptClassObject;
 import coolcostupit.openjs.utility.*;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -376,12 +375,6 @@ public class scriptWrapper {
                     }
 
                     localScriptEngine.eval(JavascriptHelper.JAVASCRIPT_CODE);
-                    List BridgesToLoad = FlagInterpreter.getFlags(scriptFile);
-
-                    if (!BridgesToLoad.isEmpty()) {
-                        BridgeLoader.loadBridges(BridgesToLoad, ScriptName, localScriptEngine);
-                    }
-
                     String processedScript = preprocessScript(scriptFile, localScriptEngine);
                     localScriptEngine.eval(processedScript);
                     if (configUtil.getConfigFromBuffer("PrintScriptActivations", true)) {

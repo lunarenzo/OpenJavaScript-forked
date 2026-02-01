@@ -11,14 +11,14 @@ import coolcostupit.openjs.ServiceObjects.ScriptClassObject;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.scriptWrapper;
 import coolcostupit.openjs.modules.sharedClass;
-import coolcostupit.openjs.pluginbridges.PlaceHolderApiJS;
+import coolcostupit.openjs.ServiceObjects.PlaceholderApiObject;
 import coolcostupit.openjs.utility.scriptUtils;
 
 import javax.script.ScriptEngine;
 import java.util.logging.Level;
 
 public class PlaceholderApiService implements ScriptService {
-    public static PlaceHolderApiJS backend;
+    public static PlaceholderApiObject backend;
 
     @Override
     public Object load(String scriptName, ScriptEngine engine, ScriptClassObject scriptClass) {
@@ -27,7 +27,7 @@ public class PlaceholderApiService implements ScriptService {
                 if (!sharedClass.IsPapiLoaded) {
                     sharedClass.logger.scriptlog(Level.WARNING, scriptClass.RelativePath, "PlaceholderApi plugin missing or not loaded!", pluginLogger.ORANGE);
                 } else {
-                    backend = new PlaceHolderApiJS();
+                    backend = new PlaceholderApiObject();
                     sharedClass.logger.scriptlog(Level.INFO, scriptClass.Name, "PlaceholderApi support loaded!", pluginLogger.GREEN);
                 }
             }

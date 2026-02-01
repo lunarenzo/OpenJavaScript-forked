@@ -4,7 +4,7 @@
  * You may not remove this notice or claim this work as your own.
  */
 
-package coolcostupit.openjs.pluginbridges;
+package coolcostupit.openjs.ServiceObjects;
 
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
@@ -20,9 +20,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
-import static coolcostupit.openjs.pluginbridges.BridgeLoader.resolvePacketTypes;
-
-public class ProtocolLibBridge {
+public class ProtocolLibObject {
     private final ProtocolManager manager = ProtocolLibrary.getProtocolManager();
     private final Map<Object, PacketListener> scriptListeners = new ConcurrentHashMap<>();
     private final Map<String, List<PacketListener>> TotalScriptListeners = new ConcurrentHashMap<>();
@@ -31,15 +29,41 @@ public class ProtocolLibBridge {
     public final String scriptName;
     public final pluginLogger Logger;
 
-    public ProtocolLibBridge(ScriptEngine engine, String scriptName) {
+    public ProtocolLibObject(ScriptEngine engine, String scriptName) {
         this.engine = engine;
         this.scriptName = scriptName;
         this.Logger = sharedClass.logger;
         scriptWrapper.addToCleanupMap(scriptName, this::clearListeners);
     }
 
+    private PacketType resolvePacketType(String path) throws Exception {
+        String[] parts = path.split("\\.");
+        if (parts.length != 3) {
+            throw new IllegalArgumentException("Invalid PacketType format: " + path);
+        }
+
+        String protocol = parts[0];
+        String side = parts[1];
+        String name = parts[2];
+
+        Class<?> holderClass = Class.forName("com.comphenix.protocol.PacketType$" + protocol + "$" + side);
+        return (PacketType) holderClass.getField(name).get(null);
+    }
+
+    private PacketType[] resolvePacketTypes(List<String> paths) {
+        List<PacketType> result = new ArrayList<>();
+        for (String path : paths) {
+            try {
+                result.add(resolvePacketType(path));
+            } catch (Exception e) {
+                Logger.scriptlog(Level.WARNING, scriptName, "Invalid packet type: " + path, pluginLogger.RED);
+            }
+        }
+        return result.toArray(new PacketType[0]);
+    }
+
     public PacketListener registerListener(String Priority, Object jsHandler, List<String> packetTypeStrings) {
-        PacketType[] types = resolvePacketTypes(scriptName, packetTypeStrings);
+        PacketType[] types = resolvePacketTypes(packetTypeStrings);
         PacketAdapter adapter = new PacketAdapter(sharedClass.plugin, ListenerPriority.valueOf(Priority), types) {
             @Override
             public void onPacketSending(PacketEvent event) {

@@ -270,6 +270,7 @@ public class FileManagerObject {
         if (target == null || !target.exists() || !target.isDirectory()) return false;
 
         try {
+            boolean deleted = false;
             Files.walk(target.toPath())
                     .sorted(Comparator.reverseOrder())
                     .forEach(path -> {
@@ -277,7 +278,11 @@ public class FileManagerObject {
                             Files.deleteIfExists(path);
                         } catch (IOException ignored) {}
                     });
-            return true;
+            try {
+                deleted = target.delete();
+            } catch (Exception ignored) {};
+            
+            return deleted;
         } catch (IOException e) {
             return false;
         }

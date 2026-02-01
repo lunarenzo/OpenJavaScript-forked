@@ -8,12 +8,12 @@ package coolcostupit.openjs.Services;
 
 import coolcostupit.openjs.ServiceManager.ScriptService;
 import coolcostupit.openjs.ServiceObjects.ScriptClassObject;
-import coolcostupit.openjs.pluginbridges.ProtocolLibBridge;
+import coolcostupit.openjs.ServiceObjects.ProtocolLibObject;
 import javax.script.ScriptEngine;
 
 public class ProtocolLibService implements ScriptService {
     @Override
     public Object load(String scriptName, ScriptEngine engine, ScriptClassObject scriptClass) {
-        return new ProtocolLibBridge(engine, scriptClass.MainRelativePath);
+        return new ProtocolLibObject(engine, scriptClass.MainRelativePath);
     }
 }
