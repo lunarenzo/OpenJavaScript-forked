@@ -35,7 +35,6 @@ import static org.bukkit.Bukkit.getLogger;
 public class scriptWrapper {
     private boolean scriptsReady = false;
     private boolean hasInit = false;
-    public final Map<String, List<Integer>> scriptTasksMap = new HashMap<>();
     private final Map<String, Future<?>> scriptFutures = new HashMap<>();
     private final Map<String, ScriptEngine> scriptEngines = new HashMap<>();
     private static final Map<String, List<Runnable>> cleanUpMethods = new ConcurrentHashMap<>();
@@ -73,16 +72,6 @@ public class scriptWrapper {
         cleanUpMethods.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(method);
     }
 
-    public void unregisterTasksFromScript(String scriptName) {
-        List<Integer> taskIds = scriptTasksMap.get(scriptName);
-        if (taskIds != null) {
-            for (int taskId : taskIds) {
-                FoliaSupport.CancelTask(taskId);
-            }
-            scriptTasksMap.remove(scriptName);
-        }
-    }
-
     private static void invokeScriptCleanup(String scriptName) {
         List<Runnable> tasks = cleanUpMethods.remove(scriptName);
         if (tasks != null) {
@@ -102,15 +91,6 @@ public class scriptWrapper {
             unloadScript(entry.getKey());
             //File scriptFile = entry.getValue();
         }
-    }
-
-    public void unregisterAllTasks() {
-        for (List<Integer> taskIds : scriptTasksMap.values()) {
-            for (int taskId : taskIds) {
-                FoliaSupport.CancelTask(taskId);
-            }
-        }
-        scriptTasksMap.clear();
     }
 
     private Method getMethod(Class<?> clazz, String methodName) throws NoSuchMethodException {
@@ -157,7 +137,7 @@ public class scriptWrapper {
         invokeScriptCleanup(scriptName);
         taskApi.clearListeners(scriptName);
         InternalSystems.unregisterListenersFromScript(scriptName);
-        unregisterTasksFromScript(scriptName);
+        scriptTaskerApi.cancelTasksFromScript(scriptName);
         sharedClass.DiskStorageApi.saveCaches(scriptName); // ASYNC ?=> yields
         Future<?> future = scriptFutures.remove(scriptName);
 

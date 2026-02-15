@@ -83,6 +83,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         saveDefaultConfig();
         configUtil.loadBufferFromConfig();
         scriptWrapper.loadScripts();
+        ReflectionNames.initialize();
 
         // Default config values
         configUtil.getConfigFromBuffer("PrintScriptActivations", true);
@@ -133,8 +134,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         scriptWrapper.unloadAllScripts();
         pluginLogger.log(Level.INFO, "Un-registering all listeners...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         InternalSystems.unregisterAllListeners();
-        pluginLogger.log(Level.INFO, "Un-registering all tasks...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        scriptWrapper.unregisterAllTasks();
         sharedClass.TaskThreadPool.shutdown();
         scriptWrapper.executorService.shutdown();
         sharedClass.LibImporterApi.shutdown();

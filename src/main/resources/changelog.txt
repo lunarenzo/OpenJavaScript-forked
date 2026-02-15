@@ -134,10 +134,19 @@ Version 1.3.3:
 🟩️ remove plugin bridges, rename any bridge to "xxxObject" and put it into ServiceObjects
 🟩️ Compile on Java 21
 🟩️ create test version of the Spatial UI
+🟩️ https://www.spigotmc.org/threads/unidialog-fluent-library-to-make-minecraft-graphical-dialogs.697105/
+
+Version 1.3.4:
+- Add Protocollib support for Inventory.setTitle to add backwards compatibility
+- Create reflectionNames with backwards compatiblity
+- Make tasks shared across all scripts, so that tasks can be cancelled from external scripts (setShared and getShared support for tasks)
+- Create Service "DialogService" based on unidialog
+- Create Service "MobAiService" based on MobAi Library
 
 Version 1.4.0
 - Add FileManager.getRelativePath(File) which will return the relative path of the file based on the script's folder
 - Cleanup a lot of code
+- add task.latch() which will return the following functions: .wait() .invoke() .Fired | Should be thread safe
 - create system called "GlobalsLoader" which will manage all the globals, put GlobalsLoader into modules, put globals into "ScriptGlobals"
 - create custom mappings to add support for 1.13+ up to current version (a whole lots of refactoring again ;-;)
 - create "ConnectionObject" under ServiceObject that will be a wrapper that handles handler connections. Internally this will be used, exposes .disconnect() .connect() and .remove() on js

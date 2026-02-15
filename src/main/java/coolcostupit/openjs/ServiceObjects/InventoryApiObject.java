@@ -1,7 +1,13 @@
 package coolcostupit.openjs.ServiceObjects;
 
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.events.InternalStructure;
+import com.comphenix.protocol.events.PacketContainer;
+import com.comphenix.protocol.wrappers.WrappedChatComponent;
+import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.FoliaSupport;
 import coolcostupit.openjs.modules.sharedClass;
+import coolcostupit.openjs.utility.ReflectionNames;
 import coolcostupit.openjs.utility.chatColors;
 import net.kyori.adventure.text.Component;
 import org.bukkit.*;
@@ -18,8 +24,11 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 public class InventoryApiObject {
 
@@ -104,6 +113,7 @@ public class InventoryApiObject {
     public class InventoryUI {
 
         private Inventory inventory;
+        private boolean titleChanged = false;
         private String title;
         private String type;
         private int size;
@@ -130,13 +140,57 @@ public class InventoryApiObject {
             slots.forEach(inventory::setItem);
         }
 
-        public void setTitle(String title) {
-            this.title = title;
+        private void sendOpenScreenPacket(Player player, int windowId, Object windowType, String titleJson) {
+            final WrappedChatComponent wrappedChatComponent = com.comphenix.protocol.wrappers.WrappedChatComponent.fromLegacyText(titleJson);
+            PacketContainer openScreen = new PacketContainer(PacketType.Play.Server.OPEN_WINDOW);
+            openScreen.getIntegers().write(0, windowId);
+            openScreen.getModifier().write(1, windowType);
+            openScreen.getChatComponents().write(0, wrappedChatComponent);
+
+            try {
+                ReflectionNames.protocolManager.sendServerPacket(player, openScreen);
+            } catch (Exception e) {
+                sharedClass.logger.logScriptError(e, scriptClass.Name);
+            }
+        }
+
+        public void setTitle(String newTitle) {
+            if (newTitle == null) return;
+            this.title = newTitle;
+
             for (HumanEntity viewer : new ArrayList<>(inventory.getViewers())) {
-                if (viewer instanceof Player player) {
+                if (!(viewer instanceof Player player)) continue;
+
+                try {
+
+                    if (ReflectionNames.protocolLibAvailable) {
+                        try {
+                            Object nmsPlayer = ReflectionNames.getHandleMethod.invoke(player);
+                            Object container = ReflectionNames.activeContainerField.get(nmsPlayer);
+
+                            int windowId = (int) ReflectionNames.containerIdField.get(container);
+                            Object nmsMenuType = ReflectionNames.getTypeMethod.invoke(container);
+
+                            sendOpenScreenPacket(player, windowId, nmsMenuType, newTitle);
+                            player.updateInventory();
+
+                            titleChanged = true;
+                            continue;
+                        } catch (Exception e) {
+                            sharedClass.logger.logException(e);
+                        }
+                    }
+
                     try {
-                        player.getOpenInventory().setTitle(title);
-                    } catch (NoSuchMethodError ignored) {}
+                        player.getOpenInventory().setTitle(newTitle);
+                        titleChanged = true;
+                    } catch (NoSuchMethodError ignored) {
+                        sharedClass.logger.scriptlog(Level.WARNING, scriptClass.Name, "Inventory title changing is not supported on this server version.", pluginLogger.ORANGE);
+                    }
+
+                } catch (Exception e) {
+                    sharedClass.logger.scriptlog(Level.WARNING, scriptClass.Name, "Failed to change inventory title:", pluginLogger.ORANGE);
+                    sharedClass.logger.logScriptError(e, scriptClass.Name);
                 }
             }
         }
@@ -170,7 +224,15 @@ public class InventoryApiObject {
 
         public void show(Object playerObj) {
             Player player = (Player) playerObj;
-            FoliaSupport.runTaskSynchronously(sharedClass.plugin, () -> player.openInventory(inventory));
+
+            FoliaSupport.runTaskSynchronously(sharedClass.plugin, () -> {
+                player.openInventory(inventory);
+
+                // If title was changed previously and doesn't match, fix it
+                if (titleChanged) {
+                    setTitle(title);
+                }
+            });
         }
 
         public void hide(Object player) {

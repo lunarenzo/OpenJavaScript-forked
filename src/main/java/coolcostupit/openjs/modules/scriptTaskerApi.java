@@ -17,17 +17,17 @@ import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 import java.lang.reflect.Proxy;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public class scriptTaskerApi {
     private final scriptWrapper ScriptWrapper;
     private final @NotNull PluginManager pluginManager;
     private final pluginLogger Logger;
-    private static final Map<Object, ListenerEntry> listenerCleanupMap = new HashMap<>();
+    private static final Map<Object, ListenerEntry> listenerCleanupMap = new ConcurrentHashMap<>();
+    public static final Map<Integer, String> globalTaskOwnerMap = new java.util.concurrent.ConcurrentHashMap<>();
+    public static final Map<String, java.util.Set<Integer>> scriptTasksMap = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static class ListenerEntry {
         public final String scriptName;
@@ -45,6 +45,52 @@ public class scriptTaskerApi {
         this.ScriptWrapper = scriptWrapper;
         this.pluginManager = Bukkit.getPluginManager();
         this.Logger = sharedClass.logger;
+    }
+
+    private abstract class AutoCleanTask implements Runnable {
+        private final String scriptName;
+        private final ScriptEngine engine;
+        private final Object handler;
+        private volatile int taskId = -1;
+        private volatile boolean finished = false;
+
+        AutoCleanTask(String name, ScriptEngine eng, Object h) {
+            this.scriptName = name; this.engine = eng; this.handler = h;
+        }
+
+        public void setTaskId(int id) {
+            this.taskId = id;
+            if (finished) untrackTask(id);
+        }
+
+        @Override
+        public void run() {
+            try {
+                ((Invocable) engine).invokeMethod(handler, "f");
+            } catch (Exception e) {
+                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
+            } finally {
+                finished = true;
+                if (taskId != -1) untrackTask(taskId);
+            }
+        }
+    }
+
+    private void trackTask(String scriptName, int taskId) {
+        if (taskId <= 0) return;
+        globalTaskOwnerMap.put(taskId, scriptName);
+        scriptTasksMap.computeIfAbsent(scriptName, k -> ConcurrentHashMap.newKeySet()).add(taskId);
+    }
+
+    private void untrackTask(int taskId) {
+        String owner = globalTaskOwnerMap.remove(taskId);
+        if (owner != null) {
+            Set<Integer> scriptTasks = scriptTasksMap.get(owner);
+            if (scriptTasks != null) {
+                scriptTasks.remove(taskId);
+                if (scriptTasks.isEmpty()) scriptTasksMap.remove(owner);
+            }
+        }
     }
 
     public Boolean wait(String scriptName, ScriptEngine scriptEngine, Number seconds) {
@@ -109,106 +155,55 @@ public class scriptTaskerApi {
         }
     }
 
-    public int spawn(String scriptName, ScriptEngine scriptEngine, Object handler) {
-        Runnable task = () -> {
-            try {
-                ((Invocable) scriptEngine).invokeMethod(handler, "f");
-            } catch (ScriptException | NoSuchMethodException e) {
-                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
-            }
-        };
-        int taskId = FoliaSupport.runTask(sharedClass.plugin, task);
-        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
-
-        return taskId;
+    public int spawn(String scriptName, ScriptEngine engine, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
+        int id = FoliaSupport.runTask(sharedClass.plugin, task);
+        trackTask(scriptName, id);
+        task.setTaskId(id);
+        return id;
     }
 
-    public int thread(String scriptName, ScriptEngine scriptEngine, Object handler) {
-        Runnable task = () -> {
-            try {
-                ((Invocable) scriptEngine).invokeMethod(handler, "f");
-            } catch (ScriptException | NoSuchMethodException e) {
-                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
-            }
-        };
-        int taskId = FoliaSupport.runThreadPoolTask(task);
-        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
-
-        return taskId;
+    public int delay(String scriptName, ScriptEngine engine, Number delay, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
+        int id = FoliaSupport.DelayTask(sharedClass.plugin, task, (long)(delay.doubleValue() * 20));
+        trackTask(scriptName, id);
+        task.setTaskId(id);
+        return id;
     }
 
-    public int entitySchedule(String scriptName, ScriptEngine scriptEngine, Entity entity, Object handler) {
+    public int repeat(String scriptName, ScriptEngine engine, Number delay, Number period, Object handler) {
         Runnable task = () -> {
-            try {
-                ((Invocable) scriptEngine).invokeMethod(handler, "f");
-            } catch (ScriptException | NoSuchMethodException e) {
-                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
-            }
+            try { ((Invocable) engine).invokeMethod(handler, "f"); }
+            catch (Exception e) { Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED); }
         };
-        int taskId = FoliaSupport.runEntityTask(sharedClass.plugin, entity, task);
-        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
-
-        return taskId;
+        int id = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task,
+                (long)(delay.doubleValue() * 20), (long)(period.doubleValue() * 20));
+        trackTask(scriptName, id);
+        return id;
     }
 
-    public int main(String scriptName, ScriptEngine scriptEngine, Object handler) {
-        Runnable task = () -> {
-            try {
-                ((Invocable) scriptEngine).invokeMethod(handler, "f");
-            } catch (ScriptException | NoSuchMethodException e) {
-                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
-            }
-        };
-        int taskId = FoliaSupport.runTaskSynchronously(sharedClass.plugin, task);
-        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
-
-        return taskId;
+    public int thread(String scriptName, ScriptEngine engine, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
+        int id = FoliaSupport.runThreadPoolTask(task);
+        trackTask(scriptName, id);
+        task.setTaskId(id);
+        return id;
     }
 
-    public int delay(String scriptName, ScriptEngine scriptEngine, Number Delay, Object handler) {
-        double sec = Delay.doubleValue();
-
-        if (sec <= 0) return 0;
-        long ticks = (long) (sec * 20); // Convert seconds to ticks
-
-        Runnable task = () -> {
-            try {
-                ((Invocable) scriptEngine).invokeMethod(handler, "f");
-            } catch (ScriptException | NoSuchMethodException e) {
-                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
-            }
-        };
-
-        int taskId = FoliaSupport.DelayTask(sharedClass.plugin, task, ticks);
-        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(Integer.valueOf(taskId));
-
-        return taskId;
+    public int main(String scriptName, ScriptEngine engine, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
+        int id = FoliaSupport.runTaskSynchronously(sharedClass.plugin, task);
+        trackTask(scriptName, id);
+        task.setTaskId(id);
+        return id;
     }
 
-    public int repeat(String scriptName, ScriptEngine scriptEngine, Number Delay, Number Period, Object handler) {
-        double delaySec = Delay.doubleValue();
-        double periodSec = Period.doubleValue();
-
-        if (delaySec < 0) {
-            Logger.log(Level.WARNING, "[" + scriptName + "] Invalid repeat delay/period values: delay=" + delaySec + ", period=" + periodSec, pluginLogger.RED);
-            return 0;
-        }
-
-        long delayTicks = (long) (delaySec * 20);   // Delay before first run
-        long periodTicks = (long) (periodSec * 20); // Interval between runs
-
-        Runnable task = () -> {
-            try {
-                ((Invocable) scriptEngine).invokeMethod(handler, "f");
-            } catch (ScriptException | NoSuchMethodException e) {
-                Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
-            }
-        };
-
-        int taskId = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task, delayTicks, periodTicks);
-        ScriptWrapper.scriptTasksMap.computeIfAbsent(scriptName, k -> new ArrayList<>()).add(taskId);
-
-        return taskId;
+    public int entitySchedule(String scriptName, ScriptEngine engine, Entity entity, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
+        int id = FoliaSupport.runEntityTask(sharedClass.plugin, entity, task);
+        trackTask(scriptName, id);
+        task.setTaskId(id);
+        return id;
     }
 
     public void cleanupListener(String scriptName, ScriptEngine scriptEngine, Object handler) {
@@ -220,27 +215,25 @@ public class scriptTaskerApi {
         }
     }
 
-    public void cancel(String scriptName, Object thing) {
-        if (thing instanceof Integer) {
-            int taskId = (int) thing;
-            List<Integer> taskIds = ScriptWrapper.scriptTasksMap.get(scriptName);
-
-            if (taskIds != null && taskIds.remove(Integer.valueOf(taskId))) {
-                FoliaSupport.CancelTask(taskId);
-
-                if (taskIds.isEmpty()) {
-                    ScriptWrapper.scriptTasksMap.remove(scriptName);
-                }
-            } else {
-                Logger.log(Level.WARNING, "[" + scriptName + "] Tried to unregister unknown task ID " + taskId, pluginLogger.ORANGE);
-            }
+    public void cancel(String callingScript, Object thing) {
+        if (thing instanceof Number) {
+            int taskId = ((Number) thing).intValue();
+            FoliaSupport.CancelTask(taskId);
+            untrackTask(taskId);
             return;
         }
+
         ListenerEntry entry = listenerCleanupMap.remove(thing);
-        if (entry != null) {
-            cleanupListener(entry.scriptName, entry.scriptEngine, entry.cleanup);
-        } else {
-            Logger.log(Level.WARNING, "[" + scriptName + "] Tried to cancel unknown listener or missing cleanup.", pluginLogger.ORANGE);
+        if (entry != null) cleanupListener(entry.scriptName, entry.scriptEngine, entry.cleanup);
+    }
+
+    static public void cancelTasksFromScript(String scriptName) {
+        Set<Integer> taskIds = scriptTasksMap.remove(scriptName);
+        if (taskIds != null) {
+            for (int taskId : taskIds) {
+                FoliaSupport.CancelTask(taskId);
+                globalTaskOwnerMap.remove(taskId);
+            }
         }
     }
 
