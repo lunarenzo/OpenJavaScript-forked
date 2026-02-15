@@ -1,9 +1,9 @@
 package coolcostupit.openjs.ServiceObjects;
 
 import com.comphenix.protocol.PacketType;
-import com.comphenix.protocol.events.InternalStructure;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.wrappers.WrappedChatComponent;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.FoliaSupport;
 import coolcostupit.openjs.modules.sharedClass;
@@ -24,8 +24,6 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -36,6 +34,12 @@ public class InventoryApiObject {
     private final ScriptEngine engine;
 
     private final Set<InventoryUI> inventories = ConcurrentHashMap.newKeySet();
+    private final LegacyComponentSerializer hexSerializer = LegacyComponentSerializer.legacySection()
+            .toBuilder()
+            .hexColors()
+            .useUnusualXRepeatedCharacterHexFormat()
+            .build();
+    // I hate doing this
 
     public InventoryApiObject(ScriptClassObject scriptClass, ScriptEngine engine) {
         this.scriptClass = scriptClass;
@@ -81,20 +85,46 @@ public class InventoryApiObject {
         ItemStack item = new ItemStack(mat, amount);
         ItemMeta meta = item.getItemMeta();
 
-        if (data.containsKey("name"))
-            meta.displayName(Component.text(chatColors.RESET + data.get("name")));
+        if (data.containsKey("name")) {
+            meta.displayName(hexSerializer.deserialize(data.get("name").toString()));
+        }
 
         if (data.containsKey("lore")) {
             List<?> rawLore = (List<?>) data.get("lore");
             List<Component> lore = new ArrayList<>();
-
             for (Object line : rawLore) {
-                lore.add(Component.text(chatColors.RESET + line.toString()));
+                lore.add(hexSerializer.deserialize(line.toString()));
             }
-
             meta.lore(lore);
         }
 
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public ItemStack setItemLore(ItemStack item, List<String> newLore) {
+        if (item == null || item.getType() == Material.AIR) return item;
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        List<Component> loreComponents = new ArrayList<>();
+        for (String line : newLore) {
+            loreComponents.add(hexSerializer.deserialize(line));
+        }
+
+        meta.lore(loreComponents);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public ItemStack setItemName(ItemStack item, String newName) {
+        if (item == null || item.getType() == Material.AIR) return item;
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.displayName(hexSerializer.deserialize(newName));
         item.setItemMeta(meta);
         return item;
     }
@@ -206,6 +236,18 @@ public class InventoryApiObject {
         public void setSlot(int slot, ItemStack item) {
             slots.put(slot, item);
             inventory.setItem(slot, item);
+        }
+
+        public ItemStack getSlot(int slot) {
+            if (slot < 0 || slot >= size) return null;
+
+            // Check the live inventory first, then fallback to our tracking map
+            ItemStack item = inventory.getItem(slot);
+            if (item == null || item.getType() == Material.AIR) {
+                return slots.get(slot);
+            }
+
+            return item;
         }
 
         public void remove() {

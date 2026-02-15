@@ -27,6 +27,15 @@ public class InventoryApiService implements ScriptService {
                     }
                     return __InventoryApiObject.createItem(data);
                 },
+                setItemLore(item, lore) {
+                    if (lore) {
+                        lore = toJavaList(lore);
+                    }
+                    __InventoryApiObject.setItemLore(item, lore);
+                },
+                setItemName(item, name) {
+                    __InventoryApiObject.setItemName(item, name);
+                },
                 constructInventory: function(type, title) {
                     let constructApi = function(inventoryApi) {
                         let wrapperMeta = {};
@@ -56,6 +65,9 @@ public class InventoryApiService implements ScriptService {
                                 item = __InventoryApiObject.createItem({id: "minecraft:air"});
                             }
                             inventoryApi.setSlot(slot, item);
+                        };
+                        wrapperMeta.getSlot = function(slot) {
+                            return inventoryApi.getSlot(slot);
                         };
                         wrapperMeta.destroy = function() {
                             inventoryApi.remove();
