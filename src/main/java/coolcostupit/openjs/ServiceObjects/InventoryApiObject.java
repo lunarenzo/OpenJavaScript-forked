@@ -3,6 +3,7 @@ package coolcostupit.openjs.ServiceObjects;
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.wrappers.WrappedChatComponent;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.FoliaSupport;
@@ -86,14 +87,16 @@ public class InventoryApiObject {
         ItemMeta meta = item.getItemMeta();
 
         if (data.containsKey("name")) {
-            meta.displayName(hexSerializer.deserialize(data.get("name").toString()));
+            meta.displayName(
+                    hexSerializer.deserialize(data.get("name").toString()).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)
+            );
         }
 
         if (data.containsKey("lore")) {
             List<?> rawLore = (List<?>) data.get("lore");
             List<Component> lore = new ArrayList<>();
             for (Object line : rawLore) {
-                lore.add(hexSerializer.deserialize(line.toString()));
+                lore.add(hexSerializer.deserialize(line.toString()).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
             }
             meta.lore(lore);
         }
@@ -110,7 +113,7 @@ public class InventoryApiObject {
 
         List<Component> loreComponents = new ArrayList<>();
         for (String line : newLore) {
-            loreComponents.add(hexSerializer.deserialize(line));
+            loreComponents.add(hexSerializer.deserialize(line).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
         }
 
         meta.lore(loreComponents);
@@ -124,7 +127,7 @@ public class InventoryApiObject {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
-        meta.displayName(hexSerializer.deserialize(newName));
+        meta.displayName(hexSerializer.deserialize(newName).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
         item.setItemMeta(meta);
         return item;
     }

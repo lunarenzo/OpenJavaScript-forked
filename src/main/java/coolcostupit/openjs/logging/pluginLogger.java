@@ -43,7 +43,7 @@ public class pluginLogger {
 
     public void scriptlog(Level level, String scriptName, String message, String colorCode) {
         if (message != null && message.contains(yieldKill)) { // special Unicode's so that scripts won't silently call this
-            this.log(Level.INFO, "[" + scriptName + "] stopped executing", LIGHT_BLUE);
+            // this.log(Level.INFO, "[" + scriptName + "] stopped executing", LIGHT_BLUE);
         } else {
             this.log(level, "[" + scriptName + "] " + message, colorCode);
         }

@@ -113,7 +113,7 @@ public class scriptTaskerApi {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            Logger.log(Level.INFO, "[" + scriptName + "] interrupting task.wait(" + seconds + ")", pluginLogger.LIGHT_BLUE);
+            // Logger.log(Level.INFO, "[" + scriptName + "] interrupting task.wait(" + seconds + ")", pluginLogger.LIGHT_BLUE);
             return Boolean.FALSE;
         }
 
