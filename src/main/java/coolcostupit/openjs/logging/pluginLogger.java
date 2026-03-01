@@ -6,6 +6,7 @@
 
 package coolcostupit.openjs.logging;
 
+import coolcostupit.openjs.modules.sharedClass;
 import coolcostupit.openjs.utility.chatColors;
 import coolcostupit.openjs.utility.configurationUtil;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -26,6 +27,7 @@ public class pluginLogger {
     // Special indicators
     public static final String yieldKill = "_殺了我ͶͶ";
 
+    private final boolean debugMode = sharedClass.isDebugMode;
     private final configurationUtil configUtil;
     private final Logger logger;
 
@@ -38,6 +40,12 @@ public class pluginLogger {
         logger.log(level, colorCode + message + RESET);
         if (configUtil.getConfigFromBuffer("BroadcastToOps", true) && level == Level.SEVERE || level == Level.WARNING) {
             OpsLogger.LogToOps(Collections.singletonList(chatColors.RED + message));
+        }
+    }
+
+    public void debug(String message) {
+        if (debugMode) {
+            log(Level.INFO, "[DEBUG] " + message, ORANGE);
         }
     }
 

@@ -9,6 +9,8 @@ package coolcostupit.openjs.modules;
 import coolcostupit.openjs.logging.pluginLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public class scriptManager {
+    private static final Logger log = LoggerFactory.getLogger(scriptManager.class);
     private static File scriptsFolder;
     private static final Map<String, File> SCRIPT_CACHE = new ConcurrentHashMap<>();
     private static final Set<String> DISABLED_SCRIPTS = ConcurrentHashMap.newKeySet();
@@ -376,12 +379,9 @@ public class scriptManager {
         try {
             String code = Files.readString(file.toPath());
             CODE_CACHE.put(getRelativePath(file), code); // overwrite = update
+            logger.debug("Cached code for script: " + getRelativePath(file));
         } catch (IOException e) {
-            logger.log(
-                    Level.SEVERE,
-                    "Failed to cache script code: " + file.getAbsolutePath(),
-                    pluginLogger.RED
-            );
+            logger.log(Level.SEVERE, "Failed to cache script code: " + file.getAbsolutePath(), pluginLogger.RED);
         }
     }
 
