@@ -3,7 +3,6 @@
  * Licensed under AGPL-3.0
  * You may not remove this notice or claim this work as your own.
  */
-
 package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.logging.pluginLogger;
@@ -27,5 +26,5 @@ public class sharedClass {
     public static DiskStorage DiskStorageApi;
     public static ExecutorService TaskThreadPool;
     public static LibImporterApi LibImporterApi;
-    public static boolean isDebugMode = true;
+    public static boolean isDebugMode = false;
 }

@@ -3,7 +3,6 @@
  * Licensed under AGPL-3.0
  * You may not remove this notice or claim this work as your own.
  */
-
 package coolcostupit.openjs;
 
 import coolcostupit.openjs.logging.pluginLogger;
@@ -86,6 +85,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         ReflectionNames.initialize();
 
         // Default config values
+        sharedClass.isDebugMode = configUtil.getConfigFromBuffer("debugMode", false);
         configUtil.getConfigFromBuffer("PrintScriptActivations", true);
         configUtil.getConfigFromBuffer("UseCustomInterpreter", true); // TODO Remove this in 1.4.0
         configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true); // TODO Remove this in 1.4.0
@@ -246,9 +246,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
         String subCommand = args[0].toLowerCase();
         switch (subCommand) {
-            case "test":
-                DialogReflectionUtil.showNoticeDialog((Bukkit.getPlayerExact(sender.getName())), "Test Title", "This is a test message.");
-                return true;
             case "reload":
                 if (args.length < 2) {
                     configUtil.reloadConfigBuffer();

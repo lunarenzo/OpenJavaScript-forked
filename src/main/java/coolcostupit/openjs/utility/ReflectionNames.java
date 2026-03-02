@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 coolcostupit
+ * Licensed under AGPL-3.0
+ * You may not remove this notice or claim this work as your own.
+ */
 package coolcostupit.openjs.utility;
 
 import com.comphenix.protocol.ProtocolManager;
@@ -10,7 +15,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.logging.Level;
 
-// All NMS and Reflection goes here
+// All NMS and Reflection goes here (oow so many classes and methods -_-)
 public class ReflectionNames {
 
     public static String CONTAINER_MENU_FIELD;
@@ -35,6 +40,8 @@ public class ReflectionNames {
     public static Class<?> dialogActionClass;
     public static Class<?> createFunctionalInterface;
     public static Class<?> dialogAfterActionClass;
+    public static Class<?> dialogResponseViewClass;
+    public static Class<?> clickEventClass;
     public static Object dialogAfterActionNone;
     public static Object cachedClickOptions;
     public static Method createMethod;
@@ -51,6 +58,16 @@ public class ReflectionNames {
     public static Method multiActionBuild;
     public static Method multiActionColumns;
     public static Method multiActionExitAction;
+    public static Method actionButtonWidth;
+    public static Method actionButtonTooltip;
+    public static Method actionButtonBuild;
+    public static Method afterActionMethod;
+    public static Method responseGetText;
+    public static Method responseGetFloat;
+    public static Method responseGetBoolean;
+    public static Method staticAction;
+    public static Method clickEventOpenUrl;
+    public static Method boolInputMethod;
 
 
     public static void initialize() {
@@ -63,12 +80,29 @@ public class ReflectionNames {
             dialogInputClass = Class.forName("io.papermc.paper.registry.data.dialog.input.DialogInput");
             dialogActionClass = Class.forName("io.papermc.paper.registry.data.dialog.action.DialogAction");
             dialogAfterActionClass = Class.forName("io.papermc.paper.registry.data.dialog.DialogBase$DialogAfterAction");
+            clickEventClass   = Class.forName("net.kyori.adventure.text.event.ClickEvent");
             plainMessage = dialogBodyClass.getMethod("plainMessage", Component.class, int.class);
             textInputMethod = dialogInputClass.getMethod("text", String.class, Component.class);
             baseBuilderMethod = dialogBaseClass.getMethod("builder", Component.class);
             builderMethod = actionButtonClass.getMethod("builder", Component.class);
             confirmation = dialogTypeClass.getMethod("confirmation", actionButtonClass, actionButtonClass);
             notice = dialogTypeClass.getMethod("notice", actionButtonClass);
+            staticAction   = dialogActionClass.getMethod("staticAction", Class.forName("net.kyori.adventure.text.event.ClickEvent"));
+            clickEventOpenUrl = clickEventClass.getMethod("openUrl", String.class);
+            boolInputMethod = dialogInputClass.getMethod("bool", String.class, Component.class);
+
+            Class<?> actionButtonBuilderClass = builderMethod.getReturnType();
+            actionButtonWidth   = actionButtonBuilderClass.getMethod("width", int.class);
+            actionButtonTooltip = actionButtonBuilderClass.getMethod("tooltip", Component.class);
+            actionButtonBuild   = actionButtonBuilderClass.getMethod("build");
+
+            Class<?> baseBuilderClass = baseBuilderMethod.getReturnType();
+            afterActionMethod = baseBuilderClass.getMethod("afterAction", dialogAfterActionClass);
+
+            dialogResponseViewClass = Class.forName("io.papermc.paper.dialog.DialogResponseView");
+            responseGetText    = dialogResponseViewClass.getMethod("getText", String.class);
+            responseGetFloat   = dialogResponseViewClass.getMethod("getFloat", String.class);
+            responseGetBoolean = dialogResponseViewClass.getMethod("getBoolean", String.class);
 
             for (Object constant : dialogAfterActionClass.getEnumConstants()) {
                 if (constant.toString().equals("NONE")) {
@@ -96,9 +130,6 @@ public class ReflectionNames {
                     break;
                 }
             }
-
-            sharedClass.logger.debug("multiAction isVarArgs: " + ReflectionNames.multiAction.isVarArgs());
-            sharedClass.logger.debug("multiAction param type: " + ReflectionNames.multiAction.getParameterTypes()[0]);
 
             for (Method m : ReflectionNames.dialogInputClass.getMethods()) {
                 if (!m.getName().equals("numberRange") || m.getParameterCount() != 4) continue;
