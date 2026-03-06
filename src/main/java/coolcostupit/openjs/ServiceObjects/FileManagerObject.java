@@ -158,7 +158,8 @@ public class FileManagerObject {
             Path path = target.toPath();
 
             if (!Files.exists(path)) {
-                Files.createDirectories(path);
+                sharedClass.logger.scriptlog(Level.WARNING, scriptClass.RelativePath, "Can't listen on path that does not exist: " + target.getAbsolutePath(), pluginLogger.ORANGE);
+                return null;
             }
 
             if (!watcherStarted) {
@@ -186,6 +187,7 @@ public class FileManagerObject {
             try {
                 watchService.close();
             } catch (IOException ignored) {}
+            watchService = null;
         }
     }
 
@@ -211,7 +213,9 @@ public class FileManagerObject {
                     for (FileListenerHandle listener : listeners) {
                         if (listener.key == key) {
                             for (WatchEvent<?> event : events) {
-                                if (event.kind() == listener.kind) {
+                                WatchEvent.Kind<?> kind = event.kind();
+                                if (kind == StandardWatchEventKinds.OVERFLOW) continue;
+                                if (kind == listener.kind) {
                                     FoliaSupport.runTask(sharedClass.plugin, () -> listener.dispatch(event)); // lambda (OMG HALF LIFE 3????)
                                 }
                             }

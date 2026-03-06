@@ -53,6 +53,7 @@ public class LibImporterApi {
                             String fileName = event.context().toString();
 
                             if (!fileName.toLowerCase().endsWith(".jar")) continue;
+                            if (kind == StandardWatchEventKinds.OVERFLOW) continue;
 
                             if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
                                 File newJar = libFolderPath.resolve(fileName).toFile();

@@ -9,7 +9,9 @@ import coolcostupit.openjs.modules.sharedClass;
 import coolcostupit.openjs.utility.ReflectionNames;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import java.lang.reflect.Method;
@@ -56,8 +58,13 @@ public class DialogApiObject {
         // Try to hook Papers PlayerDialogCloseEvent reflectively
         try {
             Class<?> eventClass = Class.forName("io.papermc.paper.event.player.PlayerDialogCloseEvent");
-            Class<?> handlerListClass = Class.forName("org.bukkit.event.HandlerList");
-            sharedClass.plugin.getServer().getPluginManager().registerEvents(new PaperDialogCloseListener(), sharedClass.plugin);
+            sharedClass.plugin.getServer().getPluginManager().registerEvent(
+                    (Class<? extends Event>) eventClass,
+                    new PaperDialogCloseListener(),
+                    EventPriority.NORMAL,
+                    (listener, event) -> ((PaperDialogCloseListener) listener).onDialogClose(event),
+                    sharedClass.plugin
+            );
             sharedClass.logger.debug("Paper PlayerDialogCloseEvent hooked successfully.");
         } catch (ClassNotFoundException ignored) {
             sharedClass.logger.debug("PlayerDialogCloseEvent not found — closed events will only fire on quit.");

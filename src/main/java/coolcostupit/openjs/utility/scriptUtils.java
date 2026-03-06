@@ -9,20 +9,11 @@ package coolcostupit.openjs.utility;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.sharedClass;
 
-import java.security.SecureRandom;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 
 public class scriptUtils {
-    private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    private static final SecureRandom RANDOM = new SecureRandom();
-
-    public static String randomString(int length) {
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            sb.append(LETTERS.charAt(RANDOM.nextInt(LETTERS.length())));
-        }
-        return sb.toString();
-    }
+    private static final AtomicLong counter = new AtomicLong();
 
     public static Object evalJavascriptArray(javax.script.ScriptEngine engine, String scriptName, String jsCode) {
         try {
@@ -43,7 +34,7 @@ public class scriptUtils {
 
     public static Object importJavaToJsGC(javax.script.ScriptEngine engine, String scriptName, Object object) {
         try {
-            String importUUID = randomString(12);
+            String importUUID = "__import_" + counter.getAndIncrement();
             engine.put(importUUID, object);
             Object result = engine.eval(
                     "(function() {" +

@@ -20,7 +20,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public class scriptManager {
-    private static final Logger log = LoggerFactory.getLogger(scriptManager.class);
     private static File scriptsFolder;
     private static final Map<String, File> SCRIPT_CACHE = new ConcurrentHashMap<>();
     private static final Set<String> DISABLED_SCRIPTS = ConcurrentHashMap.newKeySet();
@@ -199,6 +198,8 @@ public class scriptManager {
                             WatchEvent.Kind<?> kind = event.kind();
                             Path changed = dir.resolve((Path) event.context());
                             File affected = changed.toFile();
+
+                            if (kind == StandardWatchEventKinds.OVERFLOW) continue;
 
                             handleFileEvent(kind, affected);
                         }
@@ -379,7 +380,6 @@ public class scriptManager {
         try {
             String code = Files.readString(file.toPath());
             CODE_CACHE.put(getRelativePath(file), code); // overwrite = update
-            logger.debug("Cached code for script: " + getRelativePath(file));
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Failed to cache script code: " + file.getAbsolutePath(), pluginLogger.RED);
         }

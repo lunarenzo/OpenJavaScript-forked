@@ -168,8 +168,6 @@ public class scriptWrapper {
                 }
             }
 
-            engine = null;
-            System.gc(); // I am not even sure if that will help
             Logger.scriptlog(Level.INFO, scriptName, "has been unloaded!", pluginLogger.LIGHT_BLUE);
         }
 
@@ -185,21 +183,24 @@ public class scriptWrapper {
             return scriptManager.readCode(scriptManager.getRelativePath(scriptFile));
         }
 
-        StringBuilder scriptContent = new StringBuilder();
+        String sourceCode = scriptManager.readCode(scriptManager.getRelativePath(scriptFile));
         List<String> imports = new ArrayList<>();
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(scriptFile))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.startsWith("//!import ")) {
-                    String importLine = line.substring(9).trim();
-                    imports.add(importLine);
-                }
-                scriptContent.append(line).append("\n");
-            }
+        if (sourceCode == null) {
+            Logger.scriptlog(Level.WARNING, scriptManager.getScriptName(scriptFile), "Script source code is null!", pluginLogger.ORANGE);
+            return "";
         }
 
-        StringBuilder finalScript = new StringBuilder();
+        if (sourceCode.contains("//!import ")) {
+            try (BufferedReader reader = new BufferedReader(new StringReader(sourceCode))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("//!import ")) {
+                        imports.add(line.substring(9).trim());
+                    }
+                }
+            }
+        }
         boolean LoggedWarning = false;
 
         for (String importStatement : imports) {
@@ -216,8 +217,6 @@ public class scriptWrapper {
             }
         }
 
-        finalScript.append(scriptContent);
-
         // Internal exception catcher
         return """
             try {
@@ -226,7 +225,7 @@ public class scriptWrapper {
                 _internalPluginLogger.internalException(currentScriptName, "Exception: " + e);
                 if (e && e.stack)  _internalPluginLogger.internalException(currentScriptName, "Stack: " + e.stack);
             }
-            """.formatted(finalScript.toString());
+            """.formatted(sourceCode);
     }
 
     public List<String> getNotLoadedScripts() {
@@ -288,7 +287,7 @@ public class scriptWrapper {
             // Those have no enforced security, everything is up to the developer
             // OK thank you for reading, have a nice day!
             scriptManager.setScriptLoading(RelativePath, true);
-            unloadScriptAsync(RelativePath);
+            unloadScriptSynced(RelativePath);
             ScriptEngine localScriptEngine = coolcostupit.openjs.modules.ScriptEngine.getEngine();
             scriptEngines.put(RelativePath, localScriptEngine);
             ScriptClassObject scriptClass = new ScriptClassObject(RelativePath);
@@ -311,43 +310,6 @@ public class scriptWrapper {
 
             Future<?> future = executorService.submit(() -> {
                 try {
-                    // Developer protections and memory optimization (just a myth but freezing in-build variables should decrease memory overhead; right?)
-                    localScriptEngine.eval("""
-                    const deepFreeze = function(obj) {
-                        if (obj === null || typeof obj !== 'object') return obj;
-                        Object.getOwnPropertyNames(obj).forEach(function(name) {
-                            var prop = obj[name];
-                            if (typeof prop === 'object' && prop !== null && !Object.isFrozen(prop)) {
-                                deepFreeze(prop);
-                            }
-                        });
-                        return Object.freeze(obj);
-                    }
-                    
-                    deepFreeze(plugin);
-                    deepFreeze(scriptManager);
-                    deepFreeze(scriptEngine);
-                    deepFreeze(log);
-                    deepFreeze(DiskStorage);
-                    deepFreeze(publicVarManager);
-                    deepFreeze(_task);
-                    deepFreeze(_libImporter);
-                    
-                    Object.defineProperty(this, 'currentScriptName', {
-                      value: currentScriptName,
-                      writable: false,
-                      configurable: false,
-                      enumerable: true
-                    });
-                    
-                    Object.defineProperty(this, 'IsFoliaServer', {
-                      value: IsFoliaServer,
-                      writable: false,
-                      configurable: false,
-                      enumerable: true
-                    });
-                    """);
-
                     if (configUtil.getConfigFromBuffer("AllowFeatureFlags", true)) {
                         if (FlagInterpreter.hasFlag(scriptFile, "waitForInit")) {
                             localScriptEngine.eval("scriptManager.waitForInit()");
@@ -375,6 +337,7 @@ public class scriptWrapper {
             }
 
             scriptFutures.put(RelativePath, future);
+            // TODO: Separate the "finally" with an 120 seconds timeout
             FoliaSupport.runTask(plugin, () -> {
                 try {
                     future.get(1, TimeUnit.SECONDS);
@@ -392,7 +355,7 @@ public class scriptWrapper {
         return new ScriptLoadResult(false, "Invalid script file.");
     }
 
-    public void loadScriptAsync(File scriptFile) {
+    public void loadScriptSynced(File scriptFile) {
         Future<?> future = executorService.submit(() -> loadScript(scriptFile, false));
         try {
             future.get();
@@ -401,7 +364,7 @@ public class scriptWrapper {
         }
     }
 
-    public void unloadScriptAsync(String scriptName) {
+    public void unloadScriptSynced(String scriptName) {
         Future<?> future = executorService.submit(() -> unloadScript(scriptName));
         try {
             future.get();
@@ -416,7 +379,7 @@ public class scriptWrapper {
         for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
             File scriptFile = entry.getValue();
             if (scriptManager.isScriptEnabled(scriptFile)) {
-                loadScriptAsync(scriptFile);
+                loadScriptSynced(scriptFile);
             }
         }
     }

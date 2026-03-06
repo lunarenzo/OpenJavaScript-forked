@@ -26,8 +26,6 @@ public class pluginLogger {
 
     // Special indicators
     public static final String yieldKill = "_殺了我ͶͶ";
-
-    private final boolean debugMode = sharedClass.isDebugMode;
     private final configurationUtil configUtil;
     private final Logger logger;
 
@@ -38,13 +36,13 @@ public class pluginLogger {
 
     public void log(Level level, String message, String colorCode) {
         logger.log(level, colorCode + message + RESET);
-        if (configUtil.getConfigFromBuffer("BroadcastToOps", true) && level == Level.SEVERE || level == Level.WARNING) {
+        if (configUtil.getConfigFromBuffer("BroadcastToOps", true) && (level == Level.SEVERE || level == Level.WARNING)) {
             OpsLogger.LogToOps(Collections.singletonList(chatColors.RED + message));
         }
     }
 
     public void debug(String message) {
-        if (debugMode) {
+        if (sharedClass.isDebugMode) {
             log(Level.INFO, "[DEBUG] " + message, ORANGE);
         }
     }

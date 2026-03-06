@@ -45,6 +45,7 @@ public class InternalSystems {
     private final ScriptClassObject scriptClass;
     private final Map<String, Object> requireCache;
     private static final pluginLogger Logger = sharedClass.logger;
+    private static CommandMap cachedCommandMap = null;
     static private final Map<String, List<Listener>> eventListenersMap = new HashMap<>();
 
     public InternalSystems(String scriptName, ScriptEngine engine, ScriptClassObject scriptClass) {
@@ -57,7 +58,6 @@ public class InternalSystems {
     public Object importClass(String className) {
         try {
             Class<?> clazz = Class.forName(className);
-            String simpleName = clazz.getSimpleName();
             return scriptUtils.importJavaToJsGC(Engine, ScriptName, clazz);
         } catch (ClassNotFoundException e) {
             Logger.scriptlog(Level.WARNING, ScriptName, "Class not found for import: " + className, pluginLogger.ORANGE);
@@ -198,13 +198,14 @@ public class InternalSystems {
     }
 
     private CommandMap getCommandMap() {
+        if (cachedCommandMap != null) return cachedCommandMap;
         CommandMap commandMap = null;
 
         try {
             Field f = Bukkit.getPluginManager().getClass().getDeclaredField("commandMap");
             f.setAccessible(true);
-
             commandMap = (CommandMap) f.get(Bukkit.getPluginManager());
+            cachedCommandMap = commandMap;
         } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException | SecurityException e) {
             Logger.scriptlog(Level.SEVERE, ScriptName, "Failed to load get CommandMap:", pluginLogger.RED);
             Logger.logScriptError(e, ScriptName);
@@ -220,7 +221,6 @@ public class InternalSystems {
                 Method method = getMethod(serverClass, "syncCommands");
                 method.setAccessible(true);
                 method.invoke(Bukkit.getServer());
-                method.setAccessible(false);
             } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
                 Logger.log(Level.WARNING, "Failed to sync commands:", pluginLogger.RED);
                 Logger.logException(e, Level.WARNING); // Warning cuz it is not that bad of an error

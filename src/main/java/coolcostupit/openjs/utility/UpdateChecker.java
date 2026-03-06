@@ -24,7 +24,7 @@ import java.util.logging.Level;
 public class UpdateChecker {
     private final JavaPlugin plugin;
     private static final String VERSION_URL = "https://api.spigotmc.org/legacy/update.php?resource=117328";
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    static public final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private static final long CHECK_INTERVAL = 20L * 60L * 10L; // 20 ticks * 60 seconds * 10 minutes
     private boolean UpdateAvailable;
     private final pluginLogger Logger;

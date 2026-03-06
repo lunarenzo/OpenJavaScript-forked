@@ -1,46 +1,37 @@
-/*
- * Copyright (c) 2026 coolcostupit
- * Licensed under AGPL-3.0
- * You may not remove this notice or claim this work as your own.
- */
-
 package coolcostupit.openjs.modules;
 
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class PublicVarManager {
-    private final Map<String, Object> publicVars = new ConcurrentHashMap<>();
-    private final Lock lock = new ReentrantLock();
-    private final Condition varAvailable = lock.newCondition();
+    private final ConcurrentHashMap<String, Object> publicVars = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Object> waitMonitors = new ConcurrentHashMap<>();
 
     public void setPublicVar(String key, Object value) {
-        lock.lock();
-        try {
-            publicVars.put(key, value);
-            varAvailable.signalAll();
-        } finally {
-            lock.unlock();
+        publicVars.put(key, value);
+        Object monitor = waitMonitors.get(key);
+        if (monitor != null) {
+            synchronized (monitor) {
+                monitor.notifyAll();
+            }
         }
     }
 
     public Object getPublicVar(String key) throws InterruptedException {
-        lock.lock();
-        try {
-            long timeout = TimeUnit.MILLISECONDS.toNanos(500);
+        Object val = publicVars.get(key);
+        if (val != null) return val;
+
+        Object monitor = waitMonitors.computeIfAbsent(key, k -> new Object());
+        synchronized (monitor) {
+            long deadline = System.nanoTime() + 500_000_000L;
             while (!publicVars.containsKey(key)) {
-                if (timeout <= 0L) {
-                    return null; // Return null if timeout occurs
-                }
-                timeout = varAvailable.awaitNanos(timeout);
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) return null;
+                long ms = remaining / 1_000_000L;
+                int ns = (int)(remaining % 1_000_000L);
+                monitor.wait(ms, ns);
             }
+            waitMonitors.remove(key);
             return publicVars.get(key);
-        } finally {
-            lock.unlock();
         }
     }
 }

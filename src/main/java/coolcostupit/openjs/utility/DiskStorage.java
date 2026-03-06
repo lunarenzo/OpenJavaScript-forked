@@ -50,7 +50,9 @@ public class DiskStorage {
             while (filesBeingSaved.contains(fullName)) {
                 try {
                     Thread.sleep(10);
-                } catch (InterruptedException ignored) {
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
                 }
             }
 
@@ -126,6 +128,7 @@ public class DiskStorage {
     public String getValue(String scriptName, boolean global, String fileName, String valueName, String fallbackValue) {
         String fullName = (global ? fileName : scriptName + "_" + fileName).replaceAll("[^a-zA-Z0-9._-]", "_");
         Map<String, String> fileCache = cache.get(fullName);
+        if (fileCache == null) return fallbackValue;
         return fileCache.getOrDefault(valueName, fallbackValue);
     }
 

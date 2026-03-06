@@ -13,10 +13,7 @@ import coolcostupit.openjs.logging.OpsLogger;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
-import org.bukkit.command.TabExecutor;
+import org.bukkit.command.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -46,6 +43,8 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
     @Override
     @SuppressWarnings("all")
     public void onEnable() {
+        sharedClass.plugin = this;
+        FoliaSupport.init();
         Server server = getServer();
         PluginManager pluginManager = server.getPluginManager();
 
@@ -63,7 +62,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sharedClass.PluginDescription = this.getDescription();
         sharedClass.IsPapiLoaded = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
         sharedClass.logger = pluginLogger;
-        sharedClass.plugin = this;
         sharedClass.Identifier = this.getName().toLowerCase();
         sharedClass.DiskStorageApi = DiskStorageApi;
         sharedClass.LibImporterApi = new LibImporterApi();
@@ -100,7 +98,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
         if (configUtil.getConfigFromBuffer("AllowBstats", true)) {
             // here ya go chads, you can opt-out bstats if u want to :)
-            Metrics metrics = new Metrics(this, 22268);
+            new Metrics(this, 22268);
         };
 
         configUtil.saveBufferToConfig();
@@ -117,7 +115,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         pluginLogger.log(Level.INFO, "Version: " + sharedClass.PluginDescription.getVersion(), pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Author: " + sharedClass.PluginDescription.getAuthors().toString().substring(1, sharedClass.PluginDescription.getAuthors().toString().length() - 1), pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Java Version: " + System.getProperty("java.version"), pluginLogger.LIGHT_BLUE);
-        if (FoliaSupport.isFolia() == true) {
+        if (FoliaSupport.isFolia()) {
             pluginLogger.log(Level.INFO, "Folia Support: true", pluginLogger.LIGHT_BLUE);
         }
         if (sharedClass.IsPapiLoaded) {
@@ -137,6 +135,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sharedClass.TaskThreadPool.shutdown();
         scriptWrapper.executorService.shutdown();
         sharedClass.LibImporterApi.shutdown();
+        UpdateChecker.executorService.shutdown();
         scriptManager.saveDisabledScripts();
         pluginLogger.log(Level.INFO, "Saving disk storage files...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         DiskStorageApi.saveAllCaches(false);
@@ -222,6 +221,10 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+        if ((sender instanceof Player) && !OpsLogger.hasPerm((Player) sender)) {
+            sender.sendMessage(chatColors.RED + "You don't have permission.");
+            return true;
+        }
         if (args.length == 0) {
             sendUsageMessage(sender, label);
             return true;
@@ -231,7 +234,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         } else if ("version".equalsIgnoreCase(args[0])) {
             sender.sendMessage(chatColors.LIGHT_BLUE + "Version: " + sharedClass.PluginDescription.getVersion());
             return true;
-        } else if ("documentation".equalsIgnoreCase(args[0]) | "wiki".equalsIgnoreCase(args[0])) {
+        } else if ("documentation".equalsIgnoreCase(args[0]) || "wiki".equalsIgnoreCase(args[0])) {
             sender.sendMessage(pluginLinks.getLink("wiki"));
             return true;
         } else if ("download".equalsIgnoreCase(args[0])) {

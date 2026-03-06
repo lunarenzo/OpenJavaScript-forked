@@ -10,7 +10,6 @@ package coolcostupit.openjs.utility;
 public class chatColors {
     // Color codes
     public static final String BLACK = "§0";
-    public static final String DARK_BLUE = "§1";
     public static final String DARK_GREEN = "§2";
     public static final String DARK_AQUA = "§3";
     public static final String DARK_RED = "§4";
@@ -19,7 +18,7 @@ public class chatColors {
     public static final String GRAY = "§7";
     public static final String DARK_GRAY = "§8";
     public static final String LIGHT_BLUE = "§9";
-    public static  final String BLUE = "§1";
+    public static final String BLUE = "§1";
     public static final String GREEN = "§a";
     public static final String AQUA = "§b";
     public static final String RED = "§c";
