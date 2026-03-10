@@ -204,6 +204,21 @@ public class JavascriptHelper {
                         throw new TypeError("bindToUnload expects a function");
                     }
                     __unloadBinds.push(fn);
+                  },
+                  latch() {
+                    const _latch = _task.createLatch(currentScriptName, scriptEngine);
+                    return {
+                        wait() { return _latch.waitFor(); },
+                        listen(fn) { _latch.listen({ f: fn }); },
+                        invoke(value) { _latch.invoke(value); },
+                        destroy() { _latch.destroy(); },
+                        connect(fn) { _latch.connect({ f: fn }); },
+                        fire(value) { return _latch.fire(value); },
+                        get invoked() { return _latch.isInvoked(); }
+                    };
+                  },
+                  threadType() {
+                    return _task.getThreadType();
                   }
                 });
                 

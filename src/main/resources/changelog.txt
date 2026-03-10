@@ -147,7 +147,7 @@ Version 1.4.0:
 🟩️ add debug mode bool into config
 🟩️ port the system to DialogService for js
 🟩️ add more types: singleOption, bool, multiline, setLabel(id) (for buttons & bodyTexts), and staticAction (URL/command/copy buttons)
-🟩️ Refactored Folia Support Initialization: Moved FoliaSupport.isFolia() check after sharedClass.plugin = this; and added early FoliaSupport.init() call in onEnable() to centralize Folia setup
+🟩️ Refactored Folia Support Initialization for better performance
 🟩️ Added Command Sender Permission Check: Added player permission verification for openjs.use at the beginning of onCommand to prevent unauthorized command execution
 🟩️ Major Refactoring of Scheduler Abstraction: Completely restructured FoliaSupport class with centralized init() method, pre-cached scheduler in syncScheduler functional interface, and removed redundant FoliaCompatibility instances
 🟩️ Improved Task Tracking in FoliaSupport: Removed static fields and TaskType enum, replacing with streamlined syncScheduler functional interface for sync tasks
@@ -163,14 +163,15 @@ Version 1.4.0:
 🟩️ Added Null Check in FileManagerObject.listenOnPath: Added null check for target path and user feedback log message
 🟩️ Improved FileManagerObject Watcher Robustness: Added OVERFLOW event check and null check for watchService in clearFileListeners
 🟩️ Updated changelog.txt for Version 1.3.6: Added new entry detailing Dialog API improvements, debug mode fix, and comprehensive code review
-- fix bug: When clicking the url button, the dialog gets exited without the exit event firing
-- fix: when reloading with the reload command, the debug mode boolean does not update until restart
+🟩️ fix bug: When clicking the url button, the dialog gets exited without the exit event firing
+🟩️ fix: when reloading with the reload command, the debug mode boolean does not update until restart
+🟩️ fix PlayerDialogCloseEvent not existing
 🟩️ review the entire code and fix a lot of bugs
-- Add FileManager.getRelativePath(File) which will return the relative path of the file based on the script's folder
+🟩️ Add FileManager.getPath(File) which will return the relative path of the file based on the script's folder
 🟩️ Cleanup a lot of code
-- add task.latch() which will return the following functions: .connect(function) .wait() .invoke() .Fired | Should be thread safe
-- create system called "GlobalsLoader" which will manage all the globals, put GlobalsLoader into modules, put globals into "ScriptGlobals"
-- create custom mappings to add support for 1.13+ up to current version (a whole lots of refactoring again ;-;)
+🟩️ add task.latch() which will return the following functions: .destroy() .connect(function) .wait() .invoke() .fire() .Fired | Should be thread safe
+🟩️ add task.threadType() which will return a string of the thread type (main, async, sync)
+🟩️ create custom mappings to add support for 1.13+ up to current version (a whole lots of refactoring again ;-;)
 🟩️ fix stupid organisation mistakes (logging does not always use the same filename, ONLY Error logs should use relative path. Computed name should be used instead)
 - remove anything that is deprecated
 - Clear up todos

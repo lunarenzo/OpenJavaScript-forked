@@ -54,12 +54,10 @@ public class ReflectionNames {
     public static Method numberRangeMethod;
     public static Method notice;
     public static Method multiAction;
-    public static Method multiActionWithColumns;
     public static Method multiActionBuild;
     public static Method multiActionColumns;
     public static Method multiActionExitAction;
     public static Method actionButtonWidth;
-    public static Method actionButtonTooltip;
     public static Method actionButtonBuild;
     public static Method afterActionMethod;
     public static Method responseGetText;
@@ -68,6 +66,12 @@ public class ReflectionNames {
     public static Method staticAction;
     public static Method clickEventOpenUrl;
     public static Method boolInputMethod;
+    public static Method itemBodyMethod;
+    public static Method itemBodyBuild;
+    public static Method itemBodyWidth;
+    public static Method itemBodyHeight;
+    public static Method itemBodyDescription;
+    public static Method itemBodyShowTooltip;
 
 
     public static void initialize() {
@@ -82,6 +86,7 @@ public class ReflectionNames {
             dialogAfterActionClass = Class.forName("io.papermc.paper.registry.data.dialog.DialogBase$DialogAfterAction");
             clickEventClass   = Class.forName("net.kyori.adventure.text.event.ClickEvent");
             plainMessage = dialogBodyClass.getMethod("plainMessage", Component.class, int.class);
+            itemBodyMethod = dialogBodyClass.getMethod("item", org.bukkit.inventory.ItemStack.class);
             textInputMethod = dialogInputClass.getMethod("text", String.class, Component.class);
             baseBuilderMethod = dialogBaseClass.getMethod("builder", Component.class);
             builderMethod = actionButtonClass.getMethod("builder", Component.class);
@@ -90,19 +95,29 @@ public class ReflectionNames {
             staticAction   = dialogActionClass.getMethod("staticAction", Class.forName("net.kyori.adventure.text.event.ClickEvent"));
             clickEventOpenUrl = clickEventClass.getMethod("openUrl", String.class);
             boolInputMethod = dialogInputClass.getMethod("bool", String.class, Component.class);
-
             Class<?> actionButtonBuilderClass = builderMethod.getReturnType();
-            actionButtonWidth   = actionButtonBuilderClass.getMethod("width", int.class);
-            actionButtonTooltip = actionButtonBuilderClass.getMethod("tooltip", Component.class);
-            actionButtonBuild   = actionButtonBuilderClass.getMethod("build");
-
             Class<?> baseBuilderClass = baseBuilderMethod.getReturnType();
+            Class<?> itemBodyBuilderClass = itemBodyMethod.getReturnType();
+            actionButtonWidth   = actionButtonBuilderClass.getMethod("width", int.class);
+            actionButtonBuild   = actionButtonBuilderClass.getMethod("build");
             afterActionMethod = baseBuilderClass.getMethod("afterAction", dialogAfterActionClass);
+            itemBodyBuild = itemBodyBuilderClass.getMethod("build");
+            itemBodyWidth = itemBodyBuilderClass.getMethod("width", int.class);
+            itemBodyHeight = itemBodyBuilderClass.getMethod("height", int.class);
+            itemBodyShowTooltip = itemBodyBuilderClass.getMethod("showTooltip", boolean.class);
 
             dialogResponseViewClass = Class.forName("io.papermc.paper.dialog.DialogResponseView");
             responseGetText    = dialogResponseViewClass.getMethod("getText", String.class);
             responseGetFloat   = dialogResponseViewClass.getMethod("getFloat", String.class);
             responseGetBoolean = dialogResponseViewClass.getMethod("getBoolean", String.class);
+
+
+            for (Method m : itemBodyBuilderClass.getMethods()) {
+                if (m.getName().equals("description") && m.getParameterCount() == 1) {
+                    itemBodyDescription = m;
+                    break;
+                }
+            }
 
             for (Object constant : dialogAfterActionClass.getEnumConstants()) {
                 if (constant.toString().equals("NONE")) {
@@ -123,13 +138,6 @@ public class ReflectionNames {
             multiActionBuild     = multiActionBuilderClass.getMethod("build");
             multiActionColumns   = multiActionBuilderClass.getMethod("columns", int.class);
             multiActionExitAction = multiActionBuilderClass.getMethod("exitAction", actionButtonClass);
-
-            for (Method m : dialogTypeClass.getMethods()) {
-                if (m.getName().equals("multiAction") && m.getParameterCount() == 3) {
-                    multiActionWithColumns = m;
-                    break;
-                }
-            }
 
             for (Method m : ReflectionNames.dialogInputClass.getMethods()) {
                 if (!m.getName().equals("numberRange") || m.getParameterCount() != 4) continue;

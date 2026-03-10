@@ -45,11 +45,16 @@ public class DialogApiService implements ScriptService {
             dialog.onEvent(event -> {
                 try {
                     java.util.Map<String, Object> jsEvent = new java.util.LinkedHashMap<>();
+                    String eventId = event.getId();
                     jsEvent.put("type",  event.getType());
-                    jsEvent.put("id",    event.getId());
+                    jsEvent.put("id",    eventId);
                     jsEvent.put("value", event.getValue());
                     jsEvent.put("_snapshot", event.getSnapshot());
+                    jsEvent.put("cancelled", false);
                     ((Invocable) engine).invokeMethod(jsHandler, "e", jsEvent);
+                    if (eventId != null && eventId.equals(DialogApiObject.defaultExitButtonId) && !(Boolean) jsEvent.get("cancelled")) {
+                        dialog.close();
+                    }
                 } catch (Exception e) {
                     sharedClass.logger.logScriptError(e, scriptName);
                 }
@@ -82,22 +87,18 @@ public class DialogApiService implements ScriptService {
 
             DialogApiWrapper wrapper = new DialogApiWrapper(engine, scriptClass.RelativePath);
             engine.put("__DialogApiWrapper", wrapper);
-
             Object api = scriptUtils.evalJavascriptArray(engine, scriptName, """
                 {
                     create: function(player) {
                         var javaDialog = __DialogApiWrapper.createDialog(player);
-
+                        var dialog = {};
                         var buildButtonWrapper = function(javaBtnBuilder) {
-                            var btn = {};
-                            btn.width = function(w) {
+                            dialog.width = function(w) {
                                 javaBtnBuilder.width(w);
                                 return dialog;
                             };
-                            return btn;
+                            return dialog;
                         };
-
-                        var dialog = {};
 
                         dialog.onEvent = function(handler) {
                             __DialogApiWrapper.attachEventHandler(javaDialog, { e: function(event) {
@@ -106,9 +107,18 @@ public class DialogApiService implements ScriptService {
                                         type:  event.get('type'),
                                         id:    event.get('id'),
                                         value: event.get('value'),
-                                        get:   function(id) {
+                                        read: function(key) {
+                                            return event.get(key);
+                                        },
+                                        get: function(id) {
                                             var snap = event.get('_snapshot');
                                             return snap ? snap.get(id) : null;
+                                        },
+                                        setCancelled: function() {
+                                            event.replace("cancelled", true);
+                                        },
+                                        isCancelled: function() {
+                                            return event.get("cancelled");
                                         }
                                     });
                                 } catch(e) {
@@ -168,6 +178,24 @@ public class DialogApiService implements ScriptService {
                             return dialog;
                         };
 
+                        dialog.item = function(id, itemStack, description) {
+                            if (description) {
+                                javaDialog.bodyItemDescription(id, itemStack, description);
+                            } else {
+                                javaDialog.bodyItem(id, itemStack);
+                            }
+                            return dialog;
+                        };
+
+                        dialog.setItem = function(id, itemStack, description) {
+                            if (description) {
+                                javaDialog.setBodyItemDescription(id, itemStack, description);
+                            } else {
+                                javaDialog.setBodyItem(id, itemStack);
+                            }
+                            return dialog;
+                        };
+
                         dialog.baseButton = function(id, label) {
                             return buildButtonWrapper(javaDialog.baseButton(id, label));
                         };
@@ -181,9 +209,8 @@ public class DialogApiService implements ScriptService {
                             return dialog;
                         };
 
-                        dialog.exitButton = function(id, label) {
-                            javaDialog.exitButton(id, label);
-                            return dialog;
+                        dialog.exitButton = function(label) {
+                            return buildButtonWrapper(javaDialog.exitButton(label));
                         };
 
                         dialog.setButtonText = function(id, text) {

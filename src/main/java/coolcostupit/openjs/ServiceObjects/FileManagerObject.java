@@ -253,6 +253,22 @@ public class FileManagerObject {
         return (target != null && target.exists() && target.isFile()) ? target : null;
     }
 
+    public String getPath(File target) {
+        if (target == null) return null;
+        try {
+            Path scriptDir = scriptClass.File.getParentFile().toPath().toAbsolutePath().normalize();
+            Path targetPath = target.toPath().toAbsolutePath().normalize();
+
+            // whatever you do, do not access a file outside the server drive :)
+            if (!scriptDir.getRoot().equals(targetPath.getRoot())) {
+                return targetPath.toString().replace('\\', '/');
+            }
+            return scriptDir.relativize(targetPath).toString().replace('\\', '/');
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public boolean removeFile(String relativePath) {
         File target = resolveTargetFile(relativePath);
         if (target == null || !target.exists() || !target.isFile()) return false;

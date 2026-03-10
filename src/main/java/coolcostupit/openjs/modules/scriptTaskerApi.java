@@ -19,6 +19,7 @@ import javax.script.ScriptException;
 import java.lang.reflect.Proxy;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 
 public class scriptTaskerApi {
@@ -45,6 +46,81 @@ public class scriptTaskerApi {
         this.ScriptWrapper = scriptWrapper;
         this.pluginManager = Bukkit.getPluginManager();
         this.Logger = sharedClass.logger;
+    }
+
+    public static class LatchObject {
+        private final LinkedBlockingQueue<Object> queue = new LinkedBlockingQueue<>();
+        private volatile boolean destroyed = false;
+        private volatile boolean invoked = false;
+        private volatile Object connectedHandler = null;
+        private final ScriptEngine engine;
+        private final String scriptName;
+
+        private static final Object POISON = new Object();
+
+        public LatchObject(ScriptEngine engine, String scriptName) {
+            this.engine = engine;
+            this.scriptName = scriptName;
+        }
+
+        public void connect(Object handler) {
+            this.connectedHandler = handler;
+        }
+
+        public Object fire(Object value) {
+            if (destroyed || connectedHandler == null) return null;
+            invoked = true;
+            try {
+                return ((Invocable) engine).invokeMethod(connectedHandler, "f", value);
+            } catch (Exception e) {
+                sharedClass.logger.logScriptError(e, scriptName);
+                return null;
+            }
+        }
+
+        // Can be called from any thread
+        public void invoke(Object value) {
+            if (destroyed) return;
+            invoked = true;
+            queue.offer(value != null ? value : "");
+        }
+
+        public Object waitFor() {
+            if (destroyed) return null;
+            try {
+                Object val = queue.take();
+                return val == POISON ? null : val;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+
+        public void listen(Object handler) {
+            Thread t = new Thread(() -> {
+                while (!destroyed) {
+                    try {
+                        Object val = queue.take();
+                        if (val == POISON || destroyed) break;
+                        ((Invocable) engine).invokeMethod(handler, "f", val);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    } catch (Exception e) {
+                        sharedClass.logger.logScriptError(e, scriptName);
+                    }
+                }
+            });
+            t.setDaemon(true);
+            t.start();
+        }
+
+        public void destroy() {
+            destroyed = true;
+            queue.offer(POISON); // unblock any thread stuck in waitFor() or listen()
+        }
+
+        public boolean isInvoked() { return invoked; }
     }
 
     private abstract class AutoCleanTask implements Runnable {
@@ -91,6 +167,25 @@ public class scriptTaskerApi {
                 if (scriptTasks.isEmpty()) scriptTasksMap.remove(owner);
             }
         }
+    }
+
+    public String getThreadType() {
+        if (Bukkit.isPrimaryThread()) return "MAIN";
+
+        Thread t = Thread.currentThread();
+        String name = t.getName().toLowerCase();
+
+        if (name.contains("folia") || name.contains("region")) return "FOLIA_REGION";
+        if (name.contains("worker")) return "WORKER";
+        if (name.contains("pool")) return "POOL";
+        if (name.contains("async")) return "ASYNC";
+        if (name.contains("scheduler")) return "SCHEDULER";
+
+        // Check if it's a server thread by class
+        String className = t.getClass().getName().toLowerCase();
+        if (className.contains("io.netty") || name.contains("netty")) return "NETTY";
+
+        return "THREAD[" + t.getName() + "]";
     }
 
     public Boolean wait(String scriptName, ScriptEngine scriptEngine, Number seconds) {
@@ -288,5 +383,9 @@ public class scriptTaskerApi {
         } else {
             Logger.log(Level.WARNING, "[" + scriptName + "] Listener created without cleanup function. This may cause memory leaks.", pluginLogger.ORANGE);
         }
+    }
+
+    public LatchObject createLatch(String scriptName, ScriptEngine engine) {
+        return new LatchObject(engine, scriptName);
     }
 }

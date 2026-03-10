@@ -9,9 +9,7 @@ import coolcostupit.openjs.modules.sharedClass;
 import coolcostupit.openjs.utility.ReflectionNames;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import java.lang.reflect.Method;
@@ -22,15 +20,21 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 public class DialogApiObject {
-    // Fields ============================
+    // Fields
     private static final Map<UUID, DialogApiObject> activeDialogs = new ConcurrentHashMap<>();
+    private static DialogCloseListener activeListener = null;
+    private static com.comphenix.protocol.events.PacketListener activePacketListener = null;
     private static boolean listenerRegistered = false;
+    public static final String defaultExitButtonId = "exit";
     private final Player player;
     private Component title = Component.text("Menu");
     private boolean canCloseWithEscape = true;
     private int columns = 1;
-    private Object exitButton = null;
+    private String exitButtonId = null;
+    private String exitButtonLabel = null;
+    private int exitButtonWidth = 100;
     private boolean destroyed = false;
+    private boolean closedEventFired = false;
     private final List<Consumer<DialogEvent>> eventCallbacks = new CopyOnWriteArrayList<>();
     private final List<Object> bodyElements       = new ArrayList<>();
     private final Map<String, Integer> bodyIdToIndex = new LinkedHashMap<>();
@@ -41,50 +45,242 @@ public class DialogApiObject {
     private final Map<String, Object> lastSnapshot = new ConcurrentHashMap<>();
     private Object dialogType = null;
 
-    public static class DialogCloseListener implements Listener {
-        @EventHandler
-        public void onClose(org.bukkit.event.player.PlayerQuitEvent e) {
-            // Covers logout — fire closed event and clean up
-            DialogApiObject dialog = activeDialogs.remove(e.getPlayer().getUniqueId());
-            if (dialog != null) dialog.fireClosedEvent();
+    public static void registerPacketListenerIfNeeded() {
+        if (!ReflectionNames.protocolLibAvailable) return;
+        if (activePacketListener != null) return;
+
+        com.comphenix.protocol.PacketType.Play.Client clientSide = com.comphenix.protocol.PacketType.Play.Client.getInstance();
+        com.comphenix.protocol.PacketType steerVehicle = null;
+        com.comphenix.protocol.PacketType look = null;
+        for (com.comphenix.protocol.PacketType pt : clientSide.values()) {
+            String name = pt.name();
+            if (name.equals("STEER_VEHICLE")) steerVehicle = pt;
+            else if (name.equals("LOOK")) look = pt;
         }
+
+        List<com.comphenix.protocol.PacketType> targets = new ArrayList<>();
+        if (steerVehicle != null) targets.add(steerVehicle);
+        if (look != null) targets.add(look);
+        if (targets.isEmpty()) return;
+
+        activePacketListener = new com.comphenix.protocol.events.PacketAdapter(
+                sharedClass.plugin,
+                com.comphenix.protocol.events.ListenerPriority.MONITOR,
+                targets) {
+            @Override
+            public void onPacketReceiving(com.comphenix.protocol.events.PacketEvent event) {
+                UUID uuid = event.getPlayer().getUniqueId();
+                if (!activeDialogs.containsKey(uuid)) return;
+                sharedClass.plugin.getServer().getScheduler().runTaskLater(
+                        sharedClass.plugin, () -> {
+                            DialogApiObject d = activeDialogs.remove(uuid);
+                            if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+                        }, 1L
+                );
+            }
+        };
+        ReflectionNames.protocolManager.addPacketListener(activePacketListener);
     }
 
     public static void registerListenerIfNeeded() {
         if (listenerRegistered) return;
         listenerRegistered = true;
-        sharedClass.plugin.getServer().getPluginManager().registerEvents(new DialogCloseListener(), sharedClass.plugin);
+        activeListener = new DialogCloseListener();
+        sharedClass.plugin.getServer().getPluginManager().registerEvents(activeListener, sharedClass.plugin);
+        registerPacketListenerIfNeeded();
 
-        // Try to hook Papers PlayerDialogCloseEvent reflectively
-        try {
-            Class<?> eventClass = Class.forName("io.papermc.paper.event.player.PlayerDialogCloseEvent");
-            sharedClass.plugin.getServer().getPluginManager().registerEvent(
-                    (Class<? extends Event>) eventClass,
-                    new PaperDialogCloseListener(),
-                    EventPriority.NORMAL,
-                    (listener, event) -> ((PaperDialogCloseListener) listener).onDialogClose(event),
-                    sharedClass.plugin
+        /* DEBUG
+        if (ReflectionNames.protocolLibAvailable) {
+            // Packets to ignore — fire constantly and are useless for this
+            java.util.Set<String> IGNORED = new java.util.HashSet<>(java.util.Arrays.asList(
+                    "KEEP_ALIVE",
+                    "CLIENT_TICK_END",
+                    "POSITION",
+                    "ENTITY_VELOCITY",
+                    "REL_ENTITY_MOVE",
+                    "REL_ENTITY_MOVE_LOOK",
+                    "ENTITY_HEAD_ROTATION",
+                    "ENTITY_HEAD_ROTATION",
+                    "ENTITY_POSITION_SYNC",
+                    "MAP_CHUNK",
+                    "ENTITY_LOOK",
+                    "ENTITY_STATUS",
+                    "NAMED_SOUND_EFFECT",
+                    "UPDATE_TIME",
+                    "BLOCK_CHANGE",
+                    "ENTITY_METADATA",
+                    "SPAWN_ENTITY"
+            ));
+
+            com.comphenix.protocol.PacketType.Play.Client clientSide =
+                    com.comphenix.protocol.PacketType.Play.Client.getInstance();
+            java.util.Collection<com.comphenix.protocol.PacketType> allClientPackets = clientSide.values();
+            java.util.List<com.comphenix.protocol.PacketType> validPackets = new java.util.ArrayList<>();
+            for (com.comphenix.protocol.PacketType pt : allClientPackets) {
+                if (pt.isSupported()) validPackets.add(pt);
+            }
+
+            ReflectionNames.protocolManager.addPacketListener(
+                    new com.comphenix.protocol.events.PacketAdapter(
+                            sharedClass.plugin,
+                            com.comphenix.protocol.events.ListenerPriority.MONITOR,
+                            validPackets) {
+                        @Override
+                        public void onPacketReceiving(com.comphenix.protocol.events.PacketEvent event) {
+                            String name = event.getPacketType().name();
+                            if (IGNORED.contains(name)) return;
+
+                            com.comphenix.protocol.reflect.StructureModifier<Object> mods =
+                                    event.getPacket().getModifier();
+
+                            StringBuilder sb = new StringBuilder("[PKT] ").append(name).append(" | ");
+                            for (int i = 0; i < mods.size(); i++) {
+                                try {
+                                    Object val = mods.read(i);
+                                    sb.append("[").append(i).append("]=");
+                                    if (val == null) {
+                                        sb.append("null");
+                                    } else if (val.getClass().isArray()) {
+                                        sb.append(java.util.Arrays.toString((Object[]) val));
+                                    } else {
+                                        sb.append(val).append("(").append(val.getClass().getSimpleName()).append(")");
+                                    }
+                                    sb.append(" ");
+                                } catch (Exception ex) {
+                                    sb.append("[").append(i).append("]=ERR ");
+                                }
+                            }
+
+                            sharedClass.logger.log(Level.INFO, sb.toString(), pluginLogger.ORANGE);
+                        }
+                    }
             );
-            sharedClass.logger.debug("Paper PlayerDialogCloseEvent hooked successfully.");
-        } catch (ClassNotFoundException ignored) {
-            sharedClass.logger.debug("PlayerDialogCloseEvent not found — closed events will only fire on quit.");
-        } catch (Exception e) {
-            sharedClass.logger.logException(e);
+
+            java.util.List<com.comphenix.protocol.PacketType> validServerPackets = new java.util.ArrayList<>();
+            for (com.comphenix.protocol.PacketType pt : com.comphenix.protocol.PacketType.Play.Server.getInstance().values()) {
+                if (pt.isSupported()) validServerPackets.add(pt);
+            }
+
+            ReflectionNames.protocolManager.addPacketListener(
+                    new com.comphenix.protocol.events.PacketAdapter(
+                            sharedClass.plugin,
+                            com.comphenix.protocol.events.ListenerPriority.MONITOR,
+                            validServerPackets) {
+                        @Override
+                        public void onPacketSending(com.comphenix.protocol.events.PacketEvent event) {
+                            String name = event.getPacketType().name();
+                            if (IGNORED.contains(name)) return;
+
+                            com.comphenix.protocol.reflect.StructureModifier<Object> mods =
+                                    event.getPacket().getModifier();
+                            StringBuilder sb = new StringBuilder("[PKT OUT] ").append(name).append(" | ");
+                            for (int i = 0; i < mods.size(); i++) {
+                                try {
+                                    Object val = mods.read(i);
+                                    sb.append("[").append(i).append("]=");
+                                    if (val == null) sb.append("null");
+                                    else if (val.getClass().isArray()) sb.append(java.util.Arrays.toString((Object[]) val));
+                                    else sb.append(val).append("(").append(val.getClass().getSimpleName()).append(")");
+                                    sb.append(" ");
+                                } catch (Exception ex) {
+                                    sb.append("[").append(i).append("]=ERR ");
+                                }
+                            }
+                            sharedClass.logger.log(Level.INFO, sb.toString(), pluginLogger.ORANGE);
+                        }
+                    }
+            );
         }
+        */
     }
 
+    private static void unregisterIfEmpty() {
+        if (!activeDialogs.isEmpty()) return;
+        if (!listenerRegistered) return;
+        org.bukkit.event.HandlerList.unregisterAll(activeListener);
 
-    public static class PaperDialogCloseListener implements Listener {
+        if (activePacketListener != null) {ReflectionNames.protocolManager.removePacketListener(activePacketListener);}
+        activePacketListener = null;
+        activeListener = null;
+        listenerRegistered = false;
+    }
+
+    private static Component parseText(String text) {
+        if (text == null) return Component.empty();
+        return net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacyAmpersand().deserialize(text);
+    }
+
+    public static class DialogCloseListener implements Listener {
         @EventHandler
-        public void onDialogClose(org.bukkit.event.Event e) {
-            try {
-                // Only handle PlayerDialogCloseEvent
-                if (!e.getClass().getName().equals("io.papermc.paper.event.player.PlayerDialogCloseEvent")) return;
-                Method getPlayer = e.getClass().getMethod("getPlayer");
-                Player player = (Player) getPlayer.invoke(e);
-                DialogApiObject dialog = activeDialogs.remove(player.getUniqueId());
-                if (dialog != null) dialog.fireClosedEvent();
-            } catch (Exception ignored) {}
+        public void onQuit(org.bukkit.event.player.PlayerQuitEvent e) {
+            DialogApiObject d = activeDialogs.remove(e.getPlayer().getUniqueId());
+            if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+        }
+
+        @EventHandler
+        public void onWorldChange(org.bukkit.event.player.PlayerChangedWorldEvent e) {
+            DialogApiObject d = activeDialogs.remove(e.getPlayer().getUniqueId());
+            if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+        }
+
+        @EventHandler
+        public void onDeath(org.bukkit.event.entity.PlayerDeathEvent e) {
+            DialogApiObject d = activeDialogs.remove(e.getEntity().getUniqueId());
+            if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+        }
+
+        @EventHandler
+        public void onKick(org.bukkit.event.player.PlayerKickEvent e) {
+            DialogApiObject d = activeDialogs.remove(e.getPlayer().getUniqueId());
+            if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+        }
+
+        @EventHandler
+        public void onInventoryOpen(org.bukkit.event.inventory.InventoryOpenEvent e) {
+            if (e.getPlayer() instanceof Player p) {
+                DialogApiObject d = activeDialogs.remove(p.getUniqueId());
+                if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+            }
+        }
+
+        @EventHandler
+        public void onTeleport(org.bukkit.event.player.PlayerTeleportEvent e) {
+            if (e.getFrom().getWorld() == e.getTo().getWorld()) {
+                DialogApiObject d = activeDialogs.remove(e.getPlayer().getUniqueId());
+                if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+            }
+        }
+
+        @EventHandler
+        public void onItemSwitch(org.bukkit.event.player.PlayerItemHeldEvent e) {
+            DialogApiObject d = activeDialogs.remove(e.getPlayer().getUniqueId());
+            if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+        }
+
+        @EventHandler
+        public void onInteract(org.bukkit.event.player.PlayerInteractEvent e) {
+            DialogApiObject d = activeDialogs.remove(e.getPlayer().getUniqueId());
+            if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+        }
+
+        @EventHandler
+        public void onAttack(org.bukkit.event.entity.EntityDamageByEntityEvent e) {
+            if (e.getDamager() instanceof Player p) {
+                DialogApiObject d = activeDialogs.remove(p.getUniqueId());
+                if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+            }
+        }
+
+        @EventHandler
+        public void onSneak(org.bukkit.event.player.PlayerToggleSneakEvent e) {
+            DialogApiObject d = activeDialogs.remove(e.getPlayer().getUniqueId());
+            if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
+        }
+
+        @EventHandler
+        public void onSprint(org.bukkit.event.player.PlayerToggleSprintEvent e) {
+            DialogApiObject d = activeDialogs.remove(e.getPlayer().getUniqueId());
+            if (d != null) { d.fireClosedEvent(); unregisterIfEmpty(); }
         }
     }
 
@@ -138,7 +334,7 @@ public class DialogApiObject {
         Object buildInput() throws Exception {
             return switch (type) {
                 case TEXT -> {
-                    Object builder = ReflectionNames.textInputMethod.invoke(null, id, Component.text(label));
+                    Object builder = ReflectionNames.textInputMethod.invoke(null, id, parseText(label));
                     builder = builder.getClass().getMethod("initial", String.class)
                             .invoke(builder, currentValue != null ? (String) currentValue : "");
                     builder = builder.getClass().getMethod("maxLength", int.class).invoke(builder, maxLength);
@@ -147,7 +343,7 @@ public class DialogApiObject {
                 }
                 case RANGE -> {
                     Class<?> numType = ReflectionNames.numberRangeMethod.getParameterTypes()[2];
-                    Object builder = ReflectionNames.numberRangeMethod.invoke(null, id, Component.text(label),
+                    Object builder = ReflectionNames.numberRangeMethod.invoke(null, id, parseText(label),
                             castNumber(min, numType), castNumber(max, numType));
                     double val = currentValue instanceof Number n ? n.doubleValue() :
                             Double.parseDouble(String.valueOf(currentValue));
@@ -160,7 +356,7 @@ public class DialogApiObject {
                     yield builder.getClass().getMethod("build").invoke(builder);
                 }
                 case BOOL -> {
-                    Object builder = ReflectionNames.boolInputMethod.invoke(null, id, Component.text(label));
+                    Object builder = ReflectionNames.boolInputMethod.invoke(null, id, parseText(label));
                     boolean val = currentValue instanceof Boolean b ? b : false;
                     for (Method m : builder.getClass().getMethods()) {
                         if (m.getName().equals("initial") && m.getParameterCount() == 1
@@ -206,7 +402,7 @@ public class DialogApiObject {
         }
 
         Object build() throws Exception {
-            Object buttonBuilder = ReflectionNames.builderMethod.invoke(null, Component.text(label));
+            Object buttonBuilder = ReflectionNames.builderMethod.invoke(null, parseText(label));
             buttonBuilder = ReflectionNames.actionButtonWidth.invoke(buttonBuilder, width);
 
             if (prebuiltAction != null) {
@@ -225,6 +421,38 @@ public class DialogApiObject {
         }
     }
 
+    private Object buildItemBody(org.bukkit.inventory.ItemStack item, String label, int width, int height, boolean showTooltip) throws Exception {
+        Object builder = ReflectionNames.itemBodyMethod.invoke(null, item);
+        if (width > 0)   builder = ReflectionNames.itemBodyWidth.invoke(builder, width);
+        if (height > 0)  builder = ReflectionNames.itemBodyHeight.invoke(builder, height);
+        builder = ReflectionNames.itemBodyShowTooltip.invoke(builder, showTooltip);
+        if (label != null && ReflectionNames.itemBodyDescription != null) {
+            Object plainBody = ReflectionNames.plainMessage.invoke(null, parseText(label), width > 0 ? width : 400);
+            builder = ReflectionNames.itemBodyDescription.invoke(builder, plainBody);
+        }
+        return ReflectionNames.itemBodyBuild.invoke(builder);
+    }
+
+    private Object buildExitButton() throws Exception {
+        if (exitButtonId == null) return null;
+        Object buttonBuilder = ReflectionNames.builderMethod.invoke(null, parseText(exitButtonLabel));
+        buttonBuilder = ReflectionNames.actionButtonWidth.invoke(buttonBuilder, exitButtonWidth);
+        attachActionToBuilder(buttonBuilder, exitButtonId);
+        return ReflectionNames.actionButtonBuild.invoke(buttonBuilder);
+    }
+
+    public static class ExitButtonBuilder {
+        private final DialogApiObject parent;
+        ExitButtonBuilder(DialogApiObject parent) { this.parent = parent; }
+
+        public DialogApiObject width(int width) {
+            parent.exitButtonWidth = width;
+            return parent;
+        }
+
+        // Allow skipping .width() and going straight to next chain call
+        public DialogApiObject done() { return parent; }
+    }
 
     private DialogApiObject(Player player) {
         this.player = player;
@@ -243,12 +471,12 @@ public class DialogApiObject {
     void setColumns(int cols) { this.columns = cols; }
 
     public DialogApiObject title(String text) {
-        this.title = Component.text(text);
+        this.title = parseText(text);
         return this;
     }
 
     public DialogApiObject setTitle(String text) {
-        this.title = Component.text(text);
+        this.title = parseText(text);
         return this;
     }
 
@@ -272,7 +500,7 @@ public class DialogApiObject {
 
     public DialogApiObject bodyMessage(String id, String text) {
         try {
-            Object body = ReflectionNames.plainMessage.invoke(null, Component.text(text), 400);
+            Object body = ReflectionNames.plainMessage.invoke(null, parseText(text), 400);
             bodyIdToIndex.put(id, bodyElements.size());
             bodyElements.add(body);
         } catch (Exception e) {
@@ -285,14 +513,50 @@ public class DialogApiObject {
         try {
             Integer index = bodyIdToIndex.get(id);
             if (index == null) throw new IllegalArgumentException("No body message with id: " + id);
-            bodyElements.set(index, ReflectionNames.plainMessage.invoke(null, Component.text(text), 400));
+            bodyElements.set(index, ReflectionNames.plainMessage.invoke(null, parseText(text), 400));
         } catch (Exception e) {
             throw new RuntimeException("Failed to update body message: " + id, e);
         }
         return this;
     }
 
+    public DialogApiObject bodyItemMain(String id, org.bukkit.inventory.ItemStack item, String label, int width, int height, boolean showTooltip) {
+        try {
+            Object built = buildItemBody(item, label, width, height, showTooltip);
+            bodyIdToIndex.put(id, bodyElements.size());
+            bodyElements.add(built);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build body item: " + id, e);
+        }
+        return this;
+    }
 
+    public DialogApiObject bodyItem(String id, org.bukkit.inventory.ItemStack item) {
+        return bodyItemMain(id, item, null, 0, 0, true);
+    }
+
+    public DialogApiObject bodyItemDescription(String id, org.bukkit.inventory.ItemStack item, String label) {
+        return bodyItemMain(id, item, label, 0, 0, true);
+    }
+
+    public DialogApiObject setBodyItemMain(String id, org.bukkit.inventory.ItemStack item, String label, int width, int height, boolean showTooltip) {
+        try {
+            Integer index = bodyIdToIndex.get(id);
+            if (index == null) throw new IllegalArgumentException("No body item with id: " + id);
+            bodyElements.set(index, buildItemBody(item, label, width, height, showTooltip));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to update body item: " + id, e);
+        }
+        return this;
+    }
+
+    public DialogApiObject setBodyItem(String id, org.bukkit.inventory.ItemStack item) {
+        return setBodyItemMain(id, item, null, 0, 0, true);
+    }
+
+    public DialogApiObject setBodyItemDescription(String id, org.bukkit.inventory.ItemStack item, String label) {
+        return setBodyItemMain(id, item, label, 0, 0, true);
+    }
 
     // Input elements stuff ============================
 
@@ -336,11 +600,11 @@ public class DialogApiObject {
 
     public DialogApiObject confirmButtons(String yesId, String yes, String noId, String no) {
         try {
-            Object yesBuilder = ReflectionNames.builderMethod.invoke(null, Component.text(yes));
+            Object yesBuilder = ReflectionNames.builderMethod.invoke(null, parseText(yes));
             attachActionToBuilder(yesBuilder, yesId);
             Object yesBtn = yesBuilder.getClass().getMethod("build").invoke(yesBuilder);
 
-            Object noBuilder = ReflectionNames.builderMethod.invoke(null, Component.text(no));
+            Object noBuilder = ReflectionNames.builderMethod.invoke(null, parseText(no));
             attachActionToBuilder(noBuilder, noId);
             Object noBtn = noBuilder.getClass().getMethod("build").invoke(noBuilder);
 
@@ -371,15 +635,10 @@ public class DialogApiObject {
         }
     }
 
-    public DialogApiObject exitButton(String id, String label) {
-        try {
-            Object buttonBuilder = ReflectionNames.builderMethod.invoke(null, Component.text(label));
-            attachActionToBuilder(buttonBuilder, id);
-            exitButton = buttonBuilder.getClass().getMethod("build").invoke(buttonBuilder);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to build exit button", e);
-        }
-        return this;
+    public ExitButtonBuilder exitButton(String label) {
+        this.exitButtonId = defaultExitButtonId;
+        this.exitButtonLabel = label;
+        return new ExitButtonBuilder(this);
     }
 
     public DialogApiObject setButtonText(String id, String text) {
@@ -392,13 +651,22 @@ public class DialogApiObject {
     // Event handling ============================
 
     private void fireEvent(DialogEvent event) {
-        for (Consumer<DialogEvent> cb : eventCallbacks) {
-            try { cb.accept(event); } catch (Exception e) { sharedClass.logger.logException(e); }
+        if (!destroyed) {
+            for (Consumer<DialogEvent> cb : eventCallbacks) {
+                try {
+                    cb.accept(event);
+                } catch (Exception e) {
+                    sharedClass.logger.logException(e);
+                }
+            }
         }
     }
 
     void fireClosedEvent() {
-        fireEvent(new DialogEvent("closed", null, null, lastSnapshot));
+        if (!closedEventFired) {
+            closedEventFired = true;
+            fireEvent(new DialogEvent("closed", null, null, lastSnapshot));
+        }
     }
 
 
@@ -474,7 +742,12 @@ public class DialogApiObject {
             player.sendMessage(Component.text("Dialogs are not supported on this server version."));
             return this;
         }
-
+        if (exitButtonId == null) {
+            exitButtonId = defaultExitButtonId;
+            exitButtonLabel = "Exit";
+            exitButtonWidth = 100;
+        }
+        closedEventFired = false;
         try {
             // Always rebuild buttons and dialog type on each show() so that it will update any change
             if (!pendingButtons.isEmpty()) dialogType = null;
@@ -484,13 +757,21 @@ public class DialogApiObject {
                 for (ButtonBuilder pb : pendingButtons) builtButtons.add(pb.build());
 
                 if (builtButtons.size() == 1) {
-                    dialogType = ReflectionNames.notice.invoke(null, builtButtons.get(0));
+                    Object builtExitButton = buildExitButton();
+                    if (builtExitButton != null) {
+                        List rawList = builtButtons;
+                        Object builder = ReflectionNames.multiAction.invoke(null, (Object) rawList);
+                        builder = ReflectionNames.multiActionExitAction.invoke(builder, builtExitButton);
+                        dialogType = ReflectionNames.multiActionBuild.invoke(builder);
+                    } else {
+                        dialogType = ReflectionNames.notice.invoke(null, builtButtons.get(0));
+                    }
                 } else {
-                    @SuppressWarnings("unchecked")
                     List rawList = builtButtons;
                     Object builder = ReflectionNames.multiAction.invoke(null, (Object) rawList);
-                    if (columns != 1) builder = ReflectionNames.multiActionColumns.invoke(builder, columns);
-                    if (exitButton != null) builder = ReflectionNames.multiActionExitAction.invoke(builder, exitButton);
+                    Object builtExitButton = buildExitButton();
+                    builder = ReflectionNames.multiActionColumns.invoke(builder, columns);
+                    if (builtExitButton != null) builder = ReflectionNames.multiActionExitAction.invoke(builder, builtExitButton);
                     dialogType = ReflectionNames.multiActionBuild.invoke(builder);
                 }
             }
@@ -553,7 +834,9 @@ public class DialogApiObject {
 
     public void close() {
         activeDialogs.remove(player.getUniqueId());
+        unregisterIfEmpty();
         try {
+            fireClosedEvent();
             for (Method m : player.getClass().getMethods()) {
                 if (m.getName().equals("closeDialog") && m.getParameterCount() == 0) {
                     m.invoke(player);
@@ -568,8 +851,8 @@ public class DialogApiObject {
 
 
     public void destroy() {
-        destroyed = true;
         close();
+        destroyed = true;
         eventCallbacks.clear();
         inputSpecs.clear();
         inputById.clear();
@@ -579,7 +862,9 @@ public class DialogApiObject {
         bodyIdToIndex.clear();
         lastSnapshot.clear();
         dialogType = null;
-        exitButton = null;
+        exitButtonId = null;
+        exitButtonLabel = null;
+        exitButtonWidth = 100;
     }
 
     // Utilities (didn't I code that somewhere else?) ============================
