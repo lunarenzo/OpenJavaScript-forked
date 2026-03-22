@@ -6,6 +6,7 @@
 
 package coolcostupit.openjs.utility;
 
+import coolcostupit.openjs.modules.sharedClass;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -71,5 +72,7 @@ public class configurationUtil {
         plugin.reloadConfig();
         configBuffer.clear();
         loadBufferFromConfig();
+        JavascriptHelper.initialize();
+        sharedClass.isDebugMode = getConfigFromBuffer("debugMode", false);
     }
 }

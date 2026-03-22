@@ -73,28 +73,26 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         this.scriptWrapper = new scriptWrapper(this, configUtil);
         this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
 
+        // Default config values
+        saveDefaultConfig();
+        configUtil.loadBufferFromConfig();
+        sharedClass.isDebugMode = configUtil.getConfigFromBuffer("debugMode", false);
+        configUtil.getConfigFromBuffer("PrintScriptActivations", true);
+        configUtil.getConfigFromBuffer("LogPlaceHolderActivity", true);
+        configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true);
+        configUtil.getConfigFromBuffer("AllowBstats", true);
+        configUtil.getConfigFromBuffer("UpdateNotifications", true);
+        configUtil.getConfigFromBuffer("BroadcastToOps", true);
+        configUtil.getConfigFromBuffer("AutoReloadScriptsOnChange", true);
+        configUtil.getConfigFromBuffer("UseOldClassImporter", false);
+        JavascriptHelper.initialize();
+
         sharedClass.scriptApi = scriptWrapper;
         updateChecker.startChecking();
         scriptManager.initializeManager(this);
         scriptWrapper.checkDisabledScripts();
-        saveDefaultConfig();
-        configUtil.loadBufferFromConfig();
         scriptWrapper.loadScripts();
         ReflectionNames.initialize();
-
-        // Default config values
-        sharedClass.isDebugMode = configUtil.getConfigFromBuffer("debugMode", false);
-        configUtil.getConfigFromBuffer("PrintScriptActivations", true);
-        configUtil.getConfigFromBuffer("UseCustomInterpreter", true); // TODO Remove this in 1.4.0
-        configUtil.getConfigFromBuffer("LoadCustomEventsHandler", true); // TODO Remove this in 1.4.0
-        configUtil.getConfigFromBuffer("LogPlaceHolderActivity", true);
-        configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true);
-        configUtil.getConfigFromBuffer("AllowBstats", true);
-        configUtil.getConfigFromBuffer("LoadCustomScheduler", true); // TODO Remove this in 1.4.0
-        configUtil.getConfigFromBuffer("UpdateNotifications", true);
-        configUtil.getConfigFromBuffer("AllowFeatureFlags", true); // TODO Remove this in 1.4.0
-        configUtil.getConfigFromBuffer("BroadcastToOps", true);
-        configUtil.getConfigFromBuffer("AutoReloadScriptsOnChange", true);
 
         if (configUtil.getConfigFromBuffer("AllowBstats", true)) {
             // here ya go chads, you can opt-out bstats if u want to :)

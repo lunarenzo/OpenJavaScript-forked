@@ -7,8 +7,11 @@
 package coolcostupit.openjs.utility;
 
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.modules.sharedClass;
 
 public class JavascriptHelper {
+    private static final String OLD_CLASS_IMPORTER = "const importClass = className => _InternalModules.importClass(className);";
+    private static final String NEW_CLASS_IMPORTER = "const importClass = Java.type;";
     private static final String MAIN_JAVASCRIPT_CODE = String.format("""
                 var _gc = false;
                 var __unloadBinds = [];
@@ -33,9 +36,7 @@ public class JavascriptHelper {
                     }
                     __unloadBinds = null;
                 }
-            
                 
-                const importClass = className => _InternalModules.importClass(className);
                 const toArray = args => Array.prototype.slice.call(args);
                 const toJavaList = data => Java.to(data, 'java.util.List');
                 const requireScript = relativePath => _InternalModules.requireScript(relativePath);
@@ -73,6 +74,26 @@ public class JavascriptHelper {
                     log.warn('Failed to get public variable: ' + e.message);
                     return null;
                   }
+                };
+                
+                Array.from = function(iterable, mapFn, thisArg) {
+                    var arr = [];
+                    if (iterable == null) return arr;
+            
+                    if (typeof iterable.iterator === "function") {
+                        var it = iterable.iterator();
+                        while (it.hasNext()) arr.push(it.next());
+                    } else if (typeof iterable.size === "function" && typeof iterable.get === "function") {
+                        for (var i = 0; i < iterable.size(); i++) arr.push(iterable.get(i));
+                    } else if (iterable.length !== undefined) {
+                        var len = iterable.length >>> 0;
+                        for (var i = 0; i < len; i++) arr.push(iterable[i]);
+                    }
+            
+                    if (typeof mapFn === "function") {
+                        return arr.map(mapFn, thisArg);
+                    }
+                    return arr;
                 };
                 
                 const getMethod = (Package, MethodName, ExpectedParameters) => {
@@ -238,4 +259,11 @@ public class JavascriptHelper {
                 };
                 """, pluginLogger.yieldKill);
     public static String JAVASCRIPT_CODE = MAIN_JAVASCRIPT_CODE;
+    public static void initialize() {
+        if (sharedClass.configUtil.getConfigFromBuffer("UseOldClassImporter", false)) {
+            JAVASCRIPT_CODE = OLD_CLASS_IMPORTER + MAIN_JAVASCRIPT_CODE;
+        } else {
+            JAVASCRIPT_CODE = NEW_CLASS_IMPORTER + MAIN_JAVASCRIPT_CODE;
+        }
+    }
 }

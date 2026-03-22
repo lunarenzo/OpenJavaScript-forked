@@ -178,11 +178,6 @@ public class scriptWrapper {
 
     //TODO: deprecate this
     public String preprocessScript(File scriptFile, ScriptEngine scriptEngine) throws IOException {
-        //TODO: Remove in future version
-        if (!configUtil.getConfigFromBuffer("UseCustomInterpreter", true)) {
-            return scriptManager.readCode(scriptManager.getRelativePath(scriptFile));
-        }
-
         String sourceCode = scriptManager.readCode(scriptManager.getRelativePath(scriptFile));
         List<String> imports = new ArrayList<>();
 
@@ -267,10 +262,8 @@ public class scriptWrapper {
                     return new ScriptLoadResult(false, "Do not manually load scripts while they are being initialized!");
                 }
             } else {
-                if (configUtil.getConfigFromBuffer("AllowFeatureFlags", true)) {
-                    if (FlagInterpreter.hasFlag(scriptFile, "loadManually")) {
-                        return new ScriptLoadResult(false, "Script file will only load manually");
-                    }
+                if (FlagInterpreter.hasFlag(scriptFile, "loadManually")) {
+                    return new ScriptLoadResult(false, "Script file will only load manually");
                 }
             }
 
@@ -310,12 +303,6 @@ public class scriptWrapper {
 
             Future<?> future = executorService.submit(() -> {
                 try {
-                    if (configUtil.getConfigFromBuffer("AllowFeatureFlags", true)) {
-                        if (FlagInterpreter.hasFlag(scriptFile, "waitForInit")) {
-                            localScriptEngine.eval("scriptManager.waitForInit()");
-                        }
-                    }
-
                     localScriptEngine.eval(JavascriptHelper.JAVASCRIPT_CODE);
                     String processedScript = preprocessScript(scriptFile, localScriptEngine);
                     localScriptEngine.eval(processedScript);
@@ -380,19 +367,6 @@ public class scriptWrapper {
             File scriptFile = entry.getValue();
             if (scriptManager.isScriptEnabled(scriptFile)) {
                 loadScriptSynced(scriptFile);
-            }
-        }
-    }
-
-    @SuppressWarnings("unused")
-    public void waitForInit() {
-        while (!scriptsReady) {
-            try {
-                //noinspection BusyWait
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
             }
         }
     }

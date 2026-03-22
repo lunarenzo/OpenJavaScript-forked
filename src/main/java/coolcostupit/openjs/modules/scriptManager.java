@@ -9,12 +9,12 @@ package coolcostupit.openjs.modules;
 import coolcostupit.openjs.logging.pluginLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -227,10 +227,27 @@ public class scriptManager {
                     } catch (IOException ignored) {
                     }
                 }
-                onScriptAdded(file);
+                // ZIP installer only for .zip files dropped directly in the scripts root
+                if (file.getName().toLowerCase().endsWith(".zip")
+                        && scriptsFolder != null
+                        && file.getParentFile() != null
+                        && file.getParentFile().getAbsolutePath().equals(scriptsFolder.getAbsolutePath())) {
+                    handleZipInstall(file);
+                } else {
+                    onScriptAdded(file);
+                }
             }
 
             if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
+                Path deletedPath = file.toPath().toAbsolutePath().normalize();
+                WATCH_KEYS.entrySet().removeIf(entry -> {
+                    Path watched = entry.getValue().toAbsolutePath().normalize();
+                    if (watched.startsWith(deletedPath)) {
+                        entry.getKey().cancel();
+                        return true;
+                    }
+                    return false;
+                });
                 onScriptRemoved(file);
             }
 
@@ -239,6 +256,120 @@ public class scriptManager {
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Error handling file event for " + file.getAbsolutePath() + ": " + e.getMessage(), pluginLogger.RED);
+        }
+    }
+
+    private static void handleZipInstall(File zipFile) {
+        // Wait for the file to be fully written before touching it (max 5 s).
+        long deadline = System.currentTimeMillis() + 5_000;
+        long lastSize = -1;
+        while (System.currentTimeMillis() < deadline) {
+            long size = zipFile.length();
+            if (size > 0 && size == lastSize) break;   // stable — writer is done
+            lastSize = size;
+            try { Thread.sleep(150); } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+
+        if (!zipFile.exists()) return;
+
+        boolean hasInfoJson;
+        try (ZipFile zf = new ZipFile(zipFile)) {
+            hasInfoJson = zf.getEntry("info.json") != null;
+        } catch (IOException e) {
+            logger.log(Level.WARNING,
+                    "Failed to inspect zip '" + zipFile.getName() + "': " + e.getMessage(),
+                    pluginLogger.ORANGE);
+            return;
+        }
+
+        if (!hasInfoJson) {
+            logger.log(Level.INFO,
+                    "Skipping '" + zipFile.getName() + "' — no info.json found inside.",
+                    pluginLogger.ORANGE);
+            return;
+        }
+
+        String baseName = zipFile.getName().substring(0, zipFile.getName().length() - 4);
+        File targetFolder = new File(scriptsFolder, baseName);
+
+        String deferredName  = null;
+        byte[] deferredBytes = null;
+
+        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
+            Path targetRoot = targetFolder.toPath().normalize();
+            ZipEntry entry;
+
+            while ((entry = zis.getNextEntry()) != null) {
+                String entryName = entry.getName();
+                boolean isMainScript = entryName.equals("main.js") || entryName.equals("Main.js") || entryName.endsWith("/main.js") || entryName.endsWith("/Main.js");
+
+                File outFile = new File(targetFolder, entryName);
+
+                // Zip-slip guard
+                if (!outFile.toPath().normalize().startsWith(targetRoot)) {
+                    logger.log(Level.WARNING, "Zip-slip attempt blocked for entry '" + entryName + "' in '" + zipFile.getName() + "'.", pluginLogger.RED);
+                    zis.closeEntry();
+                    continue;
+                }
+
+                if (entry.isDirectory()) {
+                    outFile.mkdirs();
+                    zis.closeEntry();
+                    continue;
+                }
+
+                outFile.getParentFile().mkdirs();
+
+                if (isMainScript) {
+                    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                    byte[] buf = new byte[8192];
+                    int len;
+                    while ((len = zis.read(buf)) > 0) buffer.write(buf, 0, len);
+                    deferredName  = entryName;
+                    deferredBytes = buffer.toByteArray();
+                } else {
+                    try (FileOutputStream fos = new FileOutputStream(outFile)) {
+                        byte[] buf = new byte[8192];
+                        int len;
+                        while ((len = zis.read(buf)) > 0) fos.write(buf, 0, len);
+                    }
+                }
+
+                zis.closeEntry();
+            }
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Failed to extract '" + zipFile.getName() + "': " + e.getMessage(), pluginLogger.RED);
+            return;
+        }
+
+        if (deferredName != null && deferredBytes != null) {
+            File mainOut = new File(targetFolder, deferredName);
+            mainOut.getParentFile().mkdirs();
+            try (FileOutputStream fos = new FileOutputStream(mainOut)) {
+                fos.write(deferredBytes);
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, "Failed to write deferred '" + deferredName + "': " + e.getMessage(), pluginLogger.RED);
+                return;
+            }
+        }
+
+        if (!zipFile.delete()) {
+            logger.log(Level.WARNING, "Extracted '" + baseName + "' but could not delete the zip file.", pluginLogger.ORANGE);
+        }
+
+        logger.log(Level.INFO, "Installed script package '" + baseName + "' from zip.", pluginLogger.GREEN);
+
+        scanScripts(scriptsFolder);
+        if (sharedClass.configUtil.getConfigFromBuffer("AutoReloadScriptsOnChange", true)) {
+            File mainLower = new File(targetFolder, "main.js");
+            File mainUpper = new File(targetFolder, "Main.js");
+            File mainScript = mainLower.exists() ? mainLower : (mainUpper.exists() ? mainUpper : null);
+            if (mainScript != null && isScriptEnabled(mainScript)) {
+                sharedClass.scriptApi.loadScript(mainScript, false);
+            }
         }
     }
 
@@ -366,6 +497,12 @@ public class scriptManager {
         if (scriptsFolder == null || !scriptsFolder.exists()) return;
 
         try {
+            File[] zips = scriptsFolder.listFiles(f -> f.isFile() && f.getName().toLowerCase().endsWith(".zip"));
+            if (zips != null) {
+                for (File zip : zips) {
+                    handleZipInstall(zip);
+                }
+            }
             Files.walk(scriptsFolder.toPath()).filter(Files::isRegularFile).filter(path -> isJavascript(path.getFileName().toString())).forEach(path -> cacheCode(path.toFile()));
             logger.log(Level.INFO, "Code cache initialized (" + CODE_CACHE.size() + " scripts cached)", pluginLogger.BLUE);
         } catch (IOException e) {
@@ -412,7 +549,7 @@ public class scriptManager {
 
         // Lazy-load fallback
         File file = new File(scriptsFolder.getAbsolutePath(), relativePath);
-        if (file == null || !file.exists()) return null;
+        if (!file.exists()) return null;
 
         try {
             String code = Files.readString(file.toPath());

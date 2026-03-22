@@ -103,7 +103,7 @@ public class PlaceholderApiObject {
     public PlaceholderApiObject() {
     }
 
-    public String parseString(Player player, @NotNull String text) {
+    public String parseString(OfflinePlayer player, @NotNull String text) {
         return PlaceholderAPI.setPlaceholders(player, text);
     }
 

@@ -62,6 +62,19 @@ public class ProtocolLibObject {
         return result.toArray(new PacketType[0]);
     }
 
+    public void broadcastServerPacket(PacketContainer packet, org.bukkit.entity.Player source, Number broadcastRange) throws Exception {
+        manager.broadcastServerPacket(packet, source.getLocation(), broadcastRange.intValue());
+    }
+
+    public void sendServerPacket(org.bukkit.entity.Player player, PacketContainer packet) throws Exception {
+        manager.sendServerPacket(player, packet);
+    }
+
+    public PacketContainer createPacket(String packetTypePath) throws Exception {
+        PacketType type = resolvePacketType(packetTypePath);
+        return manager.createPacket(type);
+    }
+
     public PacketListener registerListener(String Priority, Object jsHandler, List<String> packetTypeStrings) {
         PacketType[] types = resolvePacketTypes(packetTypeStrings);
         PacketAdapter adapter = new PacketAdapter(sharedClass.plugin, ListenerPriority.valueOf(Priority), types) {

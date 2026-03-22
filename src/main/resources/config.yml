@@ -1,13 +1,3 @@
-# Disabling this will make it impossible for you to listen to events
-# in your javascript's
-# TODO Remove this in 1.4.0
-LoadCustomEventsHandler: true
-
-# DO NOT DISABLE! Unless you don't use the //!import feature
-# and the log.(...) feature inside event handlers
-# TODO Remove this in 1.4.0
-UseCustomInterpreter: true
-
 # Prints in the console, whenever a javascript has been loaded
 # by default, scripts that failed to load will print in the console
 PrintScriptActivations: true
@@ -24,26 +14,23 @@ LogCustomCommandsActivity: true
 # the permission to use the commands from OpenJS
 BroadcastToOps: true
 
-# You can disable this, but if you use schedules inside your scripts
-# you need to keep it enabled
-# TODO Remove this in 1.4.0
-LoadCustomScheduler: true
-
 # Checks for updates and notifies admins and the console for an update
 # you can disable this, but it is better to stay up to date
 UpdateNotifications: true
-
-# Allows usage of feature flags, disabling this can decrease script loading times
-# feature flags are being used like this "//!Flagname"
-# see https://docs-mc-1.gitbook.io/openjs-docs/openjs-components/fflags
-# under the feature flags section for more info
-# TODO Remove this in 1.4.0
-AllowFeatureFlags: true
 
 # Automatically reloads scripts when they are changed
 # Changes include: modifications, creations and deletions
 # Scripts that are also newly created will be loaded automatically
 AutoReloadScriptsOnChange: true
 
+# If enabled, the Old class importer introduced in 1.3.0 will be used.
+# It is recommended to keep this disabled,
+# because the old importer does not translate Java classes
+UseOldClassImporter: false
+
 # opt-in/out from Bstats https://bstats.org/plugin/bukkit/OpenJavaScript/22268
 AllowBstats: true
+
+# enable/disable debug mode, only use if you encounter bugs or issues with OpenJS
+# eats up a lot of performance
+debugMode: false

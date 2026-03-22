@@ -173,9 +173,22 @@ Version 1.4.0:
 🟩️ add task.threadType() which will return a string of the thread type (main, async, sync)
 🟩️ create custom mappings to add support for 1.13+ up to current version (a whole lots of refactoring again ;-;)
 🟩️ fix stupid organisation mistakes (logging does not always use the same filename, ONLY Error logs should use relative path. Computed name should be used instead)
-- remove anything that is deprecated
-- Clear up todos
+🟩️ remove anything that is deprecated
+🟩️ add protocollib broadcastServerPacket(packet, source, broadcastRange) sendServerPacket(player, packet) createPacket(packetTypePath)
+🟩️ fix offline player parsing in PlaceholderApi:
+
+    var Bukkit = Java.type("org.bukkit.Bukkit");
+    var PlaceholderAPI = Services.get("PlaceholderApi");
+    var p = Bukkit.getOfflinePlayer("test1");
+    log.info(PlaceholderAPI.parseString(p, "%player_online%")); <-- does not work yet
+
+🟩️ add support for zip files (almost forgot) any zip file that has an info.json in it will get unzipped into the folder (name it after the zip file)
+🟩️ add Array.from()
+🟩️ fix unable to delete folders within the script folder because of the file watcher locking the files
+
+Version 1.5.0:
 - add Javadocs comments
 - add ALOT of internal support for plugins (Example: PlayerNPC, CoreProtect, etc)
+- Clear up todos
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==
