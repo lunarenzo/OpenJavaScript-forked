@@ -29,6 +29,12 @@ public class scriptTaskerApi {
     private static final Map<Object, ListenerEntry> listenerCleanupMap = new ConcurrentHashMap<>();
     public static final Map<Integer, String> globalTaskOwnerMap = new java.util.concurrent.ConcurrentHashMap<>();
     public static final Map<String, java.util.Set<Integer>> scriptTasksMap = new java.util.concurrent.ConcurrentHashMap<>();
+    private final EntityScheduler entityScheduleImpl;
+
+    @FunctionalInterface
+    private interface EntityScheduler {
+        int schedule(String scriptName, ScriptEngine engine, Entity entity, Object handler);
+    }
 
     private static class ListenerEntry {
         public final String scriptName;
@@ -46,6 +52,18 @@ public class scriptTaskerApi {
         this.ScriptWrapper = scriptWrapper;
         this.pluginManager = Bukkit.getPluginManager();
         this.Logger = sharedClass.logger;
+
+        if (FoliaSupport.isFolia()) {
+            this.entityScheduleImpl = (scriptName, engine, entity, handler) -> {
+                AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
+                int id = FoliaSupport.runEntityTask(sharedClass.plugin, entity, task);
+                trackTask(scriptName, id);
+                task.setTaskId(id);
+                return id;
+            };
+        } else {
+            this.entityScheduleImpl = (scriptName, engine, entity, handler) -> main(scriptName, engine, handler);
+        }
     }
 
     public static class LatchObject {
@@ -294,11 +312,7 @@ public class scriptTaskerApi {
     }
 
     public int entitySchedule(String scriptName, ScriptEngine engine, Entity entity, Object handler) {
-        AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
-        int id = FoliaSupport.runEntityTask(sharedClass.plugin, entity, task);
-        trackTask(scriptName, id);
-        task.setTaskId(id);
-        return id;
+        return entityScheduleImpl.schedule(scriptName, engine, entity, handler);
     }
 
     public void cleanupListener(String scriptName, ScriptEngine scriptEngine, Object handler) {

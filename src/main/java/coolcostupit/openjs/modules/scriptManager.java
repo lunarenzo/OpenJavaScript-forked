@@ -139,6 +139,29 @@ public class scriptManager {
         }
     }
 
+    // returns a boolean indicating whether the given file is a main script or is contained in a folder with a main script
+    public static Boolean isMainScript(File file) {
+        if (file == null) return false;
+        return isJavascript(file.getName()) && !file.getParentFile().equals(scriptsFolder) && file.getName().equalsIgnoreCase("main.js");
+    }
+
+    public static void recursiveDelete(File folder) {
+        if (folder == null || !folder.exists()) return;
+
+        File[] children = folder.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                if (child.isDirectory()) {
+                    recursiveDelete(child);
+                } else {
+                    child.delete();
+                }
+            }
+        }
+
+        folder.delete();
+    }
+
     private static File getMainScript(File file) {
         if (file == null) return null;
         if (isJavascript(file.getName()) && file.getParentFile().equals(scriptsFolder)) return file;
@@ -265,7 +288,7 @@ public class scriptManager {
         long lastSize = -1;
         while (System.currentTimeMillis() < deadline) {
             long size = zipFile.length();
-            if (size > 0 && size == lastSize) break;   // stable — writer is done
+            if (size > 0 && size == lastSize) break;
             lastSize = size;
             try { Thread.sleep(150); } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -287,7 +310,7 @@ public class scriptManager {
 
         if (!hasInfoJson) {
             logger.log(Level.INFO,
-                    "Skipping '" + zipFile.getName() + "' — no info.json found inside.",
+                    "Skipping '" + zipFile.getName() + "'. No info.json found inside.",
                     pluginLogger.ORANGE);
             return;
         }

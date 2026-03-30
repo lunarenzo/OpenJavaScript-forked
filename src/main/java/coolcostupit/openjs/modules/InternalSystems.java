@@ -42,6 +42,7 @@ import static org.bukkit.Bukkit.getServer;
 public class InternalSystems {
     private final String ScriptName;
     private final ScriptEngine Engine;
+    private final String ScriptId;
     private final ScriptClassObject scriptClass;
     private final Map<String, Object> requireCache;
     private static final pluginLogger Logger = sharedClass.logger;
@@ -50,6 +51,7 @@ public class InternalSystems {
 
     public InternalSystems(String scriptName, ScriptEngine engine, ScriptClassObject scriptClass) {
         this.ScriptName = scriptName;
+        this.ScriptId = scriptClass.MainRelativePath;
         this.Engine = engine;
         this.requireCache = new HashMap<>();
         this.scriptClass = scriptClass;
@@ -167,7 +169,7 @@ public class InternalSystems {
                     }
                 }, plugin);
 
-                eventListenersMap.computeIfAbsent(ScriptName, k -> new ArrayList<>()).add(listener);
+                eventListenersMap.computeIfAbsent(ScriptId, k -> new ArrayList<>()).add(listener);
                 return listener;
             } else {
                 Logger.scriptlog(Level.WARNING, ScriptName, "Class " + eventClassName + " is not an Event.", pluginLogger.ORANGE);

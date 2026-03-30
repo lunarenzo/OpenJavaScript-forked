@@ -25,6 +25,7 @@ import java.util.concurrent.*;
 import java.util.logging.Level;
 
 import static org.bukkit.Bukkit.getLogger;
+import static org.bukkit.Bukkit.getPluginManager;
 
 // this is the main stuff, but I haven't added many to no comments because I was way too focused when coding all that
 // TODO: This is flooded with so much stupid stuff I did; Refactor and fix inconsistencies (especially with script logging)
@@ -122,6 +123,7 @@ public class scriptWrapper {
             return;
         }
         ScriptEngine engine = scriptEngines.get(scriptName);
+        scriptTaskerApi.cancelTasksFromScript(scriptName);
 
         if (engine != null) {
             if (engine instanceof Invocable invocable) {
@@ -137,7 +139,6 @@ public class scriptWrapper {
         invokeScriptCleanup(scriptName);
         taskApi.clearListeners(scriptName);
         InternalSystems.unregisterListenersFromScript(scriptName);
-        scriptTaskerApi.cancelTasksFromScript(scriptName);
         sharedClass.DiskStorageApi.saveCaches(scriptName); // ASYNC ?=> yields
         Future<?> future = scriptFutures.remove(scriptName);
 
@@ -214,13 +215,15 @@ public class scriptWrapper {
 
         // Internal exception catcher
         return """
+        (function() {
             try {
                 %s
             } catch (e) {
                 _internalPluginLogger.internalException(currentScriptName, "Exception: " + e);
-                if (e && e.stack)  _internalPluginLogger.internalException(currentScriptName, "Stack: " + e.stack);
+                if (e && e.stack) _internalPluginLogger.internalException(currentScriptName, "Stack: " + e.stack);
             }
-            """.formatted(sourceCode);
+        })();
+        """.formatted(sourceCode);
     }
 
     public List<String> getNotLoadedScripts() {
@@ -291,6 +294,7 @@ public class scriptWrapper {
             localScriptEngine.put("scriptManager", this); // TODO: Try to lazy-load this, loading it on every script is memory intensive
             localScriptEngine.put("scriptEngine", localScriptEngine);
             localScriptEngine.put("currentScriptName", ScriptName);
+            localScriptEngine.put("__currentScriptId", RelativePath); // internal use only
             localScriptEngine.put("DiskStorage", sharedClass.DiskStorageApi);
             localScriptEngine.put("publicVarManager", PublicVarManager);
             localScriptEngine.put("_task", taskApi); // See class: JavascriptHelper
@@ -361,13 +365,28 @@ public class scriptWrapper {
     }
 
     public void loadScripts() {
-        unloadAllScripts(); // simple fix, unload all scripts before loading them again, this is why I love programming
+        unloadAllScripts();
 
         for (Map.Entry<String, File> entry : scriptManager.getScriptCache().entrySet()) {
             File scriptFile = entry.getValue();
-            if (scriptManager.isScriptEnabled(scriptFile)) {
-                loadScriptSynced(scriptFile);
+            if (!scriptManager.isScriptEnabled(scriptFile)) continue;
+
+            if (scriptManager.isMainScript(scriptFile)) {
+                File scriptPack = scriptFile.getParentFile();
+                String pluginExtractor = scriptPackManager.getPluginExtractor(scriptPack);
+
+                if (pluginExtractor != null && !getPluginManager().isPluginEnabled(pluginExtractor)) {
+                    try {
+                        scriptManager.recursiveDelete(scriptPack);
+                    } catch (Exception e) {
+                        Logger.log(Level.WARNING, "Failed to delete script pack " + scriptPack.getName() + ": " + e.getMessage(), pluginLogger.RED);
+                    }
+                    Logger.log(Level.WARNING, "Uninstalled script pack " + scriptPack.getName(), pluginLogger.ORANGE);
+                    continue;
+                }
             }
+
+            loadScriptSynced(scriptFile);
         }
     }
 }

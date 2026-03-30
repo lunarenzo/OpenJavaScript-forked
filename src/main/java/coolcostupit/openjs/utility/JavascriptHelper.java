@@ -137,13 +137,13 @@ public class JavascriptHelper {
                 };
                 const DiskApi = Object.freeze({
                   loadFile(fileName, async, global) {
-                    DiskStorage.loadFile(fileName, async, currentScriptName, global);
+                    DiskStorage.loadFile(fileName, async, __currentScriptId, global);
                   },
                   saveFile(fileName, async, global) {
-                    DiskStorage.saveFile(fileName, async, currentScriptName, global);
+                    DiskStorage.saveFile(fileName, async, __currentScriptId, global);
                   },
                   getVar(fileName, valueName, fallbackValue, global) {
-                    let rawData = DiskStorage.getValue(currentScriptName, global, fileName, valueName, fallbackValue)
+                    let rawData = DiskStorage.getValue(__currentScriptId, global, fileName, valueName, fallbackValue)
                     if (rawData) {
                         return JSON.parse(rawData)
                     } else {
@@ -151,7 +151,7 @@ public class JavascriptHelper {
                     }
                   },
                   setVar(fileName, valueName, value, global) {
-                    DiskStorage.setValue(currentScriptName, global, fileName, valueName, JSON.stringify(value));
+                    DiskStorage.setValue(__currentScriptId, global, fileName, valueName, JSON.stringify(value));
                   }
                 });
                 
@@ -159,35 +159,35 @@ public class JavascriptHelper {
                 
                 const task = Object.freeze({
                   wait(seconds) {
-                    const continueRunning = _task.wait(currentScriptName, scriptEngine, parseFloat(seconds));
+                    const continueRunning = _task.wait(__currentScriptId, scriptEngine, parseFloat(seconds));
                     if (!continueRunning) {
                       throw new Error('%s');
                     }
                   },
                   waitForScript: waitForScript,
                   waitForPlugin(pluginName) {
-                    _task.waitForPlugin(pluginName, currentScriptName);
+                    _task.waitForPlugin(pluginName, __currentScriptId);
                   },
                   cancel(taskId) {
-                    _task.cancel(currentScriptName, taskId);
+                    _task.cancel(__currentScriptId, taskId);
                   },
                   spawn(func) {
-                    return _task.spawn(currentScriptName, scriptEngine, { f: func });
+                    return _task.spawn(__currentScriptId, scriptEngine, { f: func });
                   },
                   main(func) {
-                    return _task.main(currentScriptName, scriptEngine, { f: func });
+                    return _task.main(__currentScriptId, scriptEngine, { f: func });
                   },
                   thread(func) {
-                    return _task.thread(currentScriptName, scriptEngine, { f: func });
+                    return _task.thread(__currentScriptId, scriptEngine, { f: func });
                   },
                   entitySchedule(entity, func) {
-                    return _task.entitySchedule(currentScriptName, scriptEngine, entity, { f: func });
+                    return _task.entitySchedule(__currentScriptId, scriptEngine, entity, { f: func });
                   },
                   delay(delay, func) {
-                    return _task.delay(currentScriptName, scriptEngine, parseFloat(delay), { f: func });
+                    return _task.delay(__currentScriptId, scriptEngine, parseFloat(delay), { f: func });
                   },
                   repeat(delay, period, func) {
-                    return _task.repeat(currentScriptName, scriptEngine, parseFloat(delay), parseFloat(period), { f: func });
+                    return _task.repeat(__currentScriptId, scriptEngine, parseFloat(delay), parseFloat(period), { f: func });
                   },
                   createListener(javaInterface, handlerObj, gcSet) {
                     let isActive = true;
@@ -210,9 +210,9 @@ public class JavascriptHelper {
                       log.warn("No garbage collection instructions provided, all methods will never cleanup!");
                     }
                 
-                    const listener = _task.createListener(currentScriptName, scriptEngine, javaInterface, wrappedHandler);
+                    const listener = _task.createListener(__currentScriptId, scriptEngine, javaInterface, wrappedHandler);
                 
-                    _task.setListenerCleanup(currentScriptName, scriptEngine, listener, {
+                    _task.setListenerCleanup(__currentScriptId, scriptEngine, listener, {
                       f: () => {
                         isActive = false;
                       }
@@ -227,7 +227,7 @@ public class JavascriptHelper {
                     __unloadBinds.push(fn);
                   },
                   latch() {
-                    const _latch = _task.createLatch(currentScriptName, scriptEngine);
+                    const _latch = _task.createLatch(__currentScriptId, scriptEngine);
                     return {
                         wait() { return _latch.waitFor(); },
                         listen(fn) { _latch.listen({ f: fn }); },

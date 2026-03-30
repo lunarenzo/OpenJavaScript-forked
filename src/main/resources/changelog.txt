@@ -185,8 +185,17 @@ Version 1.4.0:
 🟩️ add support for zip files (almost forgot) any zip file that has an info.json in it will get unzipped into the folder (name it after the zip file)
 🟩️ add Array.from()
 🟩️ fix unable to delete folders within the script folder because of the file watcher locking the files
+🟩️ added support for top level returns in scripts
+🟩️ fixed zombie threads existing because everything except the thread itself kept getting garbage collected (package scripts only)
+🟩️ task.entitySchedule does not auto-re-thread unlike task.main. No Idea if this is fixable
+🟩️ task.main and task.entitySchedule should check if the plugin is being disabled before aborting spawning a schedule
+🟩️ task.mainThread can now properly use tasks (task.main, task.thread, etc) upon reloads
+🟩️ add command /generatePlugin {scriptPackName} which will convert the pack into a plugin https://gitlab.com/spidermodders/openjs-scriptpacker-template
+🟩️ if any scriptPack contains a file named "info.json" and it has a "pluginExtractor" field, the scriptPack will get removed IF the plugin that extracted the script does not exist anymore
+🟩️ edit the extractor template and make it less bloated
 
 Version 1.5.0:
+- add tooltips for buttons in the dialog api
 - add Javadocs comments
 - add ALOT of internal support for plugins (Example: PlayerNPC, CoreProtect, etc)
 - Clear up todos

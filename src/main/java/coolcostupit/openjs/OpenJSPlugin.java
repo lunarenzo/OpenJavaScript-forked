@@ -215,6 +215,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " enable <script>       " + chatColors.GRAY + "» Enables a disabled script");
         sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " disable <script>      " + chatColors.GRAY + "» Disables an enabled script");
         sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " list <type>           " + chatColors.GRAY + "» Lists scripts by type: enabled, disabled, or not_loaded");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " generatePlugin <pack> " + chatColors.GRAY + "» Converts a ScriptPack into a plugin");
     }
 
     @Override
@@ -342,6 +343,32 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                     sender.sendMessage(chatColors.RED+"Usage /" + label + " list *(enabled/disabled/not_loaded)");
                 }
                 return  true;
+            case "generateplugin":
+                if (args.length < 2) {
+                    sender.sendMessage(chatColors.LIGHT_PURPLE + "Usage: /" + label + " generatePlugin <scriptPackName>");
+                    return true;
+                }
+                String packToConvert = args[1];
+                File packFile = scriptPackManager.getScriptPackByName(packToConvert);
+                if (packFile == null) {
+                    sender.sendMessage(chatColors.RED + "ScriptPack '" + packToConvert + "' not found.");
+                    sender.sendMessage(chatColors.RED + "Make sure the Pack has a 'info.json'!");
+                    return true;
+                }
+                sender.sendMessage(chatColors.LIGHT_BLUE + "Generating plugin for '" + packToConvert + "'... This may take a moment.");
+                // Run build asynchronously so it doesn't block the main thread
+                FoliaSupport.runTask(this, () -> {
+                    try {
+                        scriptPackManager.convertScriptPack(packFile);
+                        FoliaSupport.runTaskSynchronously(this, () ->
+                                sender.sendMessage(chatColors.GREEN + "Plugin '" + packToConvert + "' generated! Check the 'convertedPlugins' folder."));
+                    } catch (Exception e) {
+                        String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                        FoliaSupport.runTaskSynchronously(this, () -> sender.sendMessage(chatColors.RED + "Failed to generate plugin: " + errMsg));
+                        pluginLogger.log(Level.SEVERE, "Failed to generate plugin for '" + packToConvert + "': " + errMsg, coolcostupit.openjs.logging.pluginLogger.RED);
+                    }
+                });
+                return true;
             default:
                 sender.sendMessage(chatColors.RED+"Unknown command.");
                 return true;
@@ -382,6 +409,9 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             }
             if ("list".startsWith(args[0].toLowerCase())) {
                 completions.add("list");
+            }
+            if ("generateplugin".startsWith(args[0].toLowerCase())) {
+                completions.add("generatePlugin");
             }
         } else if (args.length == 2) {
             if (args[0].equalsIgnoreCase("enable")) {
@@ -427,6 +457,12 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                                 completions.add(scriptFile.getName());
                             }
                         }
+                    }
+                }
+            } else if (args[0].equalsIgnoreCase("generatePlugin")) {
+                for (File pack : scriptPackManager.getScriptPacks()) {
+                    if (pack.getName().toLowerCase().startsWith(args[1].toLowerCase())) {
+                        completions.add(pack.getName());
                     }
                 }
             }

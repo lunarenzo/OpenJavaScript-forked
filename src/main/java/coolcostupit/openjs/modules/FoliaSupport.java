@@ -170,4 +170,25 @@ public class FoliaSupport {
         taskTypes.put(taskId, type);
         return taskId;
     }
+
+    public static void runTaskSynced(JavaPlugin plugin, Runnable function) {
+        if (Bukkit.isPrimaryThread()) {
+            function.run();
+            return;
+        }
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        runTaskSynchronously(plugin, () -> {
+            try {
+                function.run();
+                future.complete(null);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            future.get();
+        } catch (Exception e) {
+            throw new RuntimeException("runTaskSynced task failed: " + e.getMessage(), e);
+        }
+    }
 }
