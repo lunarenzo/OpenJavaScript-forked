@@ -132,9 +132,7 @@ Version 1.4.0:
 🟩️ Remove old bridge api systems
 🟩️ Port Bridged plugins to ServiceObjects
 🟩️ remove plugin bridges, rename any bridge to "xxxObject" and put it into ServiceObjects
-🟩️ Compile on Java 21
 🟩️ create test version of the Spatial UI
-🟩️ https://www.spigotmc.org/threads/unidialog-fluent-library-to-make-minecraft-graphical-dialogs.697105/
 🟩️ Add Protocollib support for Inventory.setTitle to add backwards compatibility
 🟩️ Create reflectionNames with backwards compatiblity
 🟩️ Make tasks shared across all scripts, so that tasks can be cancelled from external scripts (setShared and getShared support for tasks)
@@ -193,11 +191,16 @@ Version 1.4.0:
 🟩️ add command /generatePlugin {scriptPackName} which will convert the pack into a plugin https://gitlab.com/spidermodders/openjs-scriptpacker-template
 🟩️ if any scriptPack contains a file named "info.json" and it has a "pluginExtractor" field, the scriptPack will get removed IF the plugin that extracted the script does not exist anymore
 🟩️ edit the extractor template and make it less bloated
+🟩️ port the plugin to spigot (whoops! how did I miss forget that!)
+🟩️ add support for version (v26.1) and new minecraft versioning format
 
 Version 1.5.0:
 - add tooltips for buttons in the dialog api
 - add Javadocs comments
 - add ALOT of internal support for plugins (Example: PlayerNPC, CoreProtect, etc)
+- add "downloadDependency()" which will allow scripts to download dependencies from maven repositories
+- downloaded dependencies will be cached and will be used with importClass()
 - Clear up todos
+- if script does not find service on Services.get("xxx") it will return the nearest name as a suggestion E.x: "Did you mean 'xxx'?"
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==

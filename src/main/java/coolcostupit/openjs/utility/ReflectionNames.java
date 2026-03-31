@@ -184,17 +184,18 @@ public class ReflectionNames {
             dialogApiSupported = true;
         } catch (Exception e) {
             dialogApiSupported = false;
-                sharedClass.logger.logException(e);
+            sharedClass.logger.log(Level.WARNING, "Paper Dialog API not supported, dialog features will be disabled.", pluginLogger.ORANGE);
         }
         try {
-            String version = Bukkit.getServer().getMinecraftVersion();
+            String version = Bukkit.getBukkitVersion().split("-")[0];
             String[] parts = version.split("\\.");
+            int newVersionFormat = Integer.parseInt(parts[0]);
             int major = Integer.parseInt(parts[1]);
             int minor = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
 
             // Mapping names based on Version
             // 1.20.5+ moved to "containerMenu" and uses modern mappings
-            if (major > 20 || (major == 20 && minor >= 5)) {
+            if (newVersionFormat > 1 || (major > 20 || (major == 20 && minor >= 5))) {
                 CONTAINER_MENU_FIELD = "containerMenu";
             } else {
                 // Older versions (1.17 - 1.20.4)
