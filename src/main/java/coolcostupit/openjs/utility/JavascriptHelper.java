@@ -155,7 +155,9 @@ public class JavascriptHelper {
                   }
                 });
                 
-                const waitForScript = _task.waitForScript;
+                const waitForScript = function(scriptName) {
+                    _task.waitForScript(scriptName);
+                };
                 
                 const task = Object.freeze({
                   wait(seconds) {
