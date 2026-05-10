@@ -206,7 +206,18 @@ public class ReflectionNames {
             GET_TYPE_METHOD = "getType";
 
             // Pre-cache the Reflection objects
-            Class<?> craftPlayerClass = Class.forName(Bukkit.getServer().getClass().getPackage().getName() + ".entity.CraftPlayer");
+            org.bukkit.entity.Player anyPlayer = null; // can't use this at init time
+            Class<?> craftPlayerClass = null;
+            String[] knownPaths = {
+                    "org.bukkit.craftbukkit.entity.CraftPlayer",
+                    "org.cardboardpowered.impl.entity.CraftPlayer",   // Cardboard/Fabric
+                    Bukkit.getServer().getClass().getPackage().getName() + ".entity.CraftPlayer"
+            };
+            for (String path : knownPaths) {
+                try { craftPlayerClass = Class.forName(path); break; }
+                catch (ClassNotFoundException ignored) {}
+            }
+            if (craftPlayerClass == null) throw new ClassNotFoundException("CraftPlayer not found in any known location");
             getHandleMethod = craftPlayerClass.getMethod("getHandle");
 
             Class<?> nmsPlayerClass = getHandleMethod.getReturnType();

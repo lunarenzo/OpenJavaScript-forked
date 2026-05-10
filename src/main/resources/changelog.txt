@@ -195,6 +195,7 @@ Version 1.4.0:
 🟩️ add support for version (v26.1) and new minecraft versioning format
 
 Version 1.5.0:
+🟩️ Fix cardboard incompatibility
 - add tooltips for buttons in the dialog api
 - add Javadocs comments
 - add ALOT of internal support for plugins (Example: PlayerNPC, CoreProtect, etc)
