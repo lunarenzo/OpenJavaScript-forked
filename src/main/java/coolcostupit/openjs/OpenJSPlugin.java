@@ -11,6 +11,7 @@ import coolcostupit.openjs.ServiceObjects.PlaceholderApiObject;
 import coolcostupit.openjs.utility.*;
 import coolcostupit.openjs.logging.OpsLogger;
 
+import coolcostupit.openjs.utility.scripts.GenVsExtensionCommand;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.command.*;
@@ -368,6 +369,9 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                         pluginLogger.log(Level.SEVERE, "Failed to generate plugin for '" + packToConvert + "': " + errMsg, coolcostupit.openjs.logging.pluginLogger.RED);
                     }
                 });
+                return true;
+            case "genvsextension":
+                GenVsExtensionCommand.run(sender, this);
                 return true;
             default:
                 sender.sendMessage(chatColors.RED+"Unknown command.");

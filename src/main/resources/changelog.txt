@@ -196,7 +196,9 @@ Version 1.4.0:
 
 Version 1.5.0:
 🟩️ Fix cardboard incompatibility
+- allow intellisense extension to check for errors (enable type checking in the intellisense extension)
 - add tooltips for buttons in the dialog api
+- add "serverScreen" dialog for dialogs when player enters a server
 - add Javadocs comments
 - add ALOT of internal support for plugins (Example: PlayerNPC, CoreProtect, etc)
 - add "downloadDependency()" which will allow scripts to download dependencies from maven repositories
