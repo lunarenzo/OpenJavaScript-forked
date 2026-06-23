@@ -12,6 +12,7 @@ import coolcostupit.openjs.utility.*;
 import coolcostupit.openjs.logging.OpsLogger;
 
 import coolcostupit.openjs.utility.scripts.GenVsExtensionCommand;
+import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.command.*;
