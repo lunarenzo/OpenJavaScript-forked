@@ -11,7 +11,7 @@ import coolcostupit.openjs.ServiceObjects.PlaceholderApiObject;
 import coolcostupit.openjs.utility.*;
 import coolcostupit.openjs.logging.OpsLogger;
 
-import coolcostupit.openjs.utility.scripts.GenVsExtensionCommand;
+import coolcostupit.openjs.intellisense.GenerateTypesCommand;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
@@ -371,8 +371,8 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                     }
                 });
                 return true;
-            case "genvsextension":
-                GenVsExtensionCommand.run(sender, this);
+            case "generatetypes", "genvsextension":
+                GenerateTypesCommand.run(sender, this);
                 return true;
             default:
                 sender.sendMessage(chatColors.RED+"Unknown command.");
@@ -417,6 +417,9 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             }
             if ("generateplugin".startsWith(args[0].toLowerCase())) {
                 completions.add("generatePlugin");
+            }
+            if ("generatetypes".startsWith(args[0].toLowerCase())) {
+                completions.add("generatetypes");
             }
         } else if (args.length == 2) {
             if (args[0].equalsIgnoreCase("enable")) {

@@ -1,8 +1,9 @@
 /*
  * Copyright (c) 2026 coolcostupit
  * Licensed under AGPL-3.0
+ * You may not remove this notice or claim this work as your own.
  */
-package coolcostupit.openjs.utility.scripts;
+package coolcostupit.openjs.intellisense;
 
 import coolcostupit.openjs.modules.FoliaSupport;
 import coolcostupit.openjs.modules.sharedClass;
@@ -10,7 +11,6 @@ import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.utility.chatColors;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 
-public class GenVsExtensionCommand {
+public class GenerateTypesCommand {
 
     private static boolean running = false;
     public static void run(CommandSender sender, JavaPlugin plugin) {

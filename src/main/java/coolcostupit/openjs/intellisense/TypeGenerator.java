@@ -2,7 +2,7 @@
  * Copyright (c) 2026 coolcostupit
  * Licensed under AGPL-3.0
  */
-package coolcostupit.openjs.utility.scripts;
+package coolcostupit.openjs.intellisense;
 
 import java.io.*;
 import java.lang.reflect.*;
@@ -329,11 +329,11 @@ public class TypeGenerator {
         // Wrap in nested namespace blocks: org.bukkit -> namespace org { namespace bukkit { ... } }
         String[] parts = packageName.split("\\.");
         StringBuilder sb = new StringBuilder();
-        sb.append("declare namespace $ {\n");
+        sb.append("}\n");
 
-        String indent = "  ";
+        String indent = "";
         for (String part : parts) {
-            sb.append(indent).append("namespace ").append(sanitizeName(part)).append(" {\n");
+            sb.append(indent).append("declare namespace ").append(sanitizeName(part)).append(" {\n");
             indent += "  ";
         }
 
@@ -416,12 +416,12 @@ public class TypeGenerator {
         if (java.util.Map.class.isAssignableFrom(t)) return "Record<string, any>";
         if (java.util.Optional.class.isAssignableFrom(t)) return "any | null";
         if (!Modifier.isPublic(t.getModifiers())) return "any";
+
         String pkg = getPackage(t.getName());
         String simple = sanitizeName(t.getSimpleName());
-        String namespacedPkg = Arrays.stream(pkg.split("\\."))
-                .map(this::sanitizeName)
-                .collect(Collectors.joining("."));
-        return "$." + namespacedPkg + "." + simple;
+        String namespacedPkg = Arrays.stream(pkg.split("\\.")).map(this::sanitizeName).collect(Collectors.joining("."));
+
+        return namespacedPkg + "." + simple;
     }
 
     private boolean isBlocked(String name) {
@@ -483,7 +483,7 @@ public class TypeGenerator {
             String namespacedPkg = Arrays.stream(pkg.split("\\."))
                     .map(this::sanitizeName)
                     .collect(Collectors.joining("."));
-            String tsName = "$." + namespacedPkg + "." + simple;
+            String tsName = namespacedPkg + "." + simple;
             sb.append("declare function importClass(className: \"").append(name)
                     .append("\"): typeof ").append(tsName).append(";\n");
         }
@@ -508,8 +508,7 @@ public class TypeGenerator {
                     String content = Files.readString(f.toPath());
                     // Extract class names from JSDoc comments we wrote
                     java.util.regex.Matcher m = java.util.regex.Pattern
-                            .compile("/\\*\\* `importClass\\(\"([^\"]+)\"\\)`")
-                            .matcher(content);
+                            .compile("/\\*\\* `importClass\\(\"([^\"]+)\"\\)`").matcher(content);
                     while (m.find()) out.add(m.group(1));
                 } catch (IOException ignored) {}
             }

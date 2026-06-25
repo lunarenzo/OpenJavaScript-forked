@@ -196,8 +196,14 @@ Version 1.4.0:
 
 Version 1.5.0:
 🟩️ Fix cardboard incompatibility
-- allow intellisense extension to check for errors (enable type checking in the intellisense extension)
+🟩️ Add Bstats as a dependency
+🟩️ fix intellisense typegen
+🟩️ allow intellisense extension to check for errors (enable type checking in the intellisense extension)
+🟩️ Remove $ placeholder from Typegen
+🟩️ add plugin global to intellisense
+- add spigot support for typegen
 - add tooltips for buttons in the dialog api
+- rewrite Folia scheduling (use the Folia scheduler directly)
 - add "serverScreen" dialog for dialogs when player enters a server
 - add Javadocs comments
 - add ALOT of internal support for plugins (Example: PlayerNPC, CoreProtect, etc)
