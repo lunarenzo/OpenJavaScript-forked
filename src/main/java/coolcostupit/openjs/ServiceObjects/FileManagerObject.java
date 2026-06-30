@@ -27,11 +27,13 @@ public class FileManagerObject {
     private boolean watcherStarted = false;
     private final ScriptEngine Engine;
     private final ScriptClassObject scriptClass;
+    private final File baseFolder;
     private final List<FileListenerHandle> listeners = new CopyOnWriteArrayList<>();
 
     public FileManagerObject(ScriptClassObject scriptClass, ScriptEngine scriptEngine) {
         this.scriptClass = scriptClass;
         this.Engine = scriptEngine;
+        this.baseFolder = scriptClass.File != null ? scriptClass.File.getParentFile() : sharedClass.scriptFolder;
     }
 
     public class FileListenerHandle {
@@ -153,8 +155,7 @@ public class FileManagerObject {
 
             if (kind == null) return null;
 
-            File base = scriptClass.File.getParentFile();
-            File target = new File(base, relativePath);
+            File target = new File(baseFolder, relativePath);
             Path path = target.toPath();
 
             if (!Files.exists(path)) {
@@ -244,8 +245,7 @@ public class FileManagerObject {
     private File resolveTargetFile(String relativePath) {
         if (relativePath == null || relativePath.isEmpty()) return null;
 
-        File base = scriptClass.File.getParentFile();
-        return new File(base, relativePath.replace('\\', '/'));
+        return new File(baseFolder, relativePath.replace('\\', '/'));
     }
 
     public File getFile(String relativePath) {
@@ -256,7 +256,7 @@ public class FileManagerObject {
     public String getPath(File target) {
         if (target == null) return null;
         try {
-            Path scriptDir = scriptClass.File.getParentFile().toPath().toAbsolutePath().normalize();
+            Path scriptDir = baseFolder.toPath().toAbsolutePath().normalize();
             Path targetPath = target.toPath().toAbsolutePath().normalize();
 
             // whatever you do, do not access a file outside the server drive :)
