@@ -41,7 +41,7 @@ public class FoliaSupport {
     private static SyncScheduler syncScheduler;
 
     public static void init() {
-        threadPool = Executors.newCachedThreadPool();
+        threadPool = Executors.newVirtualThreadPerTaskExecutor();
         sharedClass.TaskThreadPool = threadPool;
         plugin = sharedClass.plugin;
 

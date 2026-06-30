@@ -55,6 +55,12 @@
             <version>2.12.2</version>
             <scope>provided</scope>
         </dependency>
+        <!-- Reflection Remapper -->
+        <dependency>
+            <groupId>xyz.jpenilla</groupId>
+            <artifactId>reflection-remapper</artifactId>
+            <version>0.1.2</version>
+        </dependency>
         <!-- bStats -->
         <dependency>
             <groupId>org.bstats</groupId>
@@ -97,6 +103,10 @@
                         <relocation>
                             <pattern>org.bstats</pattern>
                             <shadedPattern>coolcostupit.openjs.bstats</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>xyz.jpenilla.reflectionremapper</pattern>
+                            <shadedPattern>coolcostupit.openjs.reflectionremapper</shadedPattern>
                         </relocation>
                     </relocations>
                 </configuration>

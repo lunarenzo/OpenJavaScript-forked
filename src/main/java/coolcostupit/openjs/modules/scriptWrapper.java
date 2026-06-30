@@ -52,7 +52,7 @@ public class scriptWrapper {
         this.Logger = new pluginLogger(plugin, configUtil);
         this.PublicVarManager = new PublicVarManager();
         this.configUtil = configUtil;
-        this.executorService = Executors.newCachedThreadPool();
+        this.executorService = Executors.newVirtualThreadPerTaskExecutor();
         this.taskApi = new scriptTaskerApi(this);
 
         // Experimental flag to enable ECMAScript 6.0
