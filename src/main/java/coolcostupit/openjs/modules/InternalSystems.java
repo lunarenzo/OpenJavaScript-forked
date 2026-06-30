@@ -31,6 +31,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -216,18 +217,23 @@ public class InternalSystems {
         return commandMap;
     }
 
+    private static final AtomicBoolean isSyncScheduled = new AtomicBoolean(false);
+
     private static void invokeSyncCommands() {
-        FoliaSupport.runTaskSynchronously(plugin, () -> {
-            try {
-                Class<?> serverClass = Bukkit.getServer().getClass();
-                Method method = getMethod(serverClass, "syncCommands");
-                method.setAccessible(true);
-                method.invoke(Bukkit.getServer());
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                Logger.log(Level.WARNING, "Failed to sync commands:", pluginLogger.RED);
-                Logger.logException(e, Level.WARNING); // Warning cuz it is not that bad of an error
-            }
-        });
+        if (isSyncScheduled.compareAndSet(false, true)) {
+            FoliaSupport.ScheduleTask(plugin, () -> {
+                isSyncScheduled.set(false);
+                try {
+                    Class<?> serverClass = Bukkit.getServer().getClass();
+                    Method method = getMethod(serverClass, "syncCommands");
+                    method.setAccessible(true);
+                    method.invoke(Bukkit.getServer());
+                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                    Logger.log(Level.WARNING, "Failed to sync commands:", pluginLogger.RED);
+                    Logger.logException(e, Level.WARNING);
+                }
+            }, 1L);
+        }
     }
 
     public void registerCommand(String commandName, Object commandHandler, @Nullable String permission) {
