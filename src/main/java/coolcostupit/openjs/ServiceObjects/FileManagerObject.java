@@ -244,8 +244,11 @@ public class FileManagerObject {
 
     private File resolveTargetFile(String relativePath) {
         if (relativePath == null || relativePath.isEmpty()) return null;
-
-        return new File(baseFolder, relativePath.replace('\\', '/'));
+        try {
+            return new File(baseFolder, relativePath.replace('\\', '/')).getCanonicalFile();
+        } catch (Exception e) {
+            return new File(baseFolder, relativePath.replace('\\', '/'));
+        }
     }
 
     public File getFile(String relativePath) {
