@@ -115,7 +115,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         pluginLogger.log(Level.INFO, "Version: " + sharedClass.PluginDescription.getVersion(), pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Author: " + sharedClass.PluginDescription.getAuthors().toString().substring(1, sharedClass.PluginDescription.getAuthors().toString().length() - 1), pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Java Version: " + System.getProperty("java.version"), pluginLogger.LIGHT_BLUE);
-        if (FoliaSupport.isFolia()) {
+        if (FoliaSupport.isFoliaServer) {
             pluginLogger.log(Level.INFO, "Folia Support: true", pluginLogger.LIGHT_BLUE);
         }
         if (sharedClass.IsPapiLoaded) {
@@ -218,6 +218,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " disable <script>      " + chatColors.GRAY + "» Disables an enabled script");
         sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " list <type>           " + chatColors.GRAY + "» Lists scripts by type: enabled, disabled, or not_loaded");
         sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " generatePlugin <pack> " + chatColors.GRAY + "» Converts a ScriptPack into a plugin");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " generatetypes         " + chatColors.GRAY + "» Generates VS Code types for OpenJS-Intellisense");
     }
 
     @Override
@@ -368,10 +369,11 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                         String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                         FoliaSupport.runTaskSynchronously(this, () -> sender.sendMessage(chatColors.RED + "Failed to generate plugin: " + errMsg));
                         pluginLogger.log(Level.SEVERE, "Failed to generate plugin for '" + packToConvert + "': " + errMsg, coolcostupit.openjs.logging.pluginLogger.RED);
+                        pluginLogger.logException(e, Level.SEVERE);
                     }
                 });
                 return true;
-            case "generatetypes", "genvsextension":
+            case "generatetypes", "genvsextension": // fallback for old command name
                 GenerateTypesCommand.run(sender, this);
                 return true;
             default:

@@ -53,7 +53,7 @@ public class scriptTaskerApi {
         this.pluginManager = Bukkit.getPluginManager();
         this.Logger = sharedClass.logger;
 
-        if (FoliaSupport.isFolia()) {
+        if (FoliaSupport.isFoliaServer) {
             this.entityScheduleImpl = (scriptName, engine, entity, handler) -> {
                 AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
                 int id = FoliaSupport.runEntityTask(sharedClass.plugin, entity, task);

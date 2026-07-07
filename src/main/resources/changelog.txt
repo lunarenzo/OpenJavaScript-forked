@@ -201,9 +201,17 @@ Version 1.5.0:
 🟩️ allow intellisense extension to check for errors (enable type checking in the intellisense extension)
 🟩️ Remove $ placeholder from Typegen
 🟩️ add plugin global to intellisense
+🟩️ add typegen command to help command
+🟩️ more detailed error logging for plugin generator
+🟩️ Reduced folia check calls, improving task api performance
+🟩️ allow using 0 seconds delays for task api on folia servers
+🟩️ Include missing Java_Lang classes types in typegen
 - add spigot support for typegen
 - add tooltips for buttons in the dialog api
-- rewrite Folia scheduling (use the Folia scheduler directly)
+🟩️ TODO: REQUIRES EXTENSIVE TESTING IN PAPER AND FOLIA; rewrite Folia scheduling (use the Folia scheduler directly)
+🟩️ Add Java docs for Java_lang classes
+🟩️ Add progress bar for generating java docs since that takes a while
+🟩️ Update extension to use the new imported Java_lang classes instead of relying on pre build dummy classes
 - add "serverScreen" dialog for dialogs when player enters a server
 - add Javadocs comments
 - add ALOT of internal support for plugins (Example: PlayerNPC, CoreProtect, etc)

@@ -300,7 +300,7 @@ public class scriptWrapper {
             localScriptEngine.put("_task", taskApi); // See class: JavascriptHelper
             localScriptEngine.put("_libImporter", sharedClass.LibImporterApi);
             localScriptEngine.put("_internalPluginLogger", Logger);
-            localScriptEngine.put("IsFoliaServer", FoliaSupport.isFolia());
+            localScriptEngine.put("IsFoliaServer", FoliaSupport.isFoliaServer);
             localScriptEngine.put("script", scriptClass);
             localScriptEngine.put("Services", new ServiceLoader(localScriptEngine, ScriptName, scriptClass));
             localScriptEngine.put("_InternalModules", new InternalSystems(ScriptName, localScriptEngine, scriptClass));

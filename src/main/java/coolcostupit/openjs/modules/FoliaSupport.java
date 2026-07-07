@@ -6,22 +6,19 @@
 
 package coolcostupit.openjs.modules;
 
-import coolcostupit.openjs.foliascheduler.ServerImplementation;
-import coolcostupit.openjs.foliascheduler.TaskImplementation;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
-import org.bukkit.plugin.java.JavaPlugin;
-import coolcostupit.openjs.foliascheduler.FoliaCompatibility;
 import org.bukkit.entity.Entity;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class FoliaSupport {
-    private static Boolean isFolia = null;
+    public static Boolean isFoliaServer = false;
 
     private enum TaskType {
         BUKKIT,
@@ -35,6 +32,7 @@ public class FoliaSupport {
     private static ExecutorService threadPool;
     private static BukkitScheduler bukkitScheduler;
     private static JavaPlugin plugin;
+    private static final long MS_PER_TICK = 50L;
 
     @FunctionalInterface
     private interface SyncScheduler { int run(Runnable fn); }
@@ -44,34 +42,40 @@ public class FoliaSupport {
         threadPool = Executors.newCachedThreadPool();
         sharedClass.TaskThreadPool = threadPool;
         plugin = sharedClass.plugin;
+        doFoliaCheck();
 
-        if (isFolia()) {
-            ServerImplementation foliaServer = new FoliaCompatibility(plugin).getServerImplementation();
-            syncScheduler      = (fn)          -> addTask(foliaServer.global().run(fn), TaskType.FOLIA);
+        if (isFoliaServer) {
+            syncScheduler = (fn) -> addTask(
+                    Bukkit.getGlobalRegionScheduler().run(plugin, task -> fn.run()),
+                    TaskType.FOLIA
+            );
         } else {
             bukkitScheduler = Bukkit.getScheduler();
-            syncScheduler      = (fn)          -> addTask(bukkitScheduler.runTask(plugin, fn), TaskType.BUKKIT);
+            syncScheduler = (fn) -> addTask(bukkitScheduler.runTask(plugin, fn), TaskType.BUKKIT);
         }
     }
 
-
-    public static boolean isFolia() {
-        if (isFolia == null) {
+    public static void doFoliaCheck() {
+        if (!isFoliaServer) {
             try {
                 Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
-                isFolia = true;
+                isFoliaServer = true;
             } catch (ClassNotFoundException e) {
-                isFolia = false;
+                isFoliaServer = false;
             }
         }
-        return isFolia;
     }
 
     public static int ScheduleTask(JavaPlugin plugin, Runnable function, long delay) {
         Object task;
-        if (isFolia()) {
-            ServerImplementation scheduler = new FoliaCompatibility(plugin).getServerImplementation();
-            task = scheduler.async().runDelayed(function, delay);
+        if (isFoliaServer) {
+            long safeDelay = Math.max(delay, 1L);
+            task = Bukkit.getAsyncScheduler().runDelayed(
+                    plugin,
+                    t -> function.run(),
+                    safeDelay * MS_PER_TICK,
+                    TimeUnit.MILLISECONDS
+            );
             return addTask(task, TaskType.FOLIA);
         } else {
             task = Bukkit.getScheduler().runTaskLater(plugin, function, delay);
@@ -79,13 +83,14 @@ public class FoliaSupport {
         }
     }
 
-
     public static int runEntityTask(JavaPlugin plugin, Entity entity, Runnable function) {
-        if (isFolia()) {
-            ServerImplementation scheduler = new FoliaCompatibility(plugin).getServerImplementation();
-            TaskImplementation<?> foliaTask = scheduler.entity(entity).run(function);
+        if (isFoliaServer) {
+            ScheduledTask foliaTask = entity.getScheduler().run(
+                    plugin,
+                    t -> function.run(),
+                    null // retired callback - no-op if the entity is removed before running
+            );
             return addTask(foliaTask, TaskType.FOLIA);
-
         } else {
             // Bukkit: just run Runnable on main thread
             BukkitTask task = Bukkit.getScheduler().runTask(plugin, function);
@@ -93,11 +98,10 @@ public class FoliaSupport {
         }
     }
 
-
     public static int DelayTask(JavaPlugin plugin, Runnable function, long delay) {
         Future<?> task = threadPool.submit(() -> {
             try {
-                Thread.sleep(delay * 50L);
+                Thread.sleep(Math.max(delay, 1L) * MS_PER_TICK);
                 function.run();
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
@@ -130,9 +134,16 @@ public class FoliaSupport {
 
     public static int ScheduleRepeatingTask(JavaPlugin plugin, Runnable function, long delay, long period) {
         Object task;
-        if (isFolia()) {
-            ServerImplementation scheduler = new FoliaCompatibility(plugin).getServerImplementation();
-            task = scheduler.async().runAtFixedRate(function, delay, period);
+        if (isFoliaServer) {
+            long safeDelay = Math.max(delay, 1L);
+            long safePeriod = Math.max(period, 1L);
+            task = Bukkit.getAsyncScheduler().runAtFixedRate(
+                    plugin,
+                    t -> function.run(),
+                    safeDelay * MS_PER_TICK,
+                    safePeriod * MS_PER_TICK,
+                    TimeUnit.MILLISECONDS
+            );
             return addTask(task, TaskType.FOLIA);
         } else {
             task = Bukkit.getScheduler().runTaskTimer(plugin, function, delay, period);
@@ -149,7 +160,7 @@ public class FoliaSupport {
         try {
             switch (type) {
                 case FOLIA:
-                    ((TaskImplementation<?>) task).cancel();
+                    ((ScheduledTask) task).cancel();
                     break;
                 case BUKKIT:
                     ((BukkitTask) task).cancel();

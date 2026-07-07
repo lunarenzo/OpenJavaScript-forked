@@ -6,6 +6,7 @@ package coolcostupit.openjs.intellisense;
 
 import java.io.*;
 import java.lang.reflect.*;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -38,18 +39,101 @@ public class TypeGenerator {
         this.outputDir = outputDir;
     }
 
+    private List<String> scanJdkModules() {
+        List<String> refs = new ArrayList<>();
+        // Only the modules relevant to scripting - java.base covers io/util/lang/nio/etc.
+        Set<String> modules = new HashSet<>(Arrays.asList("java.base"));
+
+        Map<String, List<String>> classesByModule = new HashMap<>();
+        for (String moduleName : modules) {
+            List<String> names = getClassNamesFromModule(moduleName);
+            if (!names.isEmpty()) classesByModule.put(moduleName, names);
+        }
+
+        for (Map.Entry<String, List<String>> entry : classesByModule.entrySet()) {
+            String ns = "java_lang"; // or sanitizeNamespace(entry.getKey())
+            File dir = new File(outputDir, ns);
+            // Use the platform classloader, which can see java.base classes
+            ClassLoader platformLoader = ClassLoader.getPlatformClassLoader();
+            List<String> ref = generateForClasses(entry.getValue(), platformLoader, dir, ns);
+            refs.addAll(ref);
+            log.info("[TypeGen] JDK module " + entry.getKey() + " generated " + ref.size() + " files");
+        }
+        return refs;
+    }
+
+    private List<String> getClassNamesFromModule(String moduleName) {
+        List<String> names = new ArrayList<>();
+        Optional<Module> moduleOpt = ModuleLayer.boot().findModule(moduleName);
+        if (moduleOpt.isEmpty()) return names;
+        Module module = moduleOpt.get();
+
+        try {
+            // Walk the jrt:/ filesystem for this module's classes
+            java.nio.file.FileSystem fs = FileSystems.getFileSystem(URI.create("jrt:/"));
+            Path moduleRoot = fs.getPath("/modules/" + moduleName);
+            if (!Files.exists(moduleRoot)) return names;
+
+            try (var stream = Files.walk(moduleRoot)) {
+                stream.filter(p -> p.toString().endsWith(".class"))
+                        .filter(p -> !p.toString().contains("$")) // skip inner/anon classes, same as jar scan
+                        .forEach(p -> {
+                            String rel = moduleRoot.relativize(p).toString();
+                            String className = rel.replace('/', '.').replace(".class", "");
+                            names.add(className);
+                        });
+            }
+        } catch (Exception e) {
+            log.warning("[TypeGen] Failed to read module " + moduleName + ": " + e.getMessage());
+        }
+        return names;
+    }
+
+    private File findJdkSourcesZip() {
+        String javaHome = System.getProperty("java.home");
+        File srcZip = new File(javaHome, "lib/src.zip");
+        if (srcZip.exists()) return srcZip;
+        log.warning("[TypeGen] JDK src.zip not found at " + srcZip.getAbsolutePath());
+        return null;
+    }
+
     private void loadJavadocFromSourcesJar(File sourcesJar) {
         if (!sourcesJar.exists()) return;
         log.info("[TypeGen] Loading javadoc from: " + sourcesJar.getName());
         try (JarFile jf = new JarFile(sourcesJar)) {
+            // Need the total count up front to compute percentages
+            int total = 0;
+            Enumeration<JarEntry> counter = jf.entries();
+            while (counter.hasMoreElements()) {
+                if (counter.nextElement().getName().endsWith(".java")) total++;
+            }
+
+            if (total == 0) {
+                log.info("[TypeGen] No .java entries found in " + sourcesJar.getName());
+                return;
+            }
+
+            int processed = 0;
+            int lastReportedPercent = -1;
+
             Enumeration<JarEntry> entries = jf.entries();
             while (entries.hasMoreElements()) {
                 JarEntry entry = entries.nextElement();
                 if (!entry.getName().endsWith(".java")) continue;
+
                 try (java.io.InputStream is = jf.getInputStream(entry)) {
                     String source = new String(is.readAllBytes(), StandardCharsets.UTF_8);
                     parseJavadocFromSource(source);
                 } catch (Exception ignored) {}
+
+                processed++;
+                int percent = (processed * 100) / total;
+                int bucket = (percent / 5) * 5; // round down to nearest 5%
+
+                if (bucket != lastReportedPercent && bucket > 0) {
+                    lastReportedPercent = bucket;
+                    log.info("[TypeGen] Loading javadocs from " + sourcesJar.getName() + " " + bucket+"%");
+                }
             }
         } catch (Exception e) {
             log.warning("[TypeGen] Failed to read sources jar: " + e.getMessage());
@@ -81,13 +165,18 @@ public class TypeGenerator {
         List<String> allRefs = new ArrayList<>();
         Set<String> seenJars = new HashSet<>();
 
+        File jdkSources = findJdkSourcesZip();
+        if (jdkSources != null) loadJavadocFromSourcesJar(jdkSources);
         if (sourcesJar != null) loadJavadocFromSourcesJar(sourcesJar);
 
         // 1. Deep-scan all classloader URLs (catches org.bukkit loaded by Paper's classloader)
         log.info("[TypeGen] Deep scanning classloader hierarchy...");
         List<String> deepRefs = deepScanClassLoader(serverClassLoader, seenJars);
-        allRefs.addAll(deepRefs);
         log.info("[TypeGen] Deep scan found " + deepRefs.size() + " reference files");
+        List<String> jdkRefs = scanJdkModules();
+        log.info("[TypeGen] Deep scan found " + jdkRefs.size() + " reference files");
+        allRefs.addAll(deepRefs);
+        allRefs.addAll(jdkRefs);
 
         // 2. Scan provided jars (plugins, libs)
         for (File jar : jarFiles) {
@@ -506,9 +595,7 @@ public class TypeGenerator {
             } else if (f.getName().endsWith(".d.ts") && !f.getName().equals("importClass-overloads.d.ts") && !f.getName().equals("index.d.ts")) {
                 try {
                     String content = Files.readString(f.toPath());
-                    // Extract class names from JSDoc comments we wrote
-                    java.util.regex.Matcher m = java.util.regex.Pattern
-                            .compile("/\\*\\* `importClass\\(\"([^\"]+)\"\\)`").matcher(content);
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("/\\*\\* `importClass\\(\"([^\"]+)\"\\)`").matcher(content);
                     while (m.find()) out.add(m.group(1));
                 } catch (IOException ignored) {}
             }
