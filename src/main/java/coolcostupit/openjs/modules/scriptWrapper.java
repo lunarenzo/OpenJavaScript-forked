@@ -6,6 +6,10 @@
 
 package coolcostupit.openjs.modules;
 
+import coolcostupit.openjs.ScriptGlobals.InternalSystems;
+import coolcostupit.openjs.ScriptGlobals.JavascriptHelper;
+import coolcostupit.openjs.ScriptGlobals.PublicVarManager;
+import coolcostupit.openjs.ScriptGlobals.scriptTaskerApi;
 import coolcostupit.openjs.ServiceManager.ServiceLoader;
 import coolcostupit.openjs.events.ScriptLoadedEvent;
 import coolcostupit.openjs.events.ScriptUnloadedEvent;
@@ -41,7 +45,7 @@ public class scriptWrapper {
     private static final Map<String, List<Runnable>> cleanUpMethods = new ConcurrentHashMap<>();
     private final JavaPlugin plugin;
     private final pluginLogger Logger;
-    private final PublicVarManager PublicVarManager;
+    private final coolcostupit.openjs.ScriptGlobals.PublicVarManager PublicVarManager;
     private final configurationUtil configUtil;
     public final List<String> runningScripts = new ArrayList<>();
     public final ExecutorService executorService;
@@ -56,7 +60,7 @@ public class scriptWrapper {
         this.taskApi = new scriptTaskerApi(this);
 
         // Experimental flag to enable ECMAScript 6.0
-        System.setProperty("nashorn.args", "--language=es6");
+        System.setProperty("nashorn.args", "--language=es6 --optimistic-types --persistent-code-cache --class-cache-size=400");
 
         // Initialize script system on first use
         if (!hasInit) {
@@ -173,7 +177,7 @@ public class scriptWrapper {
         }
 
         if (plugin.isEnabled()) {
-            FoliaSupport.runTaskSynchronously(plugin, () -> plugin.getServer().getPluginManager().callEvent(new ScriptUnloadedEvent(scriptName)));
+            FoliaSupport.runTaskSynchronously(() -> plugin.getServer().getPluginManager().callEvent(new ScriptUnloadedEvent(scriptName)));
         }
     }
 
@@ -307,13 +311,19 @@ public class scriptWrapper {
 
             Future<?> future = executorService.submit(() -> {
                 try {
-                    localScriptEngine.eval(JavascriptHelper.JAVASCRIPT_CODE);
+                    // Compile and cache the helper code for performance
+                    //CompiledScript compiledHelper = scriptManager.getCompiledHelperCode(localScriptEngine);
+                    //compiledHelper.eval(localScriptEngine.getBindings(ScriptContext.ENGINE_SCOPE));
+
+                    // Compile the code made by the user and run it
                     String processedScript = preprocessScript(scriptFile, localScriptEngine);
-                    localScriptEngine.eval(processedScript);
+                    CompiledScript compiledUserScript = scriptManager.compileScript(RelativePath, JavascriptHelper.JAVASCRIPT_CODE+processedScript, localScriptEngine);
+                    compiledUserScript.eval(localScriptEngine.getBindings(ScriptContext.ENGINE_SCOPE));
+
                     if (configUtil.getConfigFromBuffer("PrintScriptActivations", true)) {
                         Logger.log(Level.INFO, "Loaded the script " + ScriptName, pluginLogger.GREEN);
                     }
-                    FoliaSupport.runTaskSynchronously(plugin, () -> plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(ScriptName)));
+                    FoliaSupport.runTaskSynchronously(() -> plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(ScriptName)));
                 } catch (IOException | ScriptException e) {
                     Logger.scriptlog(Level.WARNING,  ScriptName, "Failed to load script " + e.getMessage(), pluginLogger.ORANGE);
                 }
@@ -329,7 +339,7 @@ public class scriptWrapper {
 
             scriptFutures.put(RelativePath, future);
             // TODO: Separate the "finally" with an 120 seconds timeout
-            FoliaSupport.runTask(plugin, () -> {
+            FoliaSupport.runTask(() -> {
                 try {
                     future.get(1, TimeUnit.SECONDS);
                 } catch (TimeoutException e) {

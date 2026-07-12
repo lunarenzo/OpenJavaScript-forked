@@ -5,6 +5,9 @@
  */
 package coolcostupit.openjs;
 
+import coolcostupit.openjs.ScriptGlobals.DiskStorage;
+import coolcostupit.openjs.ScriptGlobals.InternalSystems;
+import coolcostupit.openjs.ScriptGlobals.JavascriptHelper;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.*;
 import coolcostupit.openjs.ServiceObjects.PlaceholderApiObject;
@@ -360,14 +363,14 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                 }
                 sender.sendMessage(chatColors.LIGHT_BLUE + "Generating plugin for '" + packToConvert + "'... This may take a moment.");
                 // Run build asynchronously so it doesn't block the main thread
-                FoliaSupport.runTask(this, () -> {
+                FoliaSupport.runTask(() -> {
                     try {
                         scriptPackManager.convertScriptPack(packFile);
-                        FoliaSupport.runTaskSynchronously(this, () ->
+                        FoliaSupport.runTaskSynchronously(() ->
                                 sender.sendMessage(chatColors.GREEN + "Plugin '" + packToConvert + "' generated! Check the 'convertedPlugins' folder."));
                     } catch (Exception e) {
                         String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                        FoliaSupport.runTaskSynchronously(this, () -> sender.sendMessage(chatColors.RED + "Failed to generate plugin: " + errMsg));
+                        FoliaSupport.runTaskSynchronously(() -> sender.sendMessage(chatColors.RED + "Failed to generate plugin: " + errMsg));
                         pluginLogger.log(Level.SEVERE, "Failed to generate plugin for '" + packToConvert + "': " + errMsg, coolcostupit.openjs.logging.pluginLogger.RED);
                         pluginLogger.logException(e, Level.SEVERE);
                     }

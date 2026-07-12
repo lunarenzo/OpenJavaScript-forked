@@ -37,7 +37,7 @@ public class GenerateTypesCommand {
 
         running = true;
 
-        FoliaSupport.runTask(plugin, () -> {
+        FoliaSupport.runTask(() -> {
             try {
                 ClassLoader serverClassLoader = Bukkit.class.getClassLoader();
                 List<File> jarsToScan = collectJars(plugin, serverClassLoader);
@@ -47,14 +47,14 @@ public class GenerateTypesCommand {
                 File sourcesJar = downloadSourcesJar(plugin, outputDir);
                 generator.generate(jarsToScan, serverClassLoader, sourcesJar);
 
-                FoliaSupport.runTaskSynchronously(plugin, () -> {
+                FoliaSupport.runTaskSynchronously(() -> {
                     sender.sendMessage(chatColors.GREEN + "[OpenJS] Type generation complete!");
                     sender.sendMessage(chatColors.GREEN + "Output folder: " + outputDir.getAbsolutePath());
                 });
 
             } catch (Exception e) {
                 sharedClass.logger.log(Level.SEVERE, "Type generation failed: " + e.getMessage(), pluginLogger.RED);
-                FoliaSupport.runTaskSynchronously(plugin, () ->
+                FoliaSupport.runTaskSynchronously(() ->
                         sender.sendMessage(chatColors.RED + "[OpenJS] Type generation failed: " + e.getMessage()));
             } finally {
                 running = false;

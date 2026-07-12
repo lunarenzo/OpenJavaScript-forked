@@ -270,7 +270,7 @@ public class InventoryApiObject {
         public void show(Object playerObj) {
             Player player = (Player) playerObj;
 
-            FoliaSupport.runTaskSynchronously(sharedClass.plugin, () -> {
+            FoliaSupport.runTaskSynchronously(() -> {
                 player.openInventory(inventory);
 
                 // If title was changed previously and doesn't match, fix it
@@ -282,7 +282,7 @@ public class InventoryApiObject {
 
         public void hide(Object player) {
             if (!(player instanceof Player p)) return;
-            FoliaSupport.runTaskSynchronously(sharedClass.plugin, () -> {
+            FoliaSupport.runTaskSynchronously(() -> {
                 if (p.getOpenInventory().getTopInventory().equals(inventory))
                     p.closeInventory();
             });

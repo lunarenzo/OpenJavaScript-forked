@@ -212,6 +212,13 @@ Version 1.5.0:
 🟩️ Add Java docs for Java_lang classes
 🟩️ Add progress bar for generating java docs since that takes a while
 🟩️ Update extension to use the new imported Java_lang classes instead of relying on pre build dummy classes
+🟩️ reduced plugin file size (again) after removing old folia scheduler and rewriting it
+🟩️ Refactored script globals and added them into the scriptglobals class
+🟩️ fix memory leak in "FoliaSupport" class [5 total memory leaks fixed]
+🟩️ Forced code compilation
+🟩️ compiled code gets stored in disk and loaded every server restart to reduce script load times
+🟩️ Spigot compiled version is the only version compiled with Paper v26.2 because of adventure shading (maybe?)
+- see TODO in FoliaSupport class
 - add "serverScreen" dialog for dialogs when player enters a server
 - add Javadocs comments
 - add ALOT of internal support for plugins (Example: PlayerNPC, CoreProtect, etc)
@@ -219,5 +226,10 @@ Version 1.5.0:
 - downloaded dependencies will be cached and will be used with importClass()
 - Clear up todos
 - if script does not find service on Services.get("xxx") it will return the nearest name as a suggestion E.x: "Did you mean 'xxx'?"
+
+Version 1.6.0:
+- Revert entire codebase to 1.13 for ultimate compatibility with all versions. Use reflexion on non-existing methods
+- do a lot of refactoring and remove the "vibey-codey" looking structure
+- improve stability
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==

@@ -9,11 +9,34 @@ package coolcostupit.openjs.utility;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.sharedClass;
 
+import javax.script.Invocable;
+import javax.script.ScriptEngine;
+import java.util.Collections;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 
 public class scriptUtils {
     private static final AtomicLong counter = new AtomicLong();
+    private static final Map<Object, Runnable> runnableAdapterCache = Collections.synchronizedMap(new WeakHashMap<>());
+
+    public static Runnable adaptToRunnable(ScriptEngine engine, Object handler) {
+        return runnableAdapterCache.computeIfAbsent(handler, h -> {
+            if (engine instanceof Invocable) {
+                Runnable adapted = ((Invocable) engine).getInterface(h, Runnable.class);
+                if (adapted != null) return adapted;
+            }
+            // Fallback: keep using invokeMethod if adaption isn't possible
+            return () -> {
+                try {
+                    ((Invocable) engine).invokeMethod(h, "f");
+                } catch (Exception e) {
+                    sharedClass.logger.logScriptError(e, "unknown");
+                }
+            };
+        });
+    }
 
     public static Object evalJavascriptArray(javax.script.ScriptEngine engine, String scriptName, String jsCode) {
         try {

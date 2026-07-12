@@ -4,9 +4,13 @@
  * You may not remove this notice or claim this work as your own.
  */
 
-package coolcostupit.openjs.modules;
+package coolcostupit.openjs.ScriptGlobals;
 
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.modules.FoliaSupport;
+import coolcostupit.openjs.modules.scriptWrapper;
+import coolcostupit.openjs.modules.sharedClass;
+import coolcostupit.openjs.utility.scriptUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
@@ -32,21 +36,8 @@ public class scriptTaskerApi {
     private final EntityScheduler entityScheduleImpl;
 
     @FunctionalInterface
-    private interface EntityScheduler {
-        int schedule(String scriptName, ScriptEngine engine, Entity entity, Object handler);
-    }
-
-    private static class ListenerEntry {
-        public final String scriptName;
-        public final Object cleanup;
-        public final ScriptEngine scriptEngine;
-
-        public ListenerEntry(String scriptName, ScriptEngine scriptEngine, Object cleanup) {
-            this.scriptName = scriptName;
-            this.cleanup = cleanup;
-            this.scriptEngine = scriptEngine;
-        }
-    }
+    private interface EntityScheduler { int schedule(String scriptName, ScriptEngine engine, Entity entity, Object handler); }
+    private record ListenerEntry(String scriptName, ScriptEngine scriptEngine, Object cleanup) { }
 
     public scriptTaskerApi(scriptWrapper scriptWrapper) {
         this.ScriptWrapper = scriptWrapper;
@@ -145,11 +136,13 @@ public class scriptTaskerApi {
         private final String scriptName;
         private final ScriptEngine engine;
         private final Object handler;
-        private volatile int taskId = -1;
-        private volatile boolean finished = false;
+        private final Runnable adaptedHandler;
+        private int taskId = -1;
+        private boolean finished = false;
 
         AutoCleanTask(String name, ScriptEngine eng, Object h) {
             this.scriptName = name; this.engine = eng; this.handler = h;
+            this.adaptedHandler = scriptUtils.adaptToRunnable(eng, h);
         }
 
         public void setTaskId(int id) {
@@ -160,7 +153,7 @@ public class scriptTaskerApi {
         @Override
         public void run() {
             try {
-                ((Invocable) engine).invokeMethod(handler, "f");
+                adaptedHandler.run();
             } catch (Exception e) {
                 Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
             } finally {
@@ -208,16 +201,7 @@ public class scriptTaskerApi {
 
     public Boolean wait(String scriptName, ScriptEngine scriptEngine, Number seconds) {
         double sec = seconds.doubleValue();
-
         if (sec <= 0) return Boolean.TRUE;
-
-        if (Bukkit.isPrimaryThread()) {
-            Logger.log(
-                    Level.WARNING,
-                    "[" + scriptName + "] Calling task.wait(" + sec + "s) on the main server thread can cause lag or freeze the server!",
-                    pluginLogger.ORANGE
-            );
-        }
 
         long millis = (long) (sec * 1000);
         if (millis < 0) millis = 0;
@@ -226,7 +210,6 @@ public class scriptTaskerApi {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            // Logger.log(Level.INFO, "[" + scriptName + "] interrupting task.wait(" + seconds + ")", pluginLogger.LIGHT_BLUE);
             return Boolean.FALSE;
         }
 
@@ -270,7 +253,7 @@ public class scriptTaskerApi {
 
     public int spawn(String scriptName, ScriptEngine engine, Object handler) {
         AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
-        int id = FoliaSupport.runTask(sharedClass.plugin, task);
+        int id = FoliaSupport.runTask(task);
         trackTask(scriptName, id);
         task.setTaskId(id);
         return id;
@@ -278,7 +261,7 @@ public class scriptTaskerApi {
 
     public int delay(String scriptName, ScriptEngine engine, Number delay, Object handler) {
         AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
-        int id = FoliaSupport.DelayTask(sharedClass.plugin, task, (long)(delay.doubleValue() * 20));
+        int id = FoliaSupport.DelayTask(task, (long)(delay.doubleValue() * 20));
         trackTask(scriptName, id);
         task.setTaskId(id);
         return id;
@@ -305,7 +288,7 @@ public class scriptTaskerApi {
 
     public int main(String scriptName, ScriptEngine engine, Object handler) {
         AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
-        int id = FoliaSupport.runTaskSynchronously(sharedClass.plugin, task);
+        int id = FoliaSupport.runTaskSynchronously(task);
         trackTask(scriptName, id);
         task.setTaskId(id);
         return id;

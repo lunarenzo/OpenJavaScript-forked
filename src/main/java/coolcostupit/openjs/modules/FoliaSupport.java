@@ -6,6 +6,7 @@
 
 package coolcostupit.openjs.modules;
 
+import io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
@@ -19,25 +20,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class FoliaSupport {
     public static Boolean isFoliaServer = false;
+    private enum TaskType {BUKKIT, FOLIA, THREADPOOL}
 
-    private enum TaskType {
-        BUKKIT,
-        FOLIA,
-        THREADPOOL
-    }
-
-    private static final Map<Integer, Object> activeTasks = new ConcurrentHashMap<>();
-    private static final Map<Integer, TaskType> taskTypes = new ConcurrentHashMap<>();
     private static final AtomicInteger nextTaskId = new AtomicInteger(1);
+    private static int nextId() { return nextTaskId.getAndIncrement(); }
+    private record TaskEntry(Object task, TaskType type) {}
+    private static final Map<Integer, TaskEntry> tasks = new ConcurrentHashMap<>();
     private static ExecutorService threadPool;
     private static BukkitScheduler bukkitScheduler;
+    private static GlobalRegionScheduler foliaScheduler;
     private static JavaPlugin plugin;
     private static final long MS_PER_TICK = 50L;
 
     @FunctionalInterface
     private interface SyncScheduler { int run(Runnable fn); }
     private static SyncScheduler syncScheduler;
+    private record WrappedTask(int id, Runnable runnable) { }
 
+    // TODO: Revert to running the if statement within the methods (bytecode does optimize it properly rather than doing a method stacking call)
     public static void init() {
         threadPool = Executors.newCachedThreadPool();
         sharedClass.TaskThreadPool = threadPool;
@@ -45,13 +45,33 @@ public class FoliaSupport {
         doFoliaCheck();
 
         if (isFoliaServer) {
-            syncScheduler = (fn) -> addTask(
-                    Bukkit.getGlobalRegionScheduler().run(plugin, task -> fn.run()),
-                    TaskType.FOLIA
-            );
+            foliaScheduler = Bukkit.getGlobalRegionScheduler();
+            syncScheduler = (fn) -> {
+                int id = nextId();
+                ScheduledTask task = foliaScheduler.run(plugin, t -> {
+                    try {
+                        fn.run();
+                    } finally {
+                        tasks.remove(id);
+                    }
+                });
+                tasks.put(id, new TaskEntry(task, TaskType.FOLIA));
+                return id;
+            };
         } else {
             bukkitScheduler = Bukkit.getScheduler();
-            syncScheduler = (fn) -> addTask(bukkitScheduler.runTask(plugin, fn), TaskType.BUKKIT);
+            syncScheduler = (fn) -> {
+                int id = nextId();
+                BukkitTask task = bukkitScheduler.runTask(plugin, () -> {
+                    try {
+                        fn.run();
+                    } finally {
+                        tasks.remove(id);
+                    }
+                });
+                tasks.put(id, new TaskEntry(task, TaskType.BUKKIT));
+                return id;
+            };
         }
     }
 
@@ -66,17 +86,30 @@ public class FoliaSupport {
         }
     }
 
+    private static WrappedTask selfCleaning(Runnable fn) {
+        int id = nextId();
+        Runnable wrapped = () -> {
+            try {
+                fn.run();
+            } finally {
+                tasks.remove(id);
+            }
+        };
+        return new WrappedTask(id, wrapped);
+    }
+
     public static int ScheduleTask(JavaPlugin plugin, Runnable function, long delay) {
         Object task;
         if (isFoliaServer) {
-            long safeDelay = Math.max(delay, 1L);
-            task = Bukkit.getAsyncScheduler().runDelayed(
+            WrappedTask wrappedTask = selfCleaning(function);
+            Runnable wrappedRunnable = wrappedTask.runnable;
+
+            return addTask(Bukkit.getAsyncScheduler().runDelayed(
                     plugin,
-                    t -> function.run(),
-                    safeDelay * MS_PER_TICK,
+                    t -> wrappedRunnable.run(),
+                    Math.max(delay, 1L) * MS_PER_TICK,
                     TimeUnit.MILLISECONDS
-            );
-            return addTask(task, TaskType.FOLIA);
+            ), TaskType.FOLIA, wrappedTask.id);
         } else {
             task = Bukkit.getScheduler().runTaskLater(plugin, function, delay);
             return addTask(task, TaskType.BUKKIT);
@@ -85,12 +118,13 @@ public class FoliaSupport {
 
     public static int runEntityTask(JavaPlugin plugin, Entity entity, Runnable function) {
         if (isFoliaServer) {
-            ScheduledTask foliaTask = entity.getScheduler().run(
+            WrappedTask wrappedTask = selfCleaning(function);
+            Runnable wrappedRunnable = wrappedTask.runnable;
+            return addTask(entity.getScheduler().run(
                     plugin,
-                    t -> function.run(),
+                    t -> wrappedRunnable.run(),
                     null // retired callback - no-op if the entity is removed before running
-            );
-            return addTask(foliaTask, TaskType.FOLIA);
+            ), TaskType.FOLIA, wrappedTask.id);
         } else {
             // Bukkit: just run Runnable on main thread
             BukkitTask task = Bukkit.getScheduler().runTask(plugin, function);
@@ -98,29 +132,33 @@ public class FoliaSupport {
         }
     }
 
-    public static int DelayTask(JavaPlugin plugin, Runnable function, long delay) {
-        Future<?> task = threadPool.submit(() -> {
+    public static int DelayTask(Runnable function, long delay) {
+        WrappedTask wrappedTask = selfCleaning(function);
+        Runnable wrappedRunnable = wrappedTask.runnable;
+        return addTask(threadPool.submit(() -> {
             try {
                 Thread.sleep(Math.max(delay, 1L) * MS_PER_TICK);
-                function.run();
+                wrappedRunnable.run();
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
+                tasks.remove(wrappedTask.id);
             }
-        });
-        return addTask(task, TaskType.THREADPOOL);
+        }), TaskType.THREADPOOL, wrappedTask.id);
     }
 
     // Asynchronous task
-    public static int runTask(JavaPlugin plugin, Runnable function) {
-        return addTask(threadPool.submit(function), TaskType.THREADPOOL);
+    public static int runTask(Runnable function) {
+        WrappedTask wrappedTask = selfCleaning(function);
+        return addTask(threadPool.submit(wrappedTask.runnable), TaskType.THREADPOOL, wrappedTask.id);
     }
 
     //TODO: Deprecate
     public static int runThreadPoolTask(Runnable function) {
-        return addTask(threadPool.submit(function), TaskType.THREADPOOL);
+        WrappedTask wrappedTask = selfCleaning(function);
+        return addTask(threadPool.submit(wrappedTask.runnable), TaskType.THREADPOOL, wrappedTask.id);
     }
 
-    public static int runTaskSynchronously(JavaPlugin plugin, Runnable function) {
+    public static int runTaskSynchronously(Runnable function) {
         return syncScheduler.run(function);
     }
 
@@ -129,7 +167,7 @@ public class FoliaSupport {
             task.run();
             return;
         }
-        runTaskSynchronously(plugin, task);
+        runTaskSynchronously(task);
     }
 
     public static int ScheduleRepeatingTask(JavaPlugin plugin, Runnable function, long delay, long period) {
@@ -152,10 +190,11 @@ public class FoliaSupport {
     }
 
     public static boolean CancelTask(int taskId) {
-        Object task = activeTasks.remove(taskId);
-        TaskType type = taskTypes.remove(taskId);
+        TaskEntry entry = tasks.remove(taskId);
+        if (entry == null) return false;
 
-        if (task == null || type == null) return false;
+        Object task = entry.task;
+        TaskType type = entry.type;
 
         try {
             switch (type) {
@@ -175,31 +214,14 @@ public class FoliaSupport {
         }
     }
 
-    private static int addTask(Object task, TaskType type) {
-        int taskId = nextTaskId.getAndIncrement();
-        activeTasks.put(taskId, task);
-        taskTypes.put(taskId, type);
+    private static int addTask(Object task, TaskType type, int taskId) {
+        tasks.put(taskId, new TaskEntry(task, type));
         return taskId;
     }
 
-    public static void runTaskSynced(JavaPlugin plugin, Runnable function) {
-        if (Bukkit.isPrimaryThread()) {
-            function.run();
-            return;
-        }
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        runTaskSynchronously(plugin, () -> {
-            try {
-                function.run();
-                future.complete(null);
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            future.get();
-        } catch (Exception e) {
-            throw new RuntimeException("runTaskSynced task failed: " + e.getMessage(), e);
-        }
+    private static int addTask(Object task, TaskType type) {
+        int taskId = nextId();
+        tasks.put(taskId, new TaskEntry(task, type));
+        return taskId;
     }
 }

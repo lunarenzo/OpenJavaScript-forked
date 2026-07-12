@@ -6,6 +6,7 @@
 
 package coolcostupit.openjs.utility;
 
+import coolcostupit.openjs.ScriptGlobals.JavascriptHelper;
 import coolcostupit.openjs.modules.sharedClass;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;

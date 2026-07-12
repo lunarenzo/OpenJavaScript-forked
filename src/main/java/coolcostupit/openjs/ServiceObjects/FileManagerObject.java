@@ -216,7 +216,7 @@ public class FileManagerObject {
                                 WatchEvent.Kind<?> kind = event.kind();
                                 if (kind == StandardWatchEventKinds.OVERFLOW) continue;
                                 if (kind == listener.kind) {
-                                    FoliaSupport.runTask(sharedClass.plugin, () -> listener.dispatch(event)); // lambda (OMG HALF LIFE 3????)
+                                    FoliaSupport.runTask(() -> listener.dispatch(event)); // lambda (OMG HALF LIFE 3????)
                                 }
                             }
                         }
