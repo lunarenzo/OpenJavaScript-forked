@@ -63,21 +63,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             return;
         }
 
-        sharedClass.configUtil = configUtil;
-        sharedClass.PluginDescription = this.getDescription();
-        sharedClass.IsPapiLoaded = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
-        sharedClass.logger = pluginLogger;
-        sharedClass.Identifier = this.getName().toLowerCase();
-        sharedClass.DiskStorageApi = DiskStorageApi;
-        sharedClass.LibImporterApi = new LibImporterApi();
-
-        if (sharedClass.IsPapiLoaded) {
-            new PlaceholderApiObject.Extension().register();
-        }
-
-        this.scriptWrapper = new scriptWrapper(this, configUtil);
-        this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
-
         // Default config values
         saveDefaultConfig();
         configUtil.loadBufferFromConfig();
@@ -90,7 +75,22 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         configUtil.getConfigFromBuffer("BroadcastToOps", true);
         configUtil.getConfigFromBuffer("AutoReloadScriptsOnChange", true);
         configUtil.getConfigFromBuffer("UseOldClassImporter", false);
+
+        sharedClass.configUtil = configUtil;
+        sharedClass.PluginDescription = this.getDescription();
+        sharedClass.IsPapiLoaded = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
+        sharedClass.logger = pluginLogger;
+        sharedClass.Identifier = this.getName().toLowerCase();
+        sharedClass.DiskStorageApi = DiskStorageApi;
+        sharedClass.LibImporterApi = new LibImporterApi();
         JavascriptHelper.initialize();
+
+        if (sharedClass.IsPapiLoaded) {
+            new PlaceholderApiObject.Extension().register();
+        }
+
+        this.scriptWrapper = new scriptWrapper(this, configUtil);
+        this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
 
         sharedClass.scriptApi = scriptWrapper;
         updateChecker.startChecking();

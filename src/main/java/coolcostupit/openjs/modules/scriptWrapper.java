@@ -244,7 +244,7 @@ public class scriptWrapper {
     }
 
     @SuppressWarnings("all")
-    public static class ScriptLoadResult { // this is ancient from 1.0.0 Alpha, may need to look into it
+    public static class ScriptLoadResult { // Untouched since the first ever build, wow...
         private final boolean success;
         private final String message;
 
@@ -256,11 +256,10 @@ public class scriptWrapper {
         public boolean isSuccess() {
             return success;
         }
-
         public String getMessage() {
             return message;
         }
-    } // Took a look at it, somehow it is perfect! (but ancient)
+    }
 
     public ScriptLoadResult loadScript(File scriptFile, boolean calledFromScript) {
         if (scriptFile.isFile() && scriptFile.getName().endsWith(".js")) {
@@ -343,7 +342,7 @@ public class scriptWrapper {
                 try {
                     future.get(1, TimeUnit.SECONDS);
                 } catch (TimeoutException e) {
-                    Logger.scriptlog(Level.WARNING, ScriptName, "Script is taking long to load!", pluginLogger.ORANGE);
+                    Logger.debug("["+ScriptName+"] Script is taking long to load!");
                 } catch (Exception e) {
                     Logger.scriptlog(Level.SEVERE, ScriptName, "Error while loading script: " + e.getMessage(), pluginLogger.ORANGE);
                 } finally {

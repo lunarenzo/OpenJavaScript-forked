@@ -30,6 +30,13 @@ public class ScriptEngine {
                                 return p.getClass().getClassLoader().loadClass(name);
                             } catch (ClassNotFoundException ignored) {}
                         }
+
+                        if (sharedClass.LibImporterApi != null) {
+                            Class<?> fromLib = sharedClass.LibImporterApi.findClass(name);
+                            if (fromLib != null) {
+                                return fromLib;
+                            }
+                        }
                         throw new ClassNotFoundException(name);
                     }
                 }

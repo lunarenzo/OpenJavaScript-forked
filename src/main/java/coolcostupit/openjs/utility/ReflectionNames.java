@@ -58,6 +58,7 @@ public class ReflectionNames {
     public static Method multiActionColumns;
     public static Method multiActionExitAction;
     public static Method actionButtonWidth;
+    public static Method actionButtonTooltip;
     public static Method actionButtonBuild;
     public static Method afterActionMethod;
     public static Method responseGetText;
@@ -111,6 +112,14 @@ public class ReflectionNames {
             responseGetFloat   = dialogResponseViewClass.getMethod("getFloat", String.class);
             responseGetBoolean = dialogResponseViewClass.getMethod("getBoolean", String.class);
 
+
+            for (Method m : actionButtonBuilderClass.getMethods()) {
+                if (m.getName().equals("tooltip") && m.getParameterCount() == 1
+                        && m.getParameterTypes()[0] == Component.class) {
+                    actionButtonTooltip = m;
+                    break;
+                }
+            }
 
             for (Method m : itemBodyBuilderClass.getMethods()) {
                 if (m.getName().equals("description") && m.getParameterCount() == 1) {

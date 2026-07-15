@@ -6,6 +6,7 @@
 
 package coolcostupit.openjs.modules;
 
+import io.papermc.paper.threadedregions.scheduler.AsyncScheduler;
 import io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
@@ -16,28 +17,24 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.Map;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class FoliaSupport {
     public static Boolean isFoliaServer = false;
     private enum TaskType {BUKKIT, FOLIA, THREADPOOL}
 
-    private static final AtomicInteger nextTaskId = new AtomicInteger(1);
-    private static int nextId() { return nextTaskId.getAndIncrement(); }
+    private static final AtomicLong nextTaskId = new AtomicLong(1);
+    private static long nextId() { return nextTaskId.getAndIncrement(); }
     private record TaskEntry(Object task, TaskType type) {}
-    private static final Map<Integer, TaskEntry> tasks = new ConcurrentHashMap<>();
+    private static final Map<Long, TaskEntry> tasks = new ConcurrentHashMap<>();
     private static ExecutorService threadPool;
     private static BukkitScheduler bukkitScheduler;
     private static GlobalRegionScheduler foliaScheduler;
+    private static AsyncScheduler foliaAsyncScheduler;
     private static JavaPlugin plugin;
     private static final long MS_PER_TICK = 50L;
+    private record WrappedTask(long id, Runnable runnable) { }
 
-    @FunctionalInterface
-    private interface SyncScheduler { int run(Runnable fn); }
-    private static SyncScheduler syncScheduler;
-    private record WrappedTask(int id, Runnable runnable) { }
-
-    // TODO: Revert to running the if statement within the methods (bytecode does optimize it properly rather than doing a method stacking call)
     public static void init() {
         threadPool = Executors.newCachedThreadPool();
         sharedClass.TaskThreadPool = threadPool;
@@ -46,32 +43,9 @@ public class FoliaSupport {
 
         if (isFoliaServer) {
             foliaScheduler = Bukkit.getGlobalRegionScheduler();
-            syncScheduler = (fn) -> {
-                int id = nextId();
-                ScheduledTask task = foliaScheduler.run(plugin, t -> {
-                    try {
-                        fn.run();
-                    } finally {
-                        tasks.remove(id);
-                    }
-                });
-                tasks.put(id, new TaskEntry(task, TaskType.FOLIA));
-                return id;
-            };
+            foliaAsyncScheduler = Bukkit.getAsyncScheduler();
         } else {
             bukkitScheduler = Bukkit.getScheduler();
-            syncScheduler = (fn) -> {
-                int id = nextId();
-                BukkitTask task = bukkitScheduler.runTask(plugin, () -> {
-                    try {
-                        fn.run();
-                    } finally {
-                        tasks.remove(id);
-                    }
-                });
-                tasks.put(id, new TaskEntry(task, TaskType.BUKKIT));
-                return id;
-            };
         }
     }
 
@@ -87,7 +61,7 @@ public class FoliaSupport {
     }
 
     private static WrappedTask selfCleaning(Runnable fn) {
-        int id = nextId();
+        long id = nextId();
         Runnable wrapped = () -> {
             try {
                 fn.run();
@@ -98,25 +72,25 @@ public class FoliaSupport {
         return new WrappedTask(id, wrapped);
     }
 
-    public static int ScheduleTask(JavaPlugin plugin, Runnable function, long delay) {
+    public static long ScheduleTask(JavaPlugin plugin, Runnable function, long delay) {
         Object task;
         if (isFoliaServer) {
             WrappedTask wrappedTask = selfCleaning(function);
             Runnable wrappedRunnable = wrappedTask.runnable;
 
-            return addTask(Bukkit.getAsyncScheduler().runDelayed(
+            return addTask(foliaAsyncScheduler.runDelayed(
                     plugin,
                     t -> wrappedRunnable.run(),
                     Math.max(delay, 1L) * MS_PER_TICK,
                     TimeUnit.MILLISECONDS
             ), TaskType.FOLIA, wrappedTask.id);
         } else {
-            task = Bukkit.getScheduler().runTaskLater(plugin, function, delay);
+            task = bukkitScheduler.runTaskLater(plugin, function, delay);
             return addTask(task, TaskType.BUKKIT);
         }
     }
 
-    public static int runEntityTask(JavaPlugin plugin, Entity entity, Runnable function) {
+    public static long runEntityTask(JavaPlugin plugin, Entity entity, Runnable function) {
         if (isFoliaServer) {
             WrappedTask wrappedTask = selfCleaning(function);
             Runnable wrappedRunnable = wrappedTask.runnable;
@@ -127,12 +101,12 @@ public class FoliaSupport {
             ), TaskType.FOLIA, wrappedTask.id);
         } else {
             // Bukkit: just run Runnable on main thread
-            BukkitTask task = Bukkit.getScheduler().runTask(plugin, function);
+            BukkitTask task = bukkitScheduler.runTask(plugin, function);
             return addTask(task, TaskType.BUKKIT);
         }
     }
 
-    public static int DelayTask(Runnable function, long delay) {
+    public static long DelayTask(Runnable function, long delay) {
         WrappedTask wrappedTask = selfCleaning(function);
         Runnable wrappedRunnable = wrappedTask.runnable;
         return addTask(threadPool.submit(() -> {
@@ -147,19 +121,26 @@ public class FoliaSupport {
     }
 
     // Asynchronous task
-    public static int runTask(Runnable function) {
+    public static long runTask(Runnable function) {
         WrappedTask wrappedTask = selfCleaning(function);
         return addTask(threadPool.submit(wrappedTask.runnable), TaskType.THREADPOOL, wrappedTask.id);
     }
 
     //TODO: Deprecate
-    public static int runThreadPoolTask(Runnable function) {
+    public static long runThreadPoolTask(Runnable function) {
         WrappedTask wrappedTask = selfCleaning(function);
         return addTask(threadPool.submit(wrappedTask.runnable), TaskType.THREADPOOL, wrappedTask.id);
     }
 
-    public static int runTaskSynchronously(Runnable function) {
-        return syncScheduler.run(function);
+    public static long runTaskSynchronously(Runnable function) {
+        if (isFoliaServer) {
+            WrappedTask wrappedTask = selfCleaning(function);
+            Runnable wrappedRunnable = wrappedTask.runnable;
+            return addTask(foliaScheduler.run(plugin, t -> wrappedRunnable.run()), TaskType.FOLIA, wrappedTask.id);
+        } else {
+            BukkitTask task = bukkitScheduler.runTask(plugin, function);
+            return addTask(task, TaskType.BUKKIT);
+        }
     }
 
     public static void runTasklessSynchronously(JavaPlugin plugin, Runnable task) {
@@ -170,12 +151,12 @@ public class FoliaSupport {
         runTaskSynchronously(task);
     }
 
-    public static int ScheduleRepeatingTask(JavaPlugin plugin, Runnable function, long delay, long period) {
+    public static long ScheduleRepeatingTask(JavaPlugin plugin, Runnable function, long delay, long period) {
         Object task;
         if (isFoliaServer) {
             long safeDelay = Math.max(delay, 1L);
             long safePeriod = Math.max(period, 1L);
-            task = Bukkit.getAsyncScheduler().runAtFixedRate(
+            task = foliaAsyncScheduler.runAtFixedRate(
                     plugin,
                     t -> function.run(),
                     safeDelay * MS_PER_TICK,
@@ -184,12 +165,12 @@ public class FoliaSupport {
             );
             return addTask(task, TaskType.FOLIA);
         } else {
-            task = Bukkit.getScheduler().runTaskTimer(plugin, function, delay, period);
+            task = bukkitScheduler.runTaskTimer(plugin, function, delay, period);
             return addTask(task, TaskType.BUKKIT);
         }
     }
 
-    public static boolean CancelTask(int taskId) {
+    public static boolean CancelTask(Long taskId) {
         TaskEntry entry = tasks.remove(taskId);
         if (entry == null) return false;
 
@@ -214,13 +195,13 @@ public class FoliaSupport {
         }
     }
 
-    private static int addTask(Object task, TaskType type, int taskId) {
+    private static long addTask(Object task, TaskType type, long taskId) {
         tasks.put(taskId, new TaskEntry(task, type));
         return taskId;
     }
 
-    private static int addTask(Object task, TaskType type) {
-        int taskId = nextId();
+    private static long addTask(Object task, TaskType type) {
+        long taskId = nextId();
         tasks.put(taskId, new TaskEntry(task, type));
         return taskId;
     }

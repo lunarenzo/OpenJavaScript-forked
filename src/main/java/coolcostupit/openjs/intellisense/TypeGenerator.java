@@ -4,6 +4,9 @@
  */
 package coolcostupit.openjs.intellisense;
 
+import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.modules.sharedClass;
+
 import java.io.*;
 import java.lang.reflect.*;
 import java.net.URI;
@@ -14,7 +17,6 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -22,7 +24,7 @@ import java.util.stream.Collectors;
  */
 public class TypeGenerator {
 
-    private static final Logger log = Logger.getLogger("OpenJS-TypeGen");
+    private static final pluginLogger logger = sharedClass.logger;
     private final Map<String, String> javadocCache = new HashMap<>();
     private final File outputDir;
     private int totalGenerated = 0;
@@ -57,7 +59,7 @@ public class TypeGenerator {
             ClassLoader platformLoader = ClassLoader.getPlatformClassLoader();
             List<String> ref = generateForClasses(entry.getValue(), platformLoader, dir, ns);
             refs.addAll(ref);
-            log.info("[TypeGen] JDK module " + entry.getKey() + " generated " + ref.size() + " files");
+            logger.log("[TypeGen] JDK module " + entry.getKey() + " generated " + ref.size() + " files");
         }
         return refs;
     }
@@ -84,7 +86,7 @@ public class TypeGenerator {
                         });
             }
         } catch (Exception e) {
-            log.warning("[TypeGen] Failed to read module " + moduleName + ": " + e.getMessage());
+            logger.debug("[TypeGen] Failed to read module " + moduleName + ": " + e.getMessage());
         }
         return names;
     }
@@ -93,13 +95,13 @@ public class TypeGenerator {
         String javaHome = System.getProperty("java.home");
         File srcZip = new File(javaHome, "lib/src.zip");
         if (srcZip.exists()) return srcZip;
-        log.warning("[TypeGen] JDK src.zip not found at " + srcZip.getAbsolutePath());
+        logger.debug("[TypeGen] JDK src.zip not found at " + srcZip.getAbsolutePath());
         return null;
     }
 
     private void loadJavadocFromSourcesJar(File sourcesJar) {
         if (!sourcesJar.exists()) return;
-        log.info("[TypeGen] Loading javadoc from: " + sourcesJar.getName());
+        logger.log("[TypeGen] Loading javadoc from: " + sourcesJar.getName());
         try (JarFile jf = new JarFile(sourcesJar)) {
             // Need the total count up front to compute percentages
             int total = 0;
@@ -109,7 +111,7 @@ public class TypeGenerator {
             }
 
             if (total == 0) {
-                log.info("[TypeGen] No .java entries found in " + sourcesJar.getName());
+                logger.log("[TypeGen] No .java entries found in " + sourcesJar.getName());
                 return;
             }
 
@@ -132,13 +134,13 @@ public class TypeGenerator {
 
                 if (bucket != lastReportedPercent && bucket > 0) {
                     lastReportedPercent = bucket;
-                    log.info("[TypeGen] Loading javadocs from " + sourcesJar.getName() + " " + bucket+"%");
+                    logger.log("[TypeGen] Loading javadocs from " + sourcesJar.getName() + " " + bucket+"%");
                 }
             }
         } catch (Exception e) {
-            log.warning("[TypeGen] Failed to read sources jar: " + e.getMessage());
+            logger.debug("[TypeGen] Failed to read sources jar: " + e.getMessage());
         }
-        log.info("[TypeGen] Loaded " + javadocCache.size() + " javadoc entries");
+        logger.log("[TypeGen] Loaded " + javadocCache.size() + " javadoc entries");
     }
 
     private void parseJavadocFromSource(String source) {
@@ -170,11 +172,11 @@ public class TypeGenerator {
         if (sourcesJar != null) loadJavadocFromSourcesJar(sourcesJar);
 
         // 1. Deep-scan all classloader URLs (catches org.bukkit loaded by Paper's classloader)
-        log.info("[TypeGen] Deep scanning classloader hierarchy...");
+        logger.debug("[TypeGen] Deep scanning classloader hierarchy...");
         List<String> deepRefs = deepScanClassLoader(serverClassLoader, seenJars);
-        log.info("[TypeGen] Deep scan found " + deepRefs.size() + " reference files");
+        logger.debug("[TypeGen] Deep scan found " + deepRefs.size() + " reference files");
         List<String> jdkRefs = scanJdkModules();
-        log.info("[TypeGen] Deep scan found " + jdkRefs.size() + " reference files");
+        logger.log("[TypeGen] Deep scan found " + jdkRefs.size() + " reference files");
         allRefs.addAll(deepRefs);
         allRefs.addAll(jdkRefs);
 
@@ -184,29 +186,27 @@ public class TypeGenerator {
             if (!seenJars.add(jar.getAbsolutePath())) continue; // already done
 
             String ns = sanitizeNamespace(jar.getName().replace(".jar", ""));
-            log.info("[TypeGen] Scanning jar: " + jar.getName());
+            logger.debug("[TypeGen] Scanning jar: " + jar.getName());
             try (URLClassLoader loader = new URLClassLoader(new URL[]{jar.toURI().toURL()}, serverClassLoader)) {
                 List<String> names = getClassNamesFromJar(jar);
                 File dir = new File(outputDir, ns);
                 List<String> refs = generateForClasses(names, loader, dir, ns);
                 allRefs.addAll(refs);
-                log.info("[TypeGen] Jar " + jar.getName() + " generated " + refs.size() + " files");
+                logger.debug("[TypeGen] Jar " + jar.getName() + " generated " + refs.size() + " files");
             } catch (Exception e) {
-                log.warning("[TypeGen] Failed to scan " + jar.getName() + ": " + e.getMessage());
+                logger.debug("[TypeGen] Failed to scan " + jar.getName() + ": " + e.getMessage());
             }
         }
 
         // Log failures
         if (!failedClasses.isEmpty()) {
-            log.warning("[TypeGen] Failed to generate " + totalFailed + " classes. Examples: " +
-                    failedClasses.stream().limit(10).collect(Collectors.joining(", ")));
+            logger.debug("[TypeGen] Failed to generate " + totalFailed + " classes. Examples: " + failedClasses.stream().limit(10).collect(Collectors.joining(", ")));
         }
 
         // 3. Generate importClass overloads index from everything found
         writeImportClassOverloads();
-
         writeIndexFile(allRefs);
-        log.info("[TypeGen] Done. Generated " + totalGenerated + " declarations, failed " + totalFailed + " classes.");
+        logger.log("[TypeGen] Done. Generated " + totalGenerated + " declarations, failed " + totalFailed + " classes.");
     }
 
     /**
@@ -216,7 +216,7 @@ public class TypeGenerator {
         List<String> refs = new ArrayList<>();
 
         List<URL> urls = collectUrls(root);
-        log.info("[TypeGen] Found " + urls.size() + " URLs in classloader hierarchy");
+        logger.debug("[TypeGen] Found " + urls.size() + " URLs in classloader hierarchy");
 
         for (URL url : urls) {
             if (!url.getProtocol().equals("file")) continue;
@@ -225,16 +225,16 @@ public class TypeGenerator {
             if (!seenJars.add(f.getAbsolutePath())) continue;
 
             String ns = sanitizeNamespace(f.getName().replace(".jar", ""));
-            log.info("[TypeGen] Scanning (deep): " + f.getName());
+            logger.debug("[TypeGen] Scanning (deep): " + f.getName());
             try (URLClassLoader loader = new URLClassLoader(new URL[]{f.toURI().toURL()}, root)) {
                 List<String> names = getClassNamesFromJar(f);
-                log.info("[TypeGen] Jar " + f.getName() + " contains " + names.size() + " classes");
+                logger.debug("[TypeGen] Jar " + f.getName() + " contains " + names.size() + " classes");
                 File dir = new File(outputDir, ns);
                 List<String> ref = generateForClasses(names, loader, dir, ns);
                 refs.addAll(ref);
-                log.info("[TypeGen] Deep jar " + f.getName() + " generated " + ref.size() + " files");
+                logger.debug("[TypeGen] Deep jar " + f.getName() + " generated " + ref.size() + " files");
             } catch (Exception e) {
-                log.warning("[TypeGen] Deep scan failed for " + f.getName() + ": " + e.getMessage());
+                logger.debug("[TypeGen] Deep scan failed for " + f.getName() + ": " + e.getMessage());
             }
         }
 
@@ -247,22 +247,17 @@ public class TypeGenerator {
         ClassLoader current = loader;
 
         while (current != null && visited.add(current)) {
-            log.info("[TypeGen] Examining ClassLoader: " + current.getClass().getName());
+            logger.debug("[TypeGen] Examining ClassLoader: " + current.getClass().getName());
 
             // Standard URLClassLoader
             if (current instanceof URLClassLoader) {
                 URL[] classLoaderUrls = ((URLClassLoader) current).getURLs();
-                log.info("[TypeGen] Found " + classLoaderUrls.length + " URLs in URLClassLoader");
+                logger.debug("[TypeGen] Found " + classLoaderUrls.length + " URLs in URLClassLoader");
                 urls.addAll(Arrays.asList(classLoaderUrls));
             }
 
-            // Paper's PluginClassLoader exposes getURLs() but isn't a URLClassLoader
             tryGetUrlsViaReflection(current, urls, "getURLs");
-
-            // Paper's custom classloader has a 'ucp' field containing a URLClassPath
             tryGetUrlsViaUcp(current, urls);
-
-            // Try getClassPath() method
             tryGetUrlsViaReflection(current, urls, "getClassPath");
 
             current = current.getParent();
@@ -295,9 +290,7 @@ public class TypeGenerator {
                     if (obj instanceof URL) out.add((URL) obj);
                 }
             }
-        } catch (Exception e) {
-            // Silently ignore - not all classloaders have this method
-        }
+        } catch (Exception ignored) {}
     }
 
     private void tryGetUrlsViaUcp(ClassLoader loader, List<URL> out) {
@@ -329,7 +322,7 @@ public class TypeGenerator {
             byPackage.computeIfAbsent(getPackage(name), k -> new ArrayList<>()).add(name);
         }
 
-        log.info("[TypeGen] Processing " + classNames.size() + " classes in " + byPackage.size() + " packages");
+        logger.log("[TypeGen] Processing " + classNames.size() + " classes in " + byPackage.size() + " packages");
 
         for (Map.Entry<String, List<String>> entry : byPackage.entrySet()) {
             String pkg = entry.getKey();
@@ -361,7 +354,7 @@ public class TypeGenerator {
                     } catch (Throwable t) {
                         totalFailed++;
                         if (totalFailed <= 5) {
-                            log.fine("[TypeGen] Failed to load class " + className + ": " + t.getMessage());
+                            logger.debug("[TypeGen] Failed to load class " + className + ": " + t.getMessage());
                         }
                     }
                 }
@@ -371,7 +364,7 @@ public class TypeGenerator {
                     refs.add(relPath);
                 }
             } catch (IOException e) {
-                log.warning("[TypeGen] Failed to write " + outFile + ": " + e.getMessage());
+                logger.log("[TypeGen] Failed to write " + outFile + ": " + e.getMessage());
             }
         }
 
@@ -548,7 +541,7 @@ public class TypeGenerator {
                 }
             }
         } catch (IOException e) {
-            log.warning("[TypeGen] Failed to read jar " + jar.getName() + ": " + e.getMessage());
+            logger.debug("[TypeGen] Failed to read jar " + jar.getName() + ": " + e.getMessage());
         }
         return names;
     }

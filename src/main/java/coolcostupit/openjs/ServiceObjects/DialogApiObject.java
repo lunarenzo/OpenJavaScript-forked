@@ -8,6 +8,7 @@ package coolcostupit.openjs.ServiceObjects;
 import coolcostupit.openjs.modules.sharedClass;
 import coolcostupit.openjs.utility.ReflectionNames;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -27,6 +28,7 @@ public class DialogApiObject {
     private static boolean listenerRegistered = false;
     public static final String defaultExitButtonId = "exit";
     private final Player player;
+    private final Audience audience;
     private Component title = Component.text("Menu");
     private boolean canCloseWithEscape = true;
     private int columns = 1;
@@ -388,6 +390,7 @@ public class DialogApiObject {
         final String id;
         String label;
         private int width = 100;
+        String tooltip = null;
         Object prebuiltAction = null;
 
         ButtonBuilder(DialogApiObject parent, String id, String label) {
@@ -401,9 +404,18 @@ public class DialogApiObject {
             return parent;
         }
 
+        public ButtonBuilder tooltip(String text) {
+            this.tooltip = text;
+            return this;
+        }
+
         Object build() throws Exception {
             Object buttonBuilder = ReflectionNames.builderMethod.invoke(null, parseText(label));
             buttonBuilder = ReflectionNames.actionButtonWidth.invoke(buttonBuilder, width);
+
+            if (tooltip != null && ReflectionNames.actionButtonTooltip != null) {
+                buttonBuilder = ReflectionNames.actionButtonTooltip.invoke(buttonBuilder, parseText(tooltip));
+            }
 
             if (prebuiltAction != null) {
                 for (Method m : buttonBuilder.getClass().getMethods()) {
@@ -454,13 +466,18 @@ public class DialogApiObject {
         public DialogApiObject done() { return parent; }
     }
 
-    private DialogApiObject(Player player) {
+    private DialogApiObject(Player player, Audience audience) {
         this.player = player;
+        this.audience = audience;
     }
 
     public static DialogApiObject create(Player player) {
         registerListenerIfNeeded();
-        return new DialogApiObject(player);
+        return new DialogApiObject(player, player);
+    }
+
+    public static DialogApiObject create(Audience audience) {
+        return new DialogApiObject(null, audience);
     }
 
     public DialogApiObject columns(int cols) {
@@ -647,6 +664,12 @@ public class DialogApiObject {
         return this;
     }
 
+    public DialogApiObject setTooltip(String id, String tooltip) {
+        ButtonBuilder btn = buttonById.get(id);
+        if (btn != null) btn.tooltip = tooltip;
+        return this;
+    }
+
 
     // Event handling ============================
 
@@ -739,7 +762,7 @@ public class DialogApiObject {
     public DialogApiObject show() {
         if (destroyed) return this;
         if (!ReflectionNames.dialogApiSupported) {
-            player.sendMessage(Component.text("Dialogs are not supported on this server version."));
+            audience.sendMessage(Component.text("Dialogs are not supported on this server version."));
             return this;
         }
         if (exitButtonId == null) {
@@ -811,19 +834,21 @@ public class DialogApiObject {
 
             Object dialog = ReflectionNames.createMethod.invoke(null, configuratorProxy);
 
-            for (Method m : player.getClass().getMethods()) {
+            for (Method m : audience.getClass().getMethods()) {
                 if (m.getName().equals("showDialog") && m.getParameterCount() == 1) {
-                    m.invoke(player, dialog);
+                    m.invoke(audience, dialog);
                     break;
                 }
             }
 
-            // Register as active so close event can find us
-            activeDialogs.put(player.getUniqueId(), this);
+            if (player != null) {
+                // Register as active so close event can find us
+                activeDialogs.put(player.getUniqueId(), this);
+            }
 
         } catch (Exception e) {
             sharedClass.logger.logException(e);
-            player.sendMessage(Component.text("§cFailed to open dialog."));
+            audience.sendMessage(Component.text("§cFailed to open dialog."));
         }
 
         return this;
@@ -833,17 +858,19 @@ public class DialogApiObject {
     // Close / Destroy ============================
 
     public void close() {
-        activeDialogs.remove(player.getUniqueId());
-        unregisterIfEmpty();
+        if (player != null) {
+            activeDialogs.remove(player.getUniqueId());
+            unregisterIfEmpty();
+        }
         try {
             fireClosedEvent();
-            for (Method m : player.getClass().getMethods()) {
+            for (Method m : audience.getClass().getMethods()) {
                 if (m.getName().equals("closeDialog") && m.getParameterCount() == 0) {
-                    m.invoke(player);
+                    m.invoke(audience);
                     return;
                 }
             }
-            player.closeInventory();
+            if (player != null) player.closeInventory();
         } catch (Exception e) {
             sharedClass.logger.logException(e);
         }

@@ -50,6 +50,14 @@ public class JavascriptHelper {
                     return _libImporter.getLib(libName)
                 };
                 
+                const downloadDependency = (dependencyInfo) => {
+                    if (dependencyInfo.url) {
+                        return _libImporter.downloadDependency(dependencyInfo.groupId, dependencyInfo.artifactId, dependencyInfo.version, dependencyInfo.url);
+                    } else {
+                        return _libImporter.downloadDependency(dependencyInfo.groupId, dependencyInfo.artifactId, dependencyInfo.version);
+                    }
+                };
+                
                 const LoadScript = scriptName => {
                   const result = scriptManager.loadScript(new java.io.File(plugin.getDataFolder() + '/scripts/' + scriptName), true);
                   const success = result.isSuccess();
@@ -174,22 +182,22 @@ public class JavascriptHelper {
                     _task.cancel(__currentScriptId, taskId);
                   },
                   spawn(func) {
-                    return _task.spawn(__currentScriptId, scriptEngine, { f: func });
+                    return _task.spawn(__currentScriptId, scriptEngine, func);
                   },
                   main(func) {
-                    return _task.main(__currentScriptId, scriptEngine, { f: func });
+                    return _task.main(__currentScriptId, scriptEngine, func);
                   },
                   thread(func) {
-                    return _task.thread(__currentScriptId, scriptEngine, { f: func });
+                    return _task.thread(__currentScriptId, scriptEngine, func);
                   },
                   entitySchedule(entity, func) {
-                    return _task.entitySchedule(__currentScriptId, scriptEngine, entity, { f: func });
+                    return _task.entitySchedule(__currentScriptId, scriptEngine, entity, func);
                   },
                   delay(delay, func) {
-                    return _task.delay(__currentScriptId, scriptEngine, parseFloat(delay), { f: func });
+                    return _task.delay(__currentScriptId, scriptEngine, parseFloat(delay), func);
                   },
                   repeat(delay, period, func) {
-                    return _task.repeat(__currentScriptId, scriptEngine, parseFloat(delay), parseFloat(period), { f: func });
+                    return _task.repeat(__currentScriptId, scriptEngine, parseFloat(delay), parseFloat(period), func);
                   },
                   createListener(javaInterface, handlerObj, gcSet) {
                     let isActive = true;
@@ -232,10 +240,10 @@ public class JavascriptHelper {
                     const _latch = _task.createLatch(__currentScriptId, scriptEngine);
                     return {
                         wait() { return _latch.waitFor(); },
-                        listen(fn) { _latch.listen({ f: fn }); },
+                        listen(fn) { _latch.listen(fn); },
                         invoke(value) { _latch.invoke(value); },
                         destroy() { _latch.destroy(); },
-                        connect(fn) { _latch.connect({ f: fn }); },
+                        connect(fn) { _latch.connect(fn); },
                         fire(value) { return _latch.fire(value); },
                         get invoked() { return _latch.isInvoked(); }
                     };

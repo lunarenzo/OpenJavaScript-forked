@@ -6,6 +6,7 @@
 package coolcostupit.openjs.intellisense;
 
 import coolcostupit.openjs.modules.FoliaSupport;
+import coolcostupit.openjs.modules.scriptManager;
 import coolcostupit.openjs.modules.sharedClass;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.utility.chatColors;
@@ -30,7 +31,8 @@ public class GenerateTypesCommand {
             return;
         }
 
-        File outputDir = new File(plugin.getServer().getWorldContainer(), "OpenJS-VSCode-Types");
+        File typesFolder = new File(scriptManager.getScriptFolder(sharedClass.plugin), ".openjs-types");
+        File outputDir = new File(typesFolder, "generated");
         sender.sendMessage(chatColors.LIGHT_BLUE + "[OpenJS] Starting VS Code type generation...");
         sender.sendMessage(chatColors.GRAY + "Output: " + outputDir.getAbsolutePath());
         sender.sendMessage(chatColors.GRAY + "This may take 30-120 seconds depending on loaded plugins.");
@@ -50,6 +52,9 @@ public class GenerateTypesCommand {
                 FoliaSupport.runTaskSynchronously(() -> {
                     sender.sendMessage(chatColors.GREEN + "[OpenJS] Type generation complete!");
                     sender.sendMessage(chatColors.GREEN + "Output folder: " + outputDir.getAbsolutePath());
+                    sender.sendMessage(chatColors.GRAY + "Open any script in Vscode and run the command:");
+                    sender.sendMessage(chatColors.GRAY + "  '> OpenJS: Automatically apply and import the generated types.'");
+                    sender.sendMessage(chatColors.GRAY + "to enable intellisense and type checking for your scripts.");
                 });
 
             } catch (Exception e) {
@@ -74,10 +79,8 @@ public class GenerateTypesCommand {
         try (java.io.InputStream in = conn.getInputStream()) {
             String xml = new String(in.readAllBytes());
 
-            java.util.regex.Pattern p1 =
-                    java.util.regex.Pattern.compile("<timestamp>(.*?)</timestamp>");
-            java.util.regex.Pattern p2 =
-                    java.util.regex.Pattern.compile("<buildNumber>(.*?)</buildNumber>");
+            java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("<timestamp>(.*?)</timestamp>");
+            java.util.regex.Pattern p2 = java.util.regex.Pattern.compile("<buildNumber>(.*?)</buildNumber>");
 
             java.util.regex.Matcher m1 = p1.matcher(xml);
             java.util.regex.Matcher m2 = p2.matcher(xml);
