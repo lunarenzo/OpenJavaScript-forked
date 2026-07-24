@@ -1,6 +1,13 @@
-package coolcostupit.openjs.modules;
+/*
+ * Copyright (c) 2026 coolcostupit
+ * Licensed under AGPL-3.0
+ * You may not remove this notice or claim this work as your own.
+ */
+
+package coolcostupit.openjs.ScriptGlobals;
 
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.modules.sharedClass;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -256,6 +263,16 @@ public class LibImporterApi {
 
         File setFolder = dependenciesFolderPath.resolve(key).toFile();
         File[] jars = setFolder.listFiles((dir, name) -> name.toLowerCase().endsWith(".jar"));
+        if (jars == null || jars.length == 0) return false;
+
+        return loadDependencySet(key, Arrays.asList(jars), null);
+    }
+
+    public boolean loadDependencySetFromCustomDir(File dir) {
+        String key = dir.getName();
+        if (cachedSets.containsKey(key)) return true;
+
+        File[] jars = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".jar"));
         if (jars == null || jars.length == 0) return false;
 
         return loadDependencySet(key, Arrays.asList(jars), null);

@@ -25,6 +25,6 @@ public class sharedClass {
     public static String Identifier;
     public static DiskStorage DiskStorageApi;
     public static ExecutorService TaskThreadPool;
-    public static LibImporterApi LibImporterApi;
+    public static coolcostupit.openjs.ScriptGlobals.LibImporterApi LibImporterApi;
     public static boolean isDebugMode = false;
 }

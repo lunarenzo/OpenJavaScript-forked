@@ -233,7 +233,12 @@ Version 1.5.0:
 🟩️ imported libraries and dependencies are now also able to get imported through importClass and Java.type for Java => Javascript translation
 🟩️ Clear up todos
 🟩️ fix debug logs not showing up upon server initialization
-- if script does not find service on Services.get("xxx") it will return the nearest name as a suggestion E.x: "Did you mean 'xxx'?"
+🟩️ add loadDependency(folder) which will directly load the folder from any path
+🟩️ add method ticks(ticks) that will allow all of the task api methods to use ticks
+🟩️ commit the pom.xml too!
+- Test 26.2 compatibiliy (Inventory Api, Dialog Api)
+- Intellisense extension fix importClass("") autocomplete not completing classes if "" was already typed
+- Fix intellisense extension file-manager service not autocompleting for existing files
 
 Version 1.6.0:
 - Drop support for legacy minecraft versions and only support version up to 1.18+ due to java 17

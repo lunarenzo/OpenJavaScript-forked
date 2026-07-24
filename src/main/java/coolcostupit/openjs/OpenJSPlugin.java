@@ -5,9 +5,7 @@
  */
 package coolcostupit.openjs;
 
-import coolcostupit.openjs.ScriptGlobals.DiskStorage;
-import coolcostupit.openjs.ScriptGlobals.InternalSystems;
-import coolcostupit.openjs.ScriptGlobals.JavascriptHelper;
+import coolcostupit.openjs.ScriptGlobals.*;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.*;
 import coolcostupit.openjs.ServiceObjects.PlaceholderApiObject;
@@ -83,6 +81,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sharedClass.Identifier = this.getName().toLowerCase();
         sharedClass.DiskStorageApi = DiskStorageApi;
         sharedClass.LibImporterApi = new LibImporterApi();
+        scriptTaskerApi.TickClock.init(this);
         JavascriptHelper.initialize();
 
         if (sharedClass.IsPapiLoaded) {

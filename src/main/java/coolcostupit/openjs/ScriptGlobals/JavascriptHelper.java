@@ -58,6 +58,10 @@ public class JavascriptHelper {
                     }
                 };
                 
+                const loadDependency = (file) => {
+                    return _libImporter.loadDependencySetFromCustomDir(file);
+                };
+                
                 const LoadScript = scriptName => {
                   const result = scriptManager.loadScript(new java.io.File(plugin.getDataFolder() + '/scripts/' + scriptName), true);
                   const success = result.isSuccess();
@@ -167,9 +171,13 @@ public class JavascriptHelper {
                     _task.waitForScript(scriptName);
                 };
                 
+                let ticks = n => ({ __isTicks: true, amount: n });
                 const task = Object.freeze({
-                  wait(seconds) {
-                    const continueRunning = _task.wait(__currentScriptId, scriptEngine, parseFloat(seconds));
+                  wait(duration) {
+                    const isTicks = duration && typeof duration === "object" && duration.__isTicks;
+                    const continueRunning = isTicks
+                      ? _task.waitTicks(__currentScriptId, duration.amount)
+                      : _task.wait(__currentScriptId, scriptEngine, parseFloat(duration));
                     if (!continueRunning) {
                       throw new Error('%s');
                     }
@@ -194,10 +202,26 @@ public class JavascriptHelper {
                     return _task.entitySchedule(__currentScriptId, scriptEngine, entity, func);
                   },
                   delay(delay, func) {
-                    return _task.delay(__currentScriptId, scriptEngine, parseFloat(delay), func);
+                    const isTicks = delay && typeof delay === "object" && delay.__isTicks;
+                    return isTicks
+                      ? _task.delayTicks(__currentScriptId, scriptEngine, delay.amount, func)
+                      : _task.delay(__currentScriptId, scriptEngine, parseFloat(delay), func);
                   },
                   repeat(delay, period, func) {
-                    return _task.repeat(__currentScriptId, scriptEngine, parseFloat(delay), parseFloat(period), func);
+                    const delayIsTicks = delay && typeof delay === "object" && delay.__isTicks;
+                    const periodIsTicks = period && typeof period === "object" && period.__isTicks;
+                    const delayVal = delayIsTicks ? delay.amount : parseFloat(delay);
+                    const periodVal = periodIsTicks ? period.amount : parseFloat(period);
+                
+                    if (delayIsTicks && periodIsTicks) {
+                        return _task.repeatTicks(__currentScriptId, scriptEngine, delayVal, periodVal, func);
+                    } else if (delayIsTicks) {
+                        return _task.repeatDelayTicks(__currentScriptId, scriptEngine, delayVal, periodVal, func);
+                    } else if (periodIsTicks) {
+                        return _task.repeatPeriodTicks(__currentScriptId, scriptEngine, delayVal, periodVal, func);
+                    } else {
+                        return _task.repeat(__currentScriptId, scriptEngine, delayVal, periodVal, func);
+                    }
                   },
                   createListener(javaInterface, handlerObj, gcSet) {
                     let isActive = true;

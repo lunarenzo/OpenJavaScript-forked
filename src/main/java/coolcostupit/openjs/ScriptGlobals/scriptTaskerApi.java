@@ -15,6 +15,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import javax.script.Invocable;
@@ -25,6 +26,7 @@ import java.lang.reflect.Proxy;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.logging.Level;
 
@@ -56,6 +58,40 @@ public class scriptTaskerApi {
             };
         } else {
             this.entityScheduleImpl = (scriptName, engine, entity, handler) -> main(scriptName, engine, handler);
+        }
+    }
+
+    public static final class TickClock {
+        private static final AtomicLong currentTick = new AtomicLong(0);
+        private static final Object tickLock = new Object();
+
+        public static void init(JavaPlugin plugin) {
+            FoliaSupport.ScheduleRepeatingTask(plugin, () -> {
+                currentTick.incrementAndGet();
+                synchronized (tickLock) {
+                    tickLock.notifyAll();
+                }
+            }, 1L, 1L);
+        }
+
+        public static long getCurrentTick() {
+            return currentTick.get();
+        }
+
+        public static boolean waitTicks(long ticks) {
+            if (ticks <= 0) return true;
+            long targetTick = currentTick.get() + ticks;
+            synchronized (tickLock) {
+                while (currentTick.get() < targetTick) {
+                    try {
+                        tickLock.wait();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
     }
 
@@ -205,6 +241,10 @@ public class scriptTaskerApi {
         return "THREAD[" + t.getName() + "]";
     }
 
+    public Boolean waitTicks(String scriptName, Number ticks) {
+        return TickClock.waitTicks(ticks.longValue());
+    }
+
     public Boolean wait(String scriptName, ScriptEngine scriptEngine, Number seconds) {
         double sec = seconds.doubleValue();
         if (sec <= 0) return Boolean.TRUE;
@@ -265,11 +305,40 @@ public class scriptTaskerApi {
         return id;
     }
 
+    public long delayTicks(String scriptName, ScriptEngine engine, Number ticks, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, handler) {};
+        long id = FoliaSupport.DelayTask(task, ticks.longValue());
+        trackTask(scriptName, id);
+        task.setTaskId(id);
+        return id;
+    }
+
     public long delay(String scriptName, ScriptEngine engine, Number delay, Object handler) {
         AutoCleanTask task = new AutoCleanTask(scriptName, handler) {};
         long id = FoliaSupport.DelayTask(task, (long)(delay.doubleValue() * 20));
         trackTask(scriptName, id);
         task.setTaskId(id);
+        return id;
+    }
+
+    public long repeatTicks(String scriptName, ScriptEngine engine, Number delayTicks, Number periodTicks, Object handler) {
+        Runnable task = scriptUtils.adaptToRunnable(handler);
+        long id = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task, delayTicks.longValue(), periodTicks.longValue());
+        trackTask(scriptName, id);
+        return id;
+    }
+
+    public long repeatDelayTicks(String scriptName, ScriptEngine engine, Number delayTicks, Number period, Object handler) {
+        Runnable task = scriptUtils.adaptToRunnable(handler);
+        long id = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task, delayTicks.longValue(), (long)(period.doubleValue() * 20));
+        trackTask(scriptName, id);
+        return id;
+    }
+
+    public long repeatPeriodTicks(String scriptName, ScriptEngine engine, Number delay, Number periodTicks, Object handler) {
+        Runnable task = scriptUtils.adaptToRunnable(handler);
+        long id = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task, (long)(delay.doubleValue() * 20), periodTicks.longValue());
+        trackTask(scriptName, id);
         return id;
     }
 
