@@ -236,14 +236,22 @@ Version 1.5.0:
 🟩️ add loadDependency(folder) which will directly load the folder from any path
 🟩️ add method ticks(ticks) that will allow all of the task api methods to use ticks
 🟩️ commit the pom.xml too!
-- Test 26.2 compatibiliy (Inventory Api, Dialog Api)
-- Intellisense extension fix importClass("") autocomplete not completing classes if "" was already typed
-- Fix intellisense extension file-manager service not autocompleting for existing files
+🟩️ Test 26.2 compatibiliy (Inventory Api, Dialog Api)
+🟩️ Add compatibility for 26.X
+🟩️ Fix Inventory Api broken for 26.X versions
+🟩️ Intellisense extension fix importClass("") autocomplete not completing classes if "" was already typed
+🟩️ Fix intellisense extension file-manager service not autocompleting for existing files
+🟩️ Fix version detection on spigot
+🟩️ Fix inventory api on spigot
+🟩️ Multi version compat for InventoryApi
+
 
 Version 1.6.0:
 - Drop support for legacy minecraft versions and only support version up to 1.18+ due to java 17
 - do a lot of refactoring and remove the "vibey-codey" looking structure
 - improve stability
+- add custom menu sizes instead of hardcoded ones to the InventoryApi
 - add Javadocs comments
+- make scripts bytecode cached to disks optional in config
 
 ==/   Use *maven install* to compile the project; the xxx-shaded.jar is the plugin file   \==
