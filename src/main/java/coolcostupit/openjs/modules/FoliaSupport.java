@@ -73,11 +73,10 @@ public class FoliaSupport {
     }
 
     public static long ScheduleTask(JavaPlugin plugin, Runnable function, long delay) {
-        Object task;
-        if (isFoliaServer) {
-            WrappedTask wrappedTask = selfCleaning(function);
-            Runnable wrappedRunnable = wrappedTask.runnable;
+        WrappedTask wrappedTask = selfCleaning(function);
+        Runnable wrappedRunnable = wrappedTask.runnable;
 
+        if (isFoliaServer) {
             return addTask(foliaAsyncScheduler.runDelayed(
                     plugin,
                     t -> wrappedRunnable.run(),
@@ -85,24 +84,31 @@ public class FoliaSupport {
                     TimeUnit.MILLISECONDS
             ), TaskType.FOLIA, wrappedTask.id);
         } else {
-            task = bukkitScheduler.runTaskLater(plugin, function, delay);
-            return addTask(task, TaskType.BUKKIT);
+            return addTask(
+                    bukkitScheduler.runTaskLater(plugin, wrappedRunnable, delay),
+                    TaskType.BUKKIT,
+                    wrappedTask.id
+            );
         }
     }
 
     public static long runEntityTask(JavaPlugin plugin, Entity entity, Runnable function) {
+        WrappedTask wrappedTask = selfCleaning(function);
+        Runnable wrappedRunnable = wrappedTask.runnable;
+
         if (isFoliaServer) {
-            WrappedTask wrappedTask = selfCleaning(function);
-            Runnable wrappedRunnable = wrappedTask.runnable;
             return addTask(entity.getScheduler().run(
                     plugin,
                     t -> wrappedRunnable.run(),
                     null // retired callback - no-op if the entity is removed before running
             ), TaskType.FOLIA, wrappedTask.id);
         } else {
-            // Bukkit: just run Runnable on main thread
-            BukkitTask task = bukkitScheduler.runTask(plugin, function);
-            return addTask(task, TaskType.BUKKIT);
+            // Bukkit: run on the main thread
+            return addTask(
+                    bukkitScheduler.runTask(plugin, wrappedRunnable),
+                    TaskType.BUKKIT,
+                    wrappedTask.id
+            );
         }
     }
 
@@ -133,13 +139,21 @@ public class FoliaSupport {
     }
 
     public static long runTaskSynchronously(Runnable function) {
+        WrappedTask wrappedTask = selfCleaning(function);
+        Runnable wrappedRunnable = wrappedTask.runnable;
+
         if (isFoliaServer) {
-            WrappedTask wrappedTask = selfCleaning(function);
-            Runnable wrappedRunnable = wrappedTask.runnable;
-            return addTask(foliaScheduler.run(plugin, t -> wrappedRunnable.run()), TaskType.FOLIA, wrappedTask.id);
+            return addTask(
+                    foliaScheduler.run(plugin, t -> wrappedRunnable.run()),
+                    TaskType.FOLIA,
+                    wrappedTask.id
+            );
         } else {
-            BukkitTask task = bukkitScheduler.runTask(plugin, function);
-            return addTask(task, TaskType.BUKKIT);
+            return addTask(
+                    bukkitScheduler.runTask(plugin, wrappedRunnable),
+                    TaskType.BUKKIT,
+                    wrappedTask.id
+            );
         }
     }
 

@@ -131,16 +131,29 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         pluginLogger.log(Level.INFO, "[<---------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
         pluginLogger.log(Level.INFO, "      [OpenJavascript shutdown]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Un-loading all scripts...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        scriptWrapper.unloadAllScripts();
+
+        if (scriptWrapper != null) {
+            scriptWrapper.unloadAllScripts();
+        }
+
         pluginLogger.log(Level.INFO, "Un-registering all listeners...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         InternalSystems.unregisterAllListeners();
         sharedClass.TaskThreadPool.shutdown();
         scriptWrapper.executorService.shutdown();
-        sharedClass.LibImporterApi.shutdown();
+        scriptManager.shutdown();
+
+        if (sharedClass.LibImporterApi != null) {
+            sharedClass.LibImporterApi.shutdown();
+        }
+
         UpdateChecker.executorService.shutdown();
         scriptManager.saveDisabledScripts();
+
         pluginLogger.log(Level.INFO, "Saving disk storage files...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        DiskStorageApi.saveAllCaches(false);
+        if (DiskStorageApi != null) {
+            DiskStorageApi.saveAllCaches(false);
+        }
+
         pluginLogger.log(Level.INFO, "[OpenJavascript shutdown successfully]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "[<---------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
     }

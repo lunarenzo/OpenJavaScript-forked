@@ -247,10 +247,11 @@ Version 1.5.0:
 
 
 Version 1.6.0:
-- Drop support for legacy minecraft versions and only support version up to 1.18+ due to java 17
+🟩️ Drop support for legacy minecraft versions and only support version up to 1.18+ due to java 17
 - do a lot of refactoring and remove the "vibey-codey" looking structure
 - improve stability
-- add custom menu sizes instead of hardcoded ones to the InventoryApi
+🟩️ add custom menu sizes instead of hardcoded ones to the InventoryApi (needs compile and testing)
+🟩️ Fix task memory leak on non-folia servers
 - add Javadocs comments
 - make scripts bytecode cached to disks optional in config
 

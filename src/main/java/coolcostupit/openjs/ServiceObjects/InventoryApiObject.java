@@ -157,6 +157,12 @@ public class InventoryApiObject {
         return item;
     }
 
+    public InventoryUI constructInventory(int size, String title) {
+        InventoryUI ui = new InventoryUI(String.valueOf(size), title);
+        inventories.add(ui);
+        return ui;
+    }
+
     public InventoryUI constructInventory(String type, String title) {
         InventoryUI ui = new InventoryUI(type, title);
         inventories.add(ui);
@@ -267,11 +273,68 @@ public class InventoryApiObject {
         }
 
         public void setType(String type) {
-            this.type = type;
-            this.size = switch (type.toLowerCase()) {
-                case "double" -> 54;
-                default -> 27;
-            };
+            if (type == null) {
+                this.type = "single";
+                this.size = 27;
+                return;
+            }
+
+            String normalizedType = type.toLowerCase(Locale.ROOT).trim();
+
+            switch (normalizedType) {
+                case "single", "normal", "chest" -> {
+                    this.type = "single";
+                    this.size = 27;
+                }
+
+                case "double", "large" -> {
+                    this.type = "double";
+                    this.size = 54;
+                }
+
+                default -> {
+                    try {
+                        int customSize = Integer.parseInt(normalizedType);
+                        setSizeInternal(customSize, false);
+                    } catch (NumberFormatException e) {
+                        throw new IllegalArgumentException(
+                                "Unknown inventory type '" + type +
+                                        "'. Use 'single', 'double', or a size between 9 and 54."
+                        );
+                    }
+                }
+            }
+        }
+
+        public void setSize(int size) {
+            setSizeInternal(size, true);
+        }
+
+        private void setSizeInternal(int size, boolean rebuildInventory) {
+            if (size < 9 || size > 54 || size % 9 != 0) {
+                throw new IllegalArgumentException(
+                        "Inventory size must be a multiple of 9 between 9 and 54."
+                );
+            }
+
+            this.size = size;
+            this.type = String.valueOf(size);
+
+            if (rebuildInventory && inventory != null) {
+                List<HumanEntity> viewers = new ArrayList<>(inventory.getViewers());
+
+                for (HumanEntity viewer : viewers) {
+                    viewer.closeInventory();
+                }
+
+                rebuild();
+
+                for (HumanEntity viewer : viewers) {
+                    if (viewer instanceof Player player) {
+                        FoliaSupport.runTaskSynchronously(() -> player.openInventory(inventory));
+                    }
+                }
+            }
         }
 
         public void setSlot(int slot, ItemStack item) {

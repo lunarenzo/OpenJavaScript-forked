@@ -247,7 +247,11 @@ public class scriptManager {
                             WATCH_KEYS.remove(key);
                         }
                     } catch (InterruptedException e) {
-                        logger.log(Level.INFO, "An error caused a watcher interruption: " + e.getMessage(), pluginLogger.RED);
+                        logger.debug("An error caused a watcher interruption: " + e.getMessage());
+                        Thread.currentThread().interrupt();
+                        break;
+                    } catch (ClosedWatchServiceException e) {
+                        break;
                     }
                 }
             });
@@ -255,6 +259,25 @@ public class scriptManager {
         } catch (IOException e) {
             logger.log(Level.INFO, "Failed to start script watcher: " + e.getMessage(), pluginLogger.RED);
         }
+    }
+
+    public static synchronized void shutdown() {
+        initialized = false;
+
+        WATCH_KEYS.keySet().forEach(WatchKey::cancel);
+        WATCH_KEYS.clear();
+
+        if (watchService != null) {
+            try {
+                watchService.close();
+            } catch (IOException ignored) {
+            }
+            watchService = null;
+        }
+
+        SCRIPT_CACHE.clear();
+        CODE_CACHE.clear();
+        LOADING_SCRIPTS.clear();
     }
 
     private static void handleFileEvent(WatchEvent.Kind<?> kind, File file) {
