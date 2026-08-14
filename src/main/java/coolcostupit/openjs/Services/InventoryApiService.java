@@ -55,7 +55,11 @@ public class InventoryApiService implements ScriptService {
                             return inventoryApi.getInventory();
                         };
                         wrapperMeta.setSize = function(size) {
-                            inventoryApi.setType(size);
+                            if (typeof size === "number") {
+                                inventoryApi.setSize(Math.trunc(size));
+                            } else {
+                                inventoryApi.setType(String(size));
+                            }
                         };
                         wrapperMeta.setTitle = function(title) {
                             inventoryApi.setTitle(title);

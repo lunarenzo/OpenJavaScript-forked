@@ -41,6 +41,10 @@ public class pluginLogger {
         }
     }
 
+    public void log(String message) {
+        log(Level.INFO, message, pluginLogger.LIGHT_BLUE);
+    }
+
     public void debug(String message) {
         if (sharedClass.isDebugMode) {
             log(Level.INFO, "[DEBUG] " + message, ORANGE);

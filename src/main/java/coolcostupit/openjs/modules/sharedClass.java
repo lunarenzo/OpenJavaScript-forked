@@ -6,7 +6,7 @@
 package coolcostupit.openjs.modules;
 
 import coolcostupit.openjs.logging.pluginLogger;
-import coolcostupit.openjs.utility.DiskStorage;
+import coolcostupit.openjs.ScriptGlobals.DiskStorage;
 import coolcostupit.openjs.utility.configurationUtil;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -25,6 +25,6 @@ public class sharedClass {
     public static String Identifier;
     public static DiskStorage DiskStorageApi;
     public static ExecutorService TaskThreadPool;
-    public static LibImporterApi LibImporterApi;
+    public static coolcostupit.openjs.ScriptGlobals.LibImporterApi LibImporterApi;
     public static boolean isDebugMode = false;
 }

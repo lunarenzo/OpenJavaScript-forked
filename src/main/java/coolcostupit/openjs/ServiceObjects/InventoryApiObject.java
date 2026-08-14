@@ -35,16 +35,26 @@ public class InventoryApiObject {
     private final ScriptEngine engine;
 
     private final Set<InventoryUI> inventories = ConcurrentHashMap.newKeySet();
-    private final LegacyComponentSerializer hexSerializer = LegacyComponentSerializer.legacySection()
-            .toBuilder()
-            .hexColors()
-            .useUnusualXRepeatedCharacterHexFormat()
-            .build();
+    private LegacyComponentSerializer hexSerializer;
     // I hate doing this
 
     public InventoryApiObject(ScriptClassObject scriptClass, ScriptEngine engine) {
         this.scriptClass = scriptClass;
         this.engine = engine;
+
+        try {
+            hexSerializer = LegacyComponentSerializer.builder()
+                    .character(LegacyComponentSerializer.SECTION_CHAR)
+                    .hexColors()
+                    .useUnusualXRepeatedCharacterHexFormat()
+                    .build();
+        } catch (NoClassDefFoundError ignored) {
+            hexSerializer = LegacyComponentSerializer.legacySection()
+                    .toBuilder()
+                    .hexColors()
+                    .useUnusualXRepeatedCharacterHexFormat()
+                    .build();
+        }
     }
 
     public static class InventoryApiListener implements Listener {
@@ -75,6 +85,23 @@ public class InventoryApiObject {
         }
     }
 
+    private void setLoreCompat(ItemMeta meta, List<Component> lore) {
+        try {
+            meta.lore(lore);
+        } catch (NoSuchMethodError e) {
+            List<String> legacyLore = new ArrayList<>();
+            for (Component c : lore) legacyLore.add(hexSerializer.serialize(c));
+            meta.setLore(legacyLore);
+        }
+    }
+
+    private void setDisplayNameCompat(ItemMeta meta, Component component) {
+        try {
+            meta.displayName(component);
+        } catch (NoSuchMethodError e) {
+            meta.setDisplayName(hexSerializer.serialize(component));
+        }
+    }
 
     public ItemStack createItem(Map<String, Object> data) {
         String id = (String) data.getOrDefault("id", "minecraft:stone");
@@ -87,9 +114,7 @@ public class InventoryApiObject {
         ItemMeta meta = item.getItemMeta();
 
         if (data.containsKey("name")) {
-            meta.displayName(
-                    hexSerializer.deserialize(data.get("name").toString()).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)
-            );
+            setDisplayNameCompat(meta, hexSerializer.deserialize(data.get("name").toString()).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
         }
 
         if (data.containsKey("lore")) {
@@ -98,7 +123,7 @@ public class InventoryApiObject {
             for (Object line : rawLore) {
                 lore.add(hexSerializer.deserialize(line.toString()).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
             }
-            meta.lore(lore);
+            setLoreCompat(meta, lore);
         }
 
         item.setItemMeta(meta);
@@ -116,7 +141,7 @@ public class InventoryApiObject {
             loreComponents.add(hexSerializer.deserialize(line).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
         }
 
-        meta.lore(loreComponents);
+        setLoreCompat(meta, loreComponents);
         item.setItemMeta(meta);
         return item;
     }
@@ -127,9 +152,15 @@ public class InventoryApiObject {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
-        meta.displayName(hexSerializer.deserialize(newName).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
+        setDisplayNameCompat(meta, hexSerializer.deserialize(newName).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
         item.setItemMeta(meta);
         return item;
+    }
+
+    public InventoryUI constructInventory(int size, String title) {
+        InventoryUI ui = new InventoryUI(String.valueOf(size), title);
+        inventories.add(ui);
+        return ui;
     }
 
     public InventoryUI constructInventory(String type, String title) {
@@ -163,8 +194,21 @@ public class InventoryApiObject {
             rebuild();
         }
 
+        private Inventory createInventoryCompat(InventoryHolder holder, int size, String titleStr) {
+            try {
+                return Bukkit.createInventory(holder, size, Component.text(titleStr));
+            } catch (NoSuchMethodError e) {
+                try {
+                    java.lang.reflect.Method m = Bukkit.class.getMethod("createInventory", InventoryHolder.class, int.class, Component.class);
+                    return (Inventory) m.invoke(null, holder, size, Component.text(titleStr));
+                } catch (Exception ignored) {
+                    return Bukkit.createInventory(holder, size, titleStr);
+                }
+            }
+        }
+
         private void rebuild() {
-            inventory = Bukkit.createInventory(new UIHolder(this), size, Component.text(title));
+            inventory = createInventoryCompat(new UIHolder(this), size, title);
             redraw();
         }
 
@@ -229,11 +273,68 @@ public class InventoryApiObject {
         }
 
         public void setType(String type) {
-            this.type = type;
-            this.size = switch (type.toLowerCase()) {
-                case "double" -> 54;
-                default -> 27;
-            };
+            if (type == null) {
+                this.type = "single";
+                this.size = 27;
+                return;
+            }
+
+            String normalizedType = type.toLowerCase(Locale.ROOT).trim();
+
+            switch (normalizedType) {
+                case "single", "normal", "chest" -> {
+                    this.type = "single";
+                    this.size = 27;
+                }
+
+                case "double", "large" -> {
+                    this.type = "double";
+                    this.size = 54;
+                }
+
+                default -> {
+                    try {
+                        int customSize = Integer.parseInt(normalizedType);
+                        setSizeInternal(customSize, false);
+                    } catch (NumberFormatException e) {
+                        throw new IllegalArgumentException(
+                                "Unknown inventory type '" + type +
+                                        "'. Use 'single', 'double', or a size between 9 and 54."
+                        );
+                    }
+                }
+            }
+        }
+
+        public void setSize(int size) {
+            setSizeInternal(size, true);
+        }
+
+        private void setSizeInternal(int size, boolean rebuildInventory) {
+            if (size < 9 || size > 54 || size % 9 != 0) {
+                throw new IllegalArgumentException(
+                        "Inventory size must be a multiple of 9 between 9 and 54."
+                );
+            }
+
+            this.size = size;
+            this.type = String.valueOf(size);
+
+            if (rebuildInventory && inventory != null) {
+                List<HumanEntity> viewers = new ArrayList<>(inventory.getViewers());
+
+                for (HumanEntity viewer : viewers) {
+                    viewer.closeInventory();
+                }
+
+                rebuild();
+
+                for (HumanEntity viewer : viewers) {
+                    if (viewer instanceof Player player) {
+                        FoliaSupport.runTaskSynchronously(() -> player.openInventory(inventory));
+                    }
+                }
+            }
         }
 
         public void setSlot(int slot, ItemStack item) {
@@ -270,7 +371,7 @@ public class InventoryApiObject {
         public void show(Object playerObj) {
             Player player = (Player) playerObj;
 
-            FoliaSupport.runTaskSynchronously(sharedClass.plugin, () -> {
+            FoliaSupport.runTaskSynchronously(() -> {
                 player.openInventory(inventory);
 
                 // If title was changed previously and doesn't match, fix it
@@ -282,7 +383,7 @@ public class InventoryApiObject {
 
         public void hide(Object player) {
             if (!(player instanceof Player p)) return;
-            FoliaSupport.runTaskSynchronously(sharedClass.plugin, () -> {
+            FoliaSupport.runTaskSynchronously(() -> {
                 if (p.getOpenInventory().getTopInventory().equals(inventory))
                     p.closeInventory();
             });

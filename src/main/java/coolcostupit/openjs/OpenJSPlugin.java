@@ -5,6 +5,7 @@
  */
 package coolcostupit.openjs;
 
+import coolcostupit.openjs.ScriptGlobals.*;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.*;
 import coolcostupit.openjs.ServiceObjects.PlaceholderApiObject;
@@ -60,21 +61,6 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
             return;
         }
 
-        sharedClass.configUtil = configUtil;
-        sharedClass.PluginDescription = this.getDescription();
-        sharedClass.IsPapiLoaded = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
-        sharedClass.logger = pluginLogger;
-        sharedClass.Identifier = this.getName().toLowerCase();
-        sharedClass.DiskStorageApi = DiskStorageApi;
-        sharedClass.LibImporterApi = new LibImporterApi();
-
-        if (sharedClass.IsPapiLoaded) {
-            new PlaceholderApiObject.Extension().register();
-        }
-
-        this.scriptWrapper = new scriptWrapper(this, configUtil);
-        this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
-
         // Default config values
         saveDefaultConfig();
         configUtil.loadBufferFromConfig();
@@ -87,7 +73,23 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         configUtil.getConfigFromBuffer("BroadcastToOps", true);
         configUtil.getConfigFromBuffer("AutoReloadScriptsOnChange", true);
         configUtil.getConfigFromBuffer("UseOldClassImporter", false);
+
+        sharedClass.configUtil = configUtil;
+        sharedClass.PluginDescription = this.getDescription();
+        sharedClass.IsPapiLoaded = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
+        sharedClass.logger = pluginLogger;
+        sharedClass.Identifier = this.getName().toLowerCase();
+        sharedClass.DiskStorageApi = DiskStorageApi;
+        sharedClass.LibImporterApi = new LibImporterApi();
+        scriptTaskerApi.TickClock.init(this);
         JavascriptHelper.initialize();
+
+        if (sharedClass.IsPapiLoaded) {
+            new PlaceholderApiObject.Extension().register();
+        }
+
+        this.scriptWrapper = new scriptWrapper(this, configUtil);
+        this.updateChecker = new UpdateChecker(this, this.pluginLogger, this.configUtil);
 
         sharedClass.scriptApi = scriptWrapper;
         updateChecker.startChecking();
@@ -115,7 +117,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         pluginLogger.log(Level.INFO, "Version: " + sharedClass.PluginDescription.getVersion(), pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Author: " + sharedClass.PluginDescription.getAuthors().toString().substring(1, sharedClass.PluginDescription.getAuthors().toString().length() - 1), pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Java Version: " + System.getProperty("java.version"), pluginLogger.LIGHT_BLUE);
-        if (FoliaSupport.isFolia()) {
+        if (FoliaSupport.isFoliaServer) {
             pluginLogger.log(Level.INFO, "Folia Support: true", pluginLogger.LIGHT_BLUE);
         }
         if (sharedClass.IsPapiLoaded) {
@@ -129,16 +131,29 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         pluginLogger.log(Level.INFO, "[<---------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
         pluginLogger.log(Level.INFO, "      [OpenJavascript shutdown]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "Un-loading all scripts...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        scriptWrapper.unloadAllScripts();
+
+        if (scriptWrapper != null) {
+            scriptWrapper.unloadAllScripts();
+        }
+
         pluginLogger.log(Level.INFO, "Un-registering all listeners...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         InternalSystems.unregisterAllListeners();
         sharedClass.TaskThreadPool.shutdown();
         scriptWrapper.executorService.shutdown();
-        sharedClass.LibImporterApi.shutdown();
+        scriptManager.shutdown();
+
+        if (sharedClass.LibImporterApi != null) {
+            sharedClass.LibImporterApi.shutdown();
+        }
+
         UpdateChecker.executorService.shutdown();
         scriptManager.saveDisabledScripts();
+
         pluginLogger.log(Level.INFO, "Saving disk storage files...", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
-        DiskStorageApi.saveAllCaches(false);
+        if (DiskStorageApi != null) {
+            DiskStorageApi.saveAllCaches(false);
+        }
+
         pluginLogger.log(Level.INFO, "[OpenJavascript shutdown successfully]", coolcostupit.openjs.logging.pluginLogger.LIGHT_BLUE);
         pluginLogger.log(Level.INFO, "[<---------------------------------->]", coolcostupit.openjs.logging.pluginLogger.BLUE);
     }
@@ -218,6 +233,7 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
         sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " disable <script>      " + chatColors.GRAY + "» Disables an enabled script");
         sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " list <type>           " + chatColors.GRAY + "» Lists scripts by type: enabled, disabled, or not_loaded");
         sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " generatePlugin <pack> " + chatColors.GRAY + "» Converts a ScriptPack into a plugin");
+        sender.sendMessage(chatColors.LIGHT_PURPLE + " - /" + label + " generatetypes         " + chatColors.GRAY + "» Generates VS Code types for OpenJS-Intellisense");
     }
 
     @Override
@@ -359,19 +375,20 @@ public class OpenJSPlugin extends JavaPlugin implements TabExecutor, TabComplete
                 }
                 sender.sendMessage(chatColors.LIGHT_BLUE + "Generating plugin for '" + packToConvert + "'... This may take a moment.");
                 // Run build asynchronously so it doesn't block the main thread
-                FoliaSupport.runTask(this, () -> {
+                FoliaSupport.runTask(() -> {
                     try {
                         scriptPackManager.convertScriptPack(packFile);
-                        FoliaSupport.runTaskSynchronously(this, () ->
+                        FoliaSupport.runTaskSynchronously(() ->
                                 sender.sendMessage(chatColors.GREEN + "Plugin '" + packToConvert + "' generated! Check the 'convertedPlugins' folder."));
                     } catch (Exception e) {
                         String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                        FoliaSupport.runTaskSynchronously(this, () -> sender.sendMessage(chatColors.RED + "Failed to generate plugin: " + errMsg));
+                        FoliaSupport.runTaskSynchronously(() -> sender.sendMessage(chatColors.RED + "Failed to generate plugin: " + errMsg));
                         pluginLogger.log(Level.SEVERE, "Failed to generate plugin for '" + packToConvert + "': " + errMsg, coolcostupit.openjs.logging.pluginLogger.RED);
+                        pluginLogger.logException(e, Level.SEVERE);
                     }
                 });
                 return true;
-            case "generatetypes", "genvsextension":
+            case "generatetypes", "genvsextension": // fallback for old command name
                 GenerateTypesCommand.run(sender, this);
                 return true;
             default:

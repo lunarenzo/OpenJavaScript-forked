@@ -41,6 +41,12 @@ public class DialogApiService implements ScriptService {
             return dialog;
         }
 
+        public DialogApiObject createDialog(net.kyori.adventure.audience.Audience audience) {
+            DialogApiObject dialog = DialogApiObject.create(audience);
+            openDialogs.add(dialog);
+            return dialog;
+        }
+
         public void attachEventHandler(DialogApiObject dialog, Object jsHandler) {
             dialog.onEvent(event -> {
                 try {
@@ -95,6 +101,10 @@ public class DialogApiService implements ScriptService {
                         var buildButtonWrapper = function(javaBtnBuilder) {
                             dialog.width = function(w) {
                                 javaBtnBuilder.width(w);
+                                return dialog;
+                            };
+                            dialog.tooltip = function(text) {
+                                javaBtnBuilder.tooltip(text);
                                 return dialog;
                             };
                             return dialog;
@@ -215,6 +225,11 @@ public class DialogApiService implements ScriptService {
 
                         dialog.setButtonText = function(id, text) {
                             javaDialog.setButtonText(id, text);
+                            return dialog;
+                        };
+
+                        dialog.setTooltip = function(id, text) {
+                            javaDialog.setTooltip(id, text);
                             return dialog;
                         };
 

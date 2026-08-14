@@ -4,22 +4,30 @@
  * You may not remove this notice or claim this work as your own.
  */
 
-package coolcostupit.openjs.modules;
+package coolcostupit.openjs.ScriptGlobals;
 
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.modules.FoliaSupport;
+import coolcostupit.openjs.modules.scriptWrapper;
+import coolcostupit.openjs.modules.sharedClass;
+import coolcostupit.openjs.utility.scriptUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
+import java.lang.ref.Cleaner;
 import java.lang.reflect.Proxy;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.logging.Level;
 
 public class scriptTaskerApi {
@@ -27,36 +35,23 @@ public class scriptTaskerApi {
     private final @NotNull PluginManager pluginManager;
     private final pluginLogger Logger;
     private static final Map<Object, ListenerEntry> listenerCleanupMap = new ConcurrentHashMap<>();
-    public static final Map<Integer, String> globalTaskOwnerMap = new java.util.concurrent.ConcurrentHashMap<>();
-    public static final Map<String, java.util.Set<Integer>> scriptTasksMap = new java.util.concurrent.ConcurrentHashMap<>();
+    public static final Map<Long, String> globalTaskOwnerMap = new java.util.concurrent.ConcurrentHashMap<>();
+    public static final Map<String, java.util.Set<Long>> scriptTasksMap = new java.util.concurrent.ConcurrentHashMap<>();
     private final EntityScheduler entityScheduleImpl;
 
     @FunctionalInterface
-    private interface EntityScheduler {
-        int schedule(String scriptName, ScriptEngine engine, Entity entity, Object handler);
-    }
-
-    private static class ListenerEntry {
-        public final String scriptName;
-        public final Object cleanup;
-        public final ScriptEngine scriptEngine;
-
-        public ListenerEntry(String scriptName, ScriptEngine scriptEngine, Object cleanup) {
-            this.scriptName = scriptName;
-            this.cleanup = cleanup;
-            this.scriptEngine = scriptEngine;
-        }
-    }
+    private interface EntityScheduler { long schedule(String scriptName, ScriptEngine engine, Entity entity, Object handler); }
+    private record ListenerEntry(String scriptName, ScriptEngine scriptEngine, Object cleanup) { }
 
     public scriptTaskerApi(scriptWrapper scriptWrapper) {
         this.ScriptWrapper = scriptWrapper;
         this.pluginManager = Bukkit.getPluginManager();
         this.Logger = sharedClass.logger;
 
-        if (FoliaSupport.isFolia()) {
+        if (FoliaSupport.isFoliaServer) {
             this.entityScheduleImpl = (scriptName, engine, entity, handler) -> {
-                AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
-                int id = FoliaSupport.runEntityTask(sharedClass.plugin, entity, task);
+                AutoCleanTask task = new AutoCleanTask(scriptName, handler) {};
+                long id = FoliaSupport.runEntityTask(sharedClass.plugin, entity, task);
                 trackTask(scriptName, id);
                 task.setTaskId(id);
                 return id;
@@ -66,11 +61,46 @@ public class scriptTaskerApi {
         }
     }
 
+    public static final class TickClock {
+        private static final AtomicLong currentTick = new AtomicLong(0);
+        private static final Object tickLock = new Object();
+
+        public static void init(JavaPlugin plugin) {
+            FoliaSupport.ScheduleRepeatingTask(plugin, () -> {
+                currentTick.incrementAndGet();
+                synchronized (tickLock) {
+                    tickLock.notifyAll();
+                }
+            }, 1L, 1L);
+        }
+
+        public static long getCurrentTick() {
+            return currentTick.get();
+        }
+
+        public static boolean waitTicks(long ticks) {
+            if (ticks <= 0) return true;
+            long targetTick = currentTick.get() + ticks;
+            synchronized (tickLock) {
+                while (currentTick.get() < targetTick) {
+                    try {
+                        tickLock.wait();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+
     public static class LatchObject {
         private final LinkedBlockingQueue<Object> queue = new LinkedBlockingQueue<>();
+        private static final Cleaner CLEANER = Cleaner.create();
         private volatile boolean destroyed = false;
         private volatile boolean invoked = false;
-        private volatile Object connectedHandler = null;
+        private volatile Function connectedHandler = null;
         private final ScriptEngine engine;
         private final String scriptName;
 
@@ -82,15 +112,16 @@ public class scriptTaskerApi {
         }
 
         public void connect(Object handler) {
-            this.connectedHandler = handler;
+            this.connectedHandler = scriptUtils.adaptToFunction(handler);
         }
 
         public Object fire(Object value) {
             if (destroyed || connectedHandler == null) return null;
             invoked = true;
             try {
-                return ((Invocable) engine).invokeMethod(connectedHandler, "f", value);
+                return connectedHandler.apply(value);
             } catch (Exception e) {
+                sharedClass.logger.logScriptError("Failed to invoke connected handler on latch:", scriptName);
                 sharedClass.logger.logScriptError(e, scriptName);
                 return null;
             }
@@ -115,22 +146,28 @@ public class scriptTaskerApi {
         }
 
         public void listen(Object handler) {
+            Function functionHandler = scriptUtils.adaptToFunction(handler);
+            LinkedBlockingQueue<Object> localQueue = queue;
+            String localScriptName = scriptName;
+
             Thread t = new Thread(() -> {
-                while (!destroyed) {
+                while (true) {
                     try {
-                        Object val = queue.take();
-                        if (val == POISON || destroyed) break;
-                        ((Invocable) engine).invokeMethod(handler, "f", val);
+                        Object val = localQueue.take();
+                        if (val == POISON) break;
+                        functionHandler.apply(val);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         break;
                     } catch (Exception e) {
-                        sharedClass.logger.logScriptError(e, scriptName);
+                        sharedClass.logger.logScriptError(e, localScriptName);
                     }
                 }
             });
             t.setDaemon(true);
             t.start();
+
+            CLEANER.register(this, () -> localQueue.offer(POISON));
         }
 
         public void destroy() {
@@ -143,16 +180,16 @@ public class scriptTaskerApi {
 
     private abstract class AutoCleanTask implements Runnable {
         private final String scriptName;
-        private final ScriptEngine engine;
-        private final Object handler;
-        private volatile int taskId = -1;
-        private volatile boolean finished = false;
+        private final Runnable adaptedHandler;
+        private long taskId = -1;
+        private boolean finished = false;
 
-        AutoCleanTask(String name, ScriptEngine eng, Object h) {
-            this.scriptName = name; this.engine = eng; this.handler = h;
+        AutoCleanTask(String name, Object h) {
+            this.scriptName = name;
+            this.adaptedHandler = scriptUtils.adaptToRunnable(h);
         }
 
-        public void setTaskId(int id) {
+        public void setTaskId(long id) {
             this.taskId = id;
             if (finished) untrackTask(id);
         }
@@ -160,7 +197,7 @@ public class scriptTaskerApi {
         @Override
         public void run() {
             try {
-                ((Invocable) engine).invokeMethod(handler, "f");
+                adaptedHandler.run();
             } catch (Exception e) {
                 Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED);
             } finally {
@@ -170,20 +207,18 @@ public class scriptTaskerApi {
         }
     }
 
-    private void trackTask(String scriptName, int taskId) {
-        if (taskId <= 0) return;
+    private void trackTask(String scriptName, long taskId) {
         globalTaskOwnerMap.put(taskId, scriptName);
         scriptTasksMap.computeIfAbsent(scriptName, k -> ConcurrentHashMap.newKeySet()).add(taskId);
     }
 
-    private void untrackTask(int taskId) {
+    private void untrackTask(long taskId) {
         String owner = globalTaskOwnerMap.remove(taskId);
         if (owner != null) {
-            Set<Integer> scriptTasks = scriptTasksMap.get(owner);
-            if (scriptTasks != null) {
-                scriptTasks.remove(taskId);
-                if (scriptTasks.isEmpty()) scriptTasksMap.remove(owner);
-            }
+            scriptTasksMap.computeIfPresent(owner, (k, set) -> {
+                set.remove(taskId);
+                return set.isEmpty() ? null : set;
+            });
         }
     }
 
@@ -206,18 +241,13 @@ public class scriptTaskerApi {
         return "THREAD[" + t.getName() + "]";
     }
 
+    public Boolean waitTicks(String scriptName, Number ticks) {
+        return TickClock.waitTicks(ticks.longValue());
+    }
+
     public Boolean wait(String scriptName, ScriptEngine scriptEngine, Number seconds) {
         double sec = seconds.doubleValue();
-
         if (sec <= 0) return Boolean.TRUE;
-
-        if (Bukkit.isPrimaryThread()) {
-            Logger.log(
-                    Level.WARNING,
-                    "[" + scriptName + "] Calling task.wait(" + sec + "s) on the main server thread can cause lag or freeze the server!",
-                    pluginLogger.ORANGE
-            );
-        }
 
         long millis = (long) (sec * 1000);
         if (millis < 0) millis = 0;
@@ -226,7 +256,6 @@ public class scriptTaskerApi {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            // Logger.log(Level.INFO, "[" + scriptName + "] interrupting task.wait(" + seconds + ")", pluginLogger.LIGHT_BLUE);
             return Boolean.FALSE;
         }
 
@@ -268,50 +297,76 @@ public class scriptTaskerApi {
         }
     }
 
-    public int spawn(String scriptName, ScriptEngine engine, Object handler) {
-        AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
-        int id = FoliaSupport.runTask(sharedClass.plugin, task);
+    public long spawn(String scriptName, ScriptEngine engine, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, handler) {};
+        long id = FoliaSupport.runTask(task);
         trackTask(scriptName, id);
         task.setTaskId(id);
         return id;
     }
 
-    public int delay(String scriptName, ScriptEngine engine, Number delay, Object handler) {
-        AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
-        int id = FoliaSupport.DelayTask(sharedClass.plugin, task, (long)(delay.doubleValue() * 20));
+    public long delayTicks(String scriptName, ScriptEngine engine, Number ticks, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, handler) {};
+        long id = FoliaSupport.DelayTask(task, ticks.longValue());
         trackTask(scriptName, id);
         task.setTaskId(id);
         return id;
     }
 
-    public int repeat(String scriptName, ScriptEngine engine, Number delay, Number period, Object handler) {
-        Runnable task = () -> {
-            try { ((Invocable) engine).invokeMethod(handler, "f"); }
-            catch (Exception e) { Logger.scriptlog(Level.WARNING, scriptName, e.getMessage(), pluginLogger.RED); }
-        };
-        int id = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task,
+    public long delay(String scriptName, ScriptEngine engine, Number delay, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, handler) {};
+        long id = FoliaSupport.DelayTask(task, (long)(delay.doubleValue() * 20));
+        trackTask(scriptName, id);
+        task.setTaskId(id);
+        return id;
+    }
+
+    public long repeatTicks(String scriptName, ScriptEngine engine, Number delayTicks, Number periodTicks, Object handler) {
+        Runnable task = scriptUtils.adaptToRunnable(handler);
+        long id = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task, delayTicks.longValue(), periodTicks.longValue());
+        trackTask(scriptName, id);
+        return id;
+    }
+
+    public long repeatDelayTicks(String scriptName, ScriptEngine engine, Number delayTicks, Number period, Object handler) {
+        Runnable task = scriptUtils.adaptToRunnable(handler);
+        long id = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task, delayTicks.longValue(), (long)(period.doubleValue() * 20));
+        trackTask(scriptName, id);
+        return id;
+    }
+
+    public long repeatPeriodTicks(String scriptName, ScriptEngine engine, Number delay, Number periodTicks, Object handler) {
+        Runnable task = scriptUtils.adaptToRunnable(handler);
+        long id = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task, (long)(delay.doubleValue() * 20), periodTicks.longValue());
+        trackTask(scriptName, id);
+        return id;
+    }
+
+    public long repeat(String scriptName, ScriptEngine engine, Number delay, Number period, Object handler) {
+        Runnable task = scriptUtils.adaptToRunnable(handler);
+        long id = FoliaSupport.ScheduleRepeatingTask(sharedClass.plugin, task,
                 (long)(delay.doubleValue() * 20), (long)(period.doubleValue() * 20));
         trackTask(scriptName, id);
         return id;
     }
 
-    public int thread(String scriptName, ScriptEngine engine, Object handler) {
-        AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
-        int id = FoliaSupport.runThreadPoolTask(task);
+    public long thread(String scriptName, ScriptEngine engine, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, handler) {};
+        long id = FoliaSupport.runThreadPoolTask(task);
         trackTask(scriptName, id);
         task.setTaskId(id);
         return id;
     }
 
-    public int main(String scriptName, ScriptEngine engine, Object handler) {
-        AutoCleanTask task = new AutoCleanTask(scriptName, engine, handler) {};
-        int id = FoliaSupport.runTaskSynchronously(sharedClass.plugin, task);
+    public long main(String scriptName, ScriptEngine engine, Object handler) {
+        AutoCleanTask task = new AutoCleanTask(scriptName, handler) {};
+        long id = FoliaSupport.runTaskSynchronously(task);
         trackTask(scriptName, id);
         task.setTaskId(id);
         return id;
     }
 
-    public int entitySchedule(String scriptName, ScriptEngine engine, Entity entity, Object handler) {
+    public long entitySchedule(String scriptName, ScriptEngine engine, Entity entity, Object handler) {
         return entityScheduleImpl.schedule(scriptName, engine, entity, handler);
     }
 
@@ -326,7 +381,7 @@ public class scriptTaskerApi {
 
     public void cancel(String callingScript, Object thing) {
         if (thing instanceof Number) {
-            int taskId = ((Number) thing).intValue();
+            long taskId = ((Number) thing).longValue();
             FoliaSupport.CancelTask(taskId);
             untrackTask(taskId);
             return;
@@ -337,9 +392,9 @@ public class scriptTaskerApi {
     }
 
     static public void cancelTasksFromScript(String scriptName) {
-        Set<Integer> taskIds = scriptTasksMap.remove(scriptName);
+        Set<Long> taskIds = scriptTasksMap.remove(scriptName);
         if (taskIds != null) {
-            for (int taskId : taskIds) {
+            for (Long taskId : taskIds) {
                 FoliaSupport.CancelTask(taskId);
                 globalTaskOwnerMap.remove(taskId);
             }

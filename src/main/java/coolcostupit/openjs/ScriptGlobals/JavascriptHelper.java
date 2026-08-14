@@ -4,7 +4,7 @@
  * You may not remove this notice or claim this work as your own.
  */
 
-package coolcostupit.openjs.utility;
+package coolcostupit.openjs.ScriptGlobals;
 
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.sharedClass;
@@ -48,6 +48,18 @@ public class JavascriptHelper {
                 
                 const importLib = libName => {
                     return _libImporter.getLib(libName)
+                };
+                
+                const downloadDependency = (dependencyInfo) => {
+                    if (dependencyInfo.url) {
+                        return _libImporter.downloadDependency(dependencyInfo.groupId, dependencyInfo.artifactId, dependencyInfo.version, dependencyInfo.url);
+                    } else {
+                        return _libImporter.downloadDependency(dependencyInfo.groupId, dependencyInfo.artifactId, dependencyInfo.version);
+                    }
+                };
+                
+                const loadDependency = (file) => {
+                    return _libImporter.loadDependencySetFromCustomDir(file);
                 };
                 
                 const LoadScript = scriptName => {
@@ -159,9 +171,13 @@ public class JavascriptHelper {
                     _task.waitForScript(scriptName);
                 };
                 
+                let ticks = n => ({ __isTicks: true, amount: n });
                 const task = Object.freeze({
-                  wait(seconds) {
-                    const continueRunning = _task.wait(__currentScriptId, scriptEngine, parseFloat(seconds));
+                  wait(duration) {
+                    const isTicks = duration && typeof duration === "object" && duration.__isTicks;
+                    const continueRunning = isTicks
+                      ? _task.waitTicks(__currentScriptId, duration.amount)
+                      : _task.wait(__currentScriptId, scriptEngine, parseFloat(duration));
                     if (!continueRunning) {
                       throw new Error('%s');
                     }
@@ -174,22 +190,38 @@ public class JavascriptHelper {
                     _task.cancel(__currentScriptId, taskId);
                   },
                   spawn(func) {
-                    return _task.spawn(__currentScriptId, scriptEngine, { f: func });
+                    return _task.spawn(__currentScriptId, scriptEngine, func);
                   },
                   main(func) {
-                    return _task.main(__currentScriptId, scriptEngine, { f: func });
+                    return _task.main(__currentScriptId, scriptEngine, func);
                   },
                   thread(func) {
-                    return _task.thread(__currentScriptId, scriptEngine, { f: func });
+                    return _task.thread(__currentScriptId, scriptEngine, func);
                   },
                   entitySchedule(entity, func) {
-                    return _task.entitySchedule(__currentScriptId, scriptEngine, entity, { f: func });
+                    return _task.entitySchedule(__currentScriptId, scriptEngine, entity, func);
                   },
                   delay(delay, func) {
-                    return _task.delay(__currentScriptId, scriptEngine, parseFloat(delay), { f: func });
+                    const isTicks = delay && typeof delay === "object" && delay.__isTicks;
+                    return isTicks
+                      ? _task.delayTicks(__currentScriptId, scriptEngine, delay.amount, func)
+                      : _task.delay(__currentScriptId, scriptEngine, parseFloat(delay), func);
                   },
                   repeat(delay, period, func) {
-                    return _task.repeat(__currentScriptId, scriptEngine, parseFloat(delay), parseFloat(period), { f: func });
+                    const delayIsTicks = delay && typeof delay === "object" && delay.__isTicks;
+                    const periodIsTicks = period && typeof period === "object" && period.__isTicks;
+                    const delayVal = delayIsTicks ? delay.amount : parseFloat(delay);
+                    const periodVal = periodIsTicks ? period.amount : parseFloat(period);
+                
+                    if (delayIsTicks && periodIsTicks) {
+                        return _task.repeatTicks(__currentScriptId, scriptEngine, delayVal, periodVal, func);
+                    } else if (delayIsTicks) {
+                        return _task.repeatDelayTicks(__currentScriptId, scriptEngine, delayVal, periodVal, func);
+                    } else if (periodIsTicks) {
+                        return _task.repeatPeriodTicks(__currentScriptId, scriptEngine, delayVal, periodVal, func);
+                    } else {
+                        return _task.repeat(__currentScriptId, scriptEngine, delayVal, periodVal, func);
+                    }
                   },
                   createListener(javaInterface, handlerObj, gcSet) {
                     let isActive = true;
@@ -232,10 +264,10 @@ public class JavascriptHelper {
                     const _latch = _task.createLatch(__currentScriptId, scriptEngine);
                     return {
                         wait() { return _latch.waitFor(); },
-                        listen(fn) { _latch.listen({ f: fn }); },
+                        listen(fn) { _latch.listen(fn); },
                         invoke(value) { _latch.invoke(value); },
                         destroy() { _latch.destroy(); },
-                        connect(fn) { _latch.connect({ f: fn }); },
+                        connect(fn) { _latch.connect(fn); },
                         fire(value) { return _latch.fire(value); },
                         get invoked() { return _latch.isInvoked(); }
                     };

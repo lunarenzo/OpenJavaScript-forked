@@ -6,10 +6,14 @@
 
 package coolcostupit.openjs.modules;
 
+import coolcostupit.openjs.ScriptGlobals.JavascriptHelper;
 import coolcostupit.openjs.logging.pluginLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import javax.script.Compilable;
+import javax.script.CompiledScript;
+import javax.script.ScriptException;
 import java.io.*;
 import java.nio.file.*;
 import java.util.zip.ZipEntry;
@@ -26,10 +30,22 @@ public class scriptManager {
     private static final Set<String> LOADING_SCRIPTS = ConcurrentHashMap.newKeySet();
     private static final Map<String, String> CODE_CACHE = new ConcurrentHashMap<>();
     private static final Map<WatchKey, Path> WATCH_KEYS = new ConcurrentHashMap<>();
+    private static CompiledScript compiledHelperCode = null;
     private static WatchService watchService;
     private static boolean initialized = false;
     private static File disabledScriptsFile;
     private static pluginLogger logger;
+
+    public static CompiledScript getCompiledHelperCode(javax.script.ScriptEngine engine) throws ScriptException {
+        if (compiledHelperCode == null) {
+            compiledHelperCode = ((Compilable) engine).compile(JavascriptHelper.JAVASCRIPT_CODE);
+        }
+        return compiledHelperCode;
+    }
+
+    public static CompiledScript compileScript(String relativePath, String processedScript, javax.script.ScriptEngine engine) throws ScriptException {
+        return ((Compilable) engine).compile(processedScript);
+    }
 
     public static File getScriptFolder(JavaPlugin plugin) {
         File folder = new File(plugin.getDataFolder(), "scripts");
@@ -210,7 +226,7 @@ public class scriptManager {
             watchService = FileSystems.getDefault().newWatchService();
             registerRecursiveWatcher(scriptsFolder.toPath());
 
-            FoliaSupport.runTask(plugin, () -> {
+            FoliaSupport.runTask(() -> {
                 while (plugin.isEnabled()) {
                     try {
                         WatchKey key = watchService.take();
@@ -231,7 +247,11 @@ public class scriptManager {
                             WATCH_KEYS.remove(key);
                         }
                     } catch (InterruptedException e) {
-                        logger.log(Level.INFO, "An error caused a watcher interruption: " + e.getMessage(), pluginLogger.RED);
+                        logger.debug("An error caused a watcher interruption: " + e.getMessage());
+                        Thread.currentThread().interrupt();
+                        break;
+                    } catch (ClosedWatchServiceException e) {
+                        break;
                     }
                 }
             });
@@ -239,6 +259,25 @@ public class scriptManager {
         } catch (IOException e) {
             logger.log(Level.INFO, "Failed to start script watcher: " + e.getMessage(), pluginLogger.RED);
         }
+    }
+
+    public static synchronized void shutdown() {
+        initialized = false;
+
+        WATCH_KEYS.keySet().forEach(WatchKey::cancel);
+        WATCH_KEYS.clear();
+
+        if (watchService != null) {
+            try {
+                watchService.close();
+            } catch (IOException ignored) {
+            }
+            watchService = null;
+        }
+
+        SCRIPT_CACHE.clear();
+        CODE_CACHE.clear();
+        LOADING_SCRIPTS.clear();
     }
 
     private static void handleFileEvent(WatchEvent.Kind<?> kind, File file) {

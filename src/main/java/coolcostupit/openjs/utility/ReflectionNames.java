@@ -58,6 +58,7 @@ public class ReflectionNames {
     public static Method multiActionColumns;
     public static Method multiActionExitAction;
     public static Method actionButtonWidth;
+    public static Method actionButtonTooltip;
     public static Method actionButtonBuild;
     public static Method afterActionMethod;
     public static Method responseGetText;
@@ -73,6 +74,18 @@ public class ReflectionNames {
     public static Method itemBodyDescription;
     public static Method itemBodyShowTooltip;
 
+
+    private static String getVersionFromBukkitVersionString() {
+        String raw = Bukkit.getVersion();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\(MC:\\s*([\\d.]+)\\)").matcher(raw);
+        if (m.find()) return m.group(1);
+
+        String pkg = Bukkit.getServer().getClass().getPackage().getName();
+        java.util.regex.Matcher m2 = java.util.regex.Pattern.compile("v(\\d+)_(\\d+)_R\\d+").matcher(pkg);
+        if (m2.find()) return m2.group(1) + "." + m2.group(2);
+
+        throw new RuntimeException("Could not determine Minecraft version");
+    }
 
     public static void initialize() {
         try {
@@ -111,6 +124,14 @@ public class ReflectionNames {
             responseGetFloat   = dialogResponseViewClass.getMethod("getFloat", String.class);
             responseGetBoolean = dialogResponseViewClass.getMethod("getBoolean", String.class);
 
+
+            for (Method m : actionButtonBuilderClass.getMethods()) {
+                if (m.getName().equals("tooltip") && m.getParameterCount() == 1
+                        && m.getParameterTypes()[0] == Component.class) {
+                    actionButtonTooltip = m;
+                    break;
+                }
+            }
 
             for (Method m : itemBodyBuilderClass.getMethods()) {
                 if (m.getName().equals("description") && m.getParameterCount() == 1) {
@@ -187,19 +208,21 @@ public class ReflectionNames {
             sharedClass.logger.log(Level.WARNING, "Paper Dialog API not supported, dialog features will be disabled.", pluginLogger.ORANGE);
         }
         try {
-            String version = Bukkit.getBukkitVersion().split("-")[0];
+            String version;
+            try {
+                version = Bukkit.getMinecraftVersion(); // Paper-only
+            } catch (NoSuchMethodError e) {
+                version = getVersionFromBukkitVersionString();
+            }
             String[] parts = version.split("\\.");
-            int newVersionFormat = Integer.parseInt(parts[0]);
-            int major = Integer.parseInt(parts[1]);
-            int minor = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+            int first = Integer.parseInt(parts[0]);
 
-            // Mapping names based on Version
-            // 1.20.5+ moved to "containerMenu" and uses modern mappings
-            if (newVersionFormat > 1 || (major > 20 || (major == 20 && minor >= 5))) {
-                CONTAINER_MENU_FIELD = "containerMenu";
+            if (first == 1) {
+                int major = Integer.parseInt(parts[1]);
+                int minor = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+                CONTAINER_MENU_FIELD = (major > 20 || (major == 20 && minor >= 5)) ? "containerMenu" : "activeContainer";
             } else {
-                // Older versions (1.17 - 1.20.4)
-                CONTAINER_MENU_FIELD = "activeContainer";
+                CONTAINER_MENU_FIELD = "containerMenu";
             }
 
             CONTAINER_ID_FIELD = "containerId";

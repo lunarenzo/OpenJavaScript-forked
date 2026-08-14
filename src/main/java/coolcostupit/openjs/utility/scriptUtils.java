@@ -9,11 +9,24 @@ package coolcostupit.openjs.utility;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.sharedClass;
 
+import javax.script.ScriptEngine;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 
 public class scriptUtils {
     private static final AtomicLong counter = new AtomicLong();
+
+    public static Runnable adaptToRunnable(Object handler) {
+        org.openjdk.nashorn.api.scripting.JSObject fn = (org.openjdk.nashorn.api.scripting.JSObject) handler;
+        return () -> {
+            fn.call(null, (Object[]) null);
+        };
+    }
+
+    public static java.util.function.Function<Object, Object> adaptToFunction(Object handler) {
+        org.openjdk.nashorn.api.scripting.JSObject fn = (org.openjdk.nashorn.api.scripting.JSObject) handler;
+        return (arg) -> fn.call(null, arg);
+    }
 
     public static Object evalJavascriptArray(javax.script.ScriptEngine engine, String scriptName, String jsCode) {
         try {

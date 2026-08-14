@@ -1,87 +1,108 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<!--
+  ~ Copyright (c) 2026 coolcostupit
+  ~ Licensed under AGPL-3.0
+  ~ You may not remove this notice or claim this work as your own.
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
-    <groupId>coolcostupit.openjs</groupId>
+    <!--
+        Paper/Folia build (default):  mvn install
+        Spigot build (shades Adventure): mvn install -P spigot
+    -->
+    <groupId>coolcostupit</groupId>
     <artifactId>openjs</artifactId>
-    <version>1.4.6</version>
-    <name>OpenJS</name>
-
+    <version>1.5.1</version>
+    <packaging>jar</packaging>
+    <name>OpenJS-Plugin</name>
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <repositories>
-        <!-- Maven Central -->
+        <!-- Maven Central prioritized -->
         <repository>
             <id>central</id>
             <url>https://repo.maven.apache.org/maven2</url>
         </repository>
-        <!-- PaperMC Repository -->
         <repository>
-            <id>papermc</id>
+            <id>dmulloy2-repo</id>
+            <url>https://repo.dmulloy2.net/repository/public/</url>
+        </repository>
+        <repository>
+            <id>papermc-repo</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
-        <!-- PlaceholderAPI Repository -->
+        <repository>
+            <id>sonatype</id>
+            <url>https://oss.sonatype.org/content/groups/public/</url>
+        </repository>
         <repository>
             <id>placeholderapi</id>
-            <url>https://repo.helpch.at/releases/</url>
+            <url>https://repo.extendedclip.com/releases/</url>
         </repository>
     </repositories>
 
     <dependencies>
-        <!-- Paper API -->
         <dependency>
-            <groupId>io.papermc.paper</groupId>
-            <artifactId>paper-api</artifactId>
-            <version>1.21.1-R0.1-SNAPSHOT</version>
+            <groupId>com.comphenix.protocol</groupId>
+            <artifactId>ProtocolLib</artifactId>
+            <version>5.4.0</version>
             <scope>provided</scope>
         </dependency>
-        <!-- Nashorn JavaScript Engine -->
         <dependency>
             <groupId>org.openjdk.nashorn</groupId>
             <artifactId>nashorn-core</artifactId>
             <version>15.7</version>
         </dependency>
-        <!-- ProtocolLib -->
-        <dependency>
-            <groupId>net.dmulloy2</groupId>
-            <artifactId>ProtocolLib</artifactId>
-            <version>5.4.0</version>
-            <scope>provided</scope>
-        </dependency>
-        <!-- PlaceholderAPI -->
-        <dependency>
-            <groupId>me.clip</groupId>
-            <artifactId>placeholderapi</artifactId>
-            <version>2.12.2</version>
-            <scope>provided</scope>
-        </dependency>
-        <!-- Reflection Remapper -->
-        <dependency>
-            <groupId>xyz.jpenilla</groupId>
-            <artifactId>reflection-remapper</artifactId>
-            <version>0.1.2</version>
-        </dependency>
-        <!-- bStats -->
-        <dependency>
-            <groupId>org.bstats</groupId>
-            <artifactId>bstats-bukkit</artifactId>
-            <version>3.0.2</version>
-        </dependency>
-        <!-- JetBrains Annotations -->
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
             <version>24.0.1</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>xyz.jpenilla</groupId>
+            <artifactId>reflection-remapper</artifactId>
+            <version>0.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.21.1-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>dev.folia</groupId>
+            <artifactId>folia-api</artifactId>
+            <version>1.20.1-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>me.clip</groupId>
+            <artifactId>placeholderapi</artifactId>
+            <version>2.12.2</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.11.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bstats</groupId>
+            <artifactId>bstats-bukkit</artifactId>
+            <version>3.2.1</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <build>
+        <finalName>${project.artifactId}-${project.version}</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
@@ -101,13 +122,21 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
                 <configuration>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
                     <relocations>
                         <relocation>
                             <pattern>org.bstats</pattern>
-                            <shadedPattern>coolcostupit.openjs.bstats</shadedPattern>
+                            <shadedPattern>coolcostupit.openjs.modules.bstats</shadedPattern>
                         </relocation>
                         <relocation>
                             <pattern>xyz.jpenilla.reflectionremapper</pattern>
@@ -121,19 +150,95 @@
                                 <exclude>META-INF/*.SF</exclude>
                                 <exclude>META-INF/*.DSA</exclude>
                                 <exclude>META-INF/*.RSA</exclude>
+                                <exclude>mozilla/**</exclude>
+                                <exclude>changelog.txt</exclude>
+                                <exclude>org/openjdk/nashorn/tools/**</exclude>
                             </excludes>
+                        </filter>
+                        <filter>
+                            <artifact>org.openjdk.nashorn:nashorn-core</artifact>
+                            <includes>
+                                <include>org/openjdk/nashorn/**</include>
+                            </includes>
                         </filter>
                     </filters>
                 </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>spigot</id>
+            <build>
+                <finalName>${project.artifactId}-${project.version}-spigot</finalName>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.6.0</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <minimizeJar>true</minimizeJar>
+                            <relocations>
+                                <relocation>
+                                    <pattern>org.bstats</pattern>
+                                    <shadedPattern>coolcostupit.openjs.modules.bstats</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>mozilla/**</exclude>
+                                        <exclude>changelog.txt</exclude>
+                                        <exclude>org/openjdk/nashorn/tools/**</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>org.openjdk.nashorn:nashorn-core</artifact>
+                                    <includes>
+                                        <include>org/openjdk/nashorn/**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>net.kyori:adventure-api</artifact>
+                                    <includes>
+                                        <include>net/kyori/**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>net.kyori:adventure-platform-bukkit</artifact>
+                                    <includes>
+                                        <include>net/kyori/**</include>
+                                    </includes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+            <dependencies>
+                <dependency>
+                    <groupId>net.kyori</groupId>
+                    <artifactId>adventure-api</artifactId>
+                    <version>4.17.0</version>
+                </dependency>
+                <dependency>
+                    <groupId>net.kyori</groupId>
+                    <artifactId>adventure-platform-bukkit</artifactId>
+                    <version>4.4.1</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>

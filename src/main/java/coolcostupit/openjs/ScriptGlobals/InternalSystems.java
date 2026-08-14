@@ -4,10 +4,11 @@
  * You may not remove this notice or claim this work as your own.
  */
 
-package coolcostupit.openjs.modules;
+package coolcostupit.openjs.ScriptGlobals;
 
 import coolcostupit.openjs.ServiceObjects.ScriptClassObject;
 import coolcostupit.openjs.logging.pluginLogger;
+import coolcostupit.openjs.modules.*;
 import coolcostupit.openjs.utility.chatColors;
 import coolcostupit.openjs.utility.scriptUtils;
 import org.bukkit.Bukkit;

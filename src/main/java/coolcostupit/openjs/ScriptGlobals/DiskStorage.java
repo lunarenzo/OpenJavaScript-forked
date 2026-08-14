@@ -4,7 +4,7 @@
  * You may not remove this notice or claim this work as your own.
  */
 
-package coolcostupit.openjs.utility;
+package coolcostupit.openjs.ScriptGlobals;
 
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.sharedClass;
