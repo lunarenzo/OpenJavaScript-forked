@@ -126,9 +126,9 @@ public class scriptManager {
         sharedClass.scriptFolder = scriptsFolder;
 
         loadDisabledScripts(plugin);
+        initializeCodeCache();
         scanScripts(scriptsFolder);
         startWatcher(plugin, scriptsFolder);
-        initializeCodeCache();
     }
 
     private static void scanScripts(File scriptsFolder) {
