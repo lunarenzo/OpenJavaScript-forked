@@ -315,7 +315,7 @@ public class scriptWrapper {
 
                     FoliaSupport.runTasklessSynchronously(plugin, () -> {
                         try {
-                            compiledUserScript.eval(localScriptEngine.getBindings(ScriptContext.ENGINE_SCOPE));
+                            compiledUserScript.eval(localScriptEngine.getContext());
                             if (configUtil.getConfigFromBuffer("PrintScriptActivations", true)) {
                                 Logger.log(Level.INFO, "Loaded the script " + ScriptName, pluginLogger.GREEN);
                             }
