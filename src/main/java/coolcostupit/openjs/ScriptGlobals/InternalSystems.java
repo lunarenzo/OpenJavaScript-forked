@@ -187,10 +187,16 @@ public class InternalSystems {
         }
     }
 
+    private static Field cachedKnownCommandsField = null;
+    private static Method cachedSyncCommandsMethod = null;
+
     private static Map<String, Command> getKnownCommands(CommandMap commandMap) throws Exception {
-        Field field = SimpleCommandMap.class.getDeclaredField("knownCommands");
-        field.setAccessible(true);
-        return (Map<String, Command>) field.get(commandMap);
+        if (cachedKnownCommandsField == null) {
+            Field field = SimpleCommandMap.class.getDeclaredField("knownCommands");
+            field.setAccessible(true);
+            cachedKnownCommandsField = field;
+        }
+        return (Map<String, Command>) cachedKnownCommandsField.get(commandMap);
     }
 
     private CommandMap getCommandMap() {
@@ -217,10 +223,13 @@ public class InternalSystems {
             FoliaSupport.ScheduleTask(plugin, () -> {
                 isSyncScheduled.set(false);
                 try {
-                    Class<?> serverClass = Bukkit.getServer().getClass();
-                    Method method = getMethod(serverClass, "syncCommands");
-                    method.setAccessible(true);
-                    method.invoke(Bukkit.getServer());
+                    if (cachedSyncCommandsMethod == null) {
+                        Class<?> serverClass = Bukkit.getServer().getClass();
+                        Method method = getMethod(serverClass, "syncCommands");
+                        method.setAccessible(true);
+                        cachedSyncCommandsMethod = method;
+                    }
+                    cachedSyncCommandsMethod.invoke(Bukkit.getServer());
                 } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
                     Logger.log(Level.WARNING, "Failed to sync commands:", pluginLogger.RED);
                     Logger.logException(e, Level.WARNING);
