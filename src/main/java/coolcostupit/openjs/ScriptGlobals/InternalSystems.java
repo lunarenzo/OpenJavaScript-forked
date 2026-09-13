@@ -33,10 +33,13 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
 import static coolcostupit.openjs.modules.sharedClass.plugin;
@@ -50,7 +53,7 @@ public class InternalSystems {
     private final Map<String, Object> requireCache;
     private static final pluginLogger Logger = sharedClass.logger;
     private static CommandMap cachedCommandMap = null;
-    static private final Map<String, List<Listener>> eventListenersMap = new HashMap<>();
+    private static final Map<String, Set<Listener>> eventListenersMap = new ConcurrentHashMap<>();
 
     public InternalSystems(String scriptName, ScriptEngine engine, ScriptClassObject scriptClass) {
         this.ScriptName = scriptName;
@@ -110,45 +113,33 @@ public class InternalSystems {
         }
     }
 
-    static public List<Listener> getEventListenersFromScript(String scriptName) {
-        return eventListenersMap.getOrDefault(scriptName, null);
+    public static Set<Listener> getEventListenersFromScript(String scriptName) {
+        return eventListenersMap.get(scriptName);
     }
 
-    static public void unregisterListener(Listener listener, String scriptName) {
+    public static void unregisterListener(Listener listener, String scriptName) {
         HandlerList.unregisterAll(listener);
-        List<Listener> listeners = eventListenersMap.get(scriptName);
+        Set<Listener> listeners = eventListenersMap.get(scriptName);
         if (listeners != null) {
             listeners.remove(listener);
-            if (listeners.isEmpty()) {
-                eventListenersMap.remove(scriptName);
-            }
         }
     }
 
     public void unregisterListenerInternal(Listener listener) {
-        HandlerList.unregisterAll(listener);
-        List<Listener> listeners = eventListenersMap.get(ScriptName);
-        if (listeners != null) {
-            listeners.remove(listener);
-            if (listeners.isEmpty()) {
-                eventListenersMap.remove(ScriptName);
-            }
-        }
+        unregisterListener(listener, ScriptName);
     }
 
-    static public void unregisterListenersFromScript(String scriptName) {
-        List<Listener> activeListeners = getEventListenersFromScript(scriptName);
+    public static void unregisterListenersFromScript(String scriptName) {
+        Set<Listener> activeListeners = eventListenersMap.remove(scriptName);
         if (activeListeners != null) {
-            List<Listener> listenersToRemove = new ArrayList<>(activeListeners);
-            for (Listener listener : listenersToRemove) {
-                unregisterListener(listener, scriptName);
+            for (Listener listener : activeListeners) {
+                HandlerList.unregisterAll(listener);
             }
         }
     }
 
-    static public void unregisterAllListeners() {
-        for (Map.Entry<String, List<Listener>> entry : eventListenersMap.entrySet()) {
-            List<Listener> listeners = entry.getValue();
+    public static void unregisterAllListeners() {
+        for (Set<Listener> listeners : eventListenersMap.values()) {
             for (Listener listener : listeners) {
                 HandlerList.unregisterAll(listener);
             }
@@ -172,7 +163,7 @@ public class InternalSystems {
                     }
                 }, plugin);
 
-                eventListenersMap.computeIfAbsent(ScriptId, k -> new ArrayList<>()).add(listener);
+                eventListenersMap.computeIfAbsent(ScriptName, k -> ConcurrentHashMap.newKeySet()).add(listener);
                 return listener;
             } else {
                 Logger.scriptlog(Level.WARNING, ScriptName, "Class " + eventClassName + " is not an Event.", pluginLogger.ORANGE);
