@@ -59,8 +59,8 @@ public class scriptWrapper {
         this.executorService = Executors.newVirtualThreadPerTaskExecutor();
         this.taskApi = new scriptTaskerApi(this);
 
-        // Experimental flag to enable ECMAScript 6.0
-        System.setProperty("nashorn.args", "--language=es6 --optimistic-types --persistent-code-cache --class-cache-size=400");
+        // Configure Nashorn for ES6, eager compilation, persistent code cache, and class caching
+        System.setProperty("nashorn.args", "--language=es6 --optimistic-types=false --persistent-code-cache --class-cache-size=400");
 
         // Initialize script system on first use
         if (!hasInit) {

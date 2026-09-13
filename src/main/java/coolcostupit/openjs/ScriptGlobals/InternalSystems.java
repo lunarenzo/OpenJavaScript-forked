@@ -27,6 +27,7 @@ import javax.script.Bindings;
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
+import org.openjdk.nashorn.api.scripting.JSObject;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -275,6 +276,19 @@ public class InternalSystems {
             commandMap.register(plugin.getName(), dynamicCommand);
             scriptWrapper.addToCleanupMap(scriptClass.MainRelativePath, () -> unregisterCommand(commandName));
             invokeSyncCommands(); // Update command map for tab completion
+
+            if (sharedClass.TaskThreadPool != null && commandHandler instanceof JSObject jsObj) {
+                sharedClass.TaskThreadPool.submit(() -> {
+                    try {
+                        if (jsObj.hasMember("onCommand")) {
+                            Object fn = jsObj.getMember("onCommand");
+                            if (fn instanceof JSObject jsFn && jsFn.isFunction()) {
+                                jsFn.isFunction();
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                });
+            }
 
             if (sharedClass.configUtil.getConfigFromBuffer("LogCustomCommandsActivity", true)) {
                 Logger.scriptlog(Level.INFO, ScriptName, "Registered command: " + commandName, pluginLogger.GREEN);
