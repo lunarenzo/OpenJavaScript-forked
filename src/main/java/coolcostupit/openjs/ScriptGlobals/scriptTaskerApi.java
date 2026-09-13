@@ -35,8 +35,8 @@ public class scriptTaskerApi {
     private final @NotNull PluginManager pluginManager;
     private final pluginLogger Logger;
     private static final Map<Object, ListenerEntry> listenerCleanupMap = new ConcurrentHashMap<>();
-    public static final Map<Long, String> globalTaskOwnerMap = new java.util.concurrent.ConcurrentHashMap<>();
-    public static final Map<String, java.util.Set<Long>> scriptTasksMap = new java.util.concurrent.ConcurrentHashMap<>();
+    public static final Map<Long, String> globalTaskOwnerMap = new ConcurrentHashMap<>();
+    public static final Map<String, Set<Long>> scriptTasksMap = new ConcurrentHashMap<>();
     private final EntityScheduler entityScheduleImpl;
 
     @FunctionalInterface
@@ -80,6 +80,10 @@ public class scriptTaskerApi {
 
         public static boolean waitTicks(long ticks) {
             if (ticks <= 0) return true;
+            if (Bukkit.isPrimaryThread()) {
+                sharedClass.logger.log(Level.SEVERE, "[OpenJS] Blocking waitTicks() called on main server thread! Skipping to prevent main-thread freeze.", pluginLogger.RED);
+                return false;
+            }
             long targetTick = currentTick.get() + ticks;
             synchronized (tickLock) {
                 while (currentTick.get() < targetTick) {
@@ -249,6 +253,11 @@ public class scriptTaskerApi {
         double sec = seconds.doubleValue();
         if (sec <= 0) return Boolean.TRUE;
 
+        if (Bukkit.isPrimaryThread()) {
+            Logger.scriptlog(Level.SEVERE, scriptName, "Attempted to block the main server thread with task.wait()! Skipping to prevent server freeze.", pluginLogger.RED);
+            return Boolean.FALSE;
+        }
+
         long millis = (long) (sec * 1000);
         if (millis < 0) millis = 0;
 
@@ -263,6 +272,10 @@ public class scriptTaskerApi {
     }
 
     public void waitForScript(String scriptName) {
+        if (Bukkit.isPrimaryThread()) {
+            Logger.scriptlog(Level.SEVERE, scriptName, "Attempted to call waitForScript on the main server thread! Skipping to prevent server freeze.", pluginLogger.RED);
+            return;
+        }
         while (!ScriptWrapper.isJavascriptFileRunning(scriptName)) {
             try {
                 //noinspection BusyWait
@@ -275,6 +288,10 @@ public class scriptTaskerApi {
     }
 
     public void waitForPlugin(String pluginName, String scriptName) {
+        if (Bukkit.isPrimaryThread()) {
+            Logger.scriptlog(Level.SEVERE, scriptName, "Attempted to call waitForPlugin on the main server thread! Skipping to prevent server freeze.", pluginLogger.RED);
+            return;
+        }
         Plugin plugin = pluginManager.getPlugin(pluginName);
 
         if (plugin == null) {
