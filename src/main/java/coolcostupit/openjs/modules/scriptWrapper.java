@@ -310,21 +310,22 @@ public class scriptWrapper {
 
             Future<?> future = executorService.submit(() -> {
                 try {
-                    // Compile and cache the helper code for performance
-                    //CompiledScript compiledHelper = scriptManager.getCompiledHelperCode(localScriptEngine);
-                    //compiledHelper.eval(localScriptEngine.getBindings(ScriptContext.ENGINE_SCOPE));
-
-                    // Compile the code made by the user and run it
                     String processedScript = preprocessScript(scriptFile, localScriptEngine);
-                    CompiledScript compiledUserScript = scriptManager.compileScript(RelativePath, JavascriptHelper.JAVASCRIPT_CODE+processedScript, localScriptEngine);
-                    compiledUserScript.eval(localScriptEngine.getBindings(ScriptContext.ENGINE_SCOPE));
+                    CompiledScript compiledUserScript = scriptManager.compileScript(RelativePath, JavascriptHelper.JAVASCRIPT_CODE + processedScript, localScriptEngine);
 
-                    if (configUtil.getConfigFromBuffer("PrintScriptActivations", true)) {
-                        Logger.log(Level.INFO, "Loaded the script " + ScriptName, pluginLogger.GREEN);
-                    }
-                    FoliaSupport.runTaskSynchronously(() -> plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(ScriptName)));
+                    FoliaSupport.runTasklessSynchronously(plugin, () -> {
+                        try {
+                            compiledUserScript.eval(localScriptEngine.getBindings(ScriptContext.ENGINE_SCOPE));
+                            if (configUtil.getConfigFromBuffer("PrintScriptActivations", true)) {
+                                Logger.log(Level.INFO, "Loaded the script " + ScriptName, pluginLogger.GREEN);
+                            }
+                            plugin.getServer().getPluginManager().callEvent(new ScriptLoadedEvent(ScriptName));
+                        } catch (ScriptException e) {
+                            Logger.scriptlog(Level.WARNING, ScriptName, "Failed to evaluate script " + e.getMessage(), pluginLogger.ORANGE);
+                        }
+                    });
                 } catch (IOException | ScriptException e) {
-                    Logger.scriptlog(Level.WARNING,  ScriptName, "Failed to load script " + e.getMessage(), pluginLogger.ORANGE);
+                    Logger.scriptlog(Level.WARNING, ScriptName, "Failed to compile script " + e.getMessage(), pluginLogger.ORANGE);
                 }
             });
 

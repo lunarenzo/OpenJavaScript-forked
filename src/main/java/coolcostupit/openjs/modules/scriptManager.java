@@ -36,6 +36,8 @@ public class scriptManager {
     private static File disabledScriptsFile;
     private static pluginLogger logger;
 
+    private static final Map<String, CompiledScript> COMPILED_SCRIPT_CACHE = new ConcurrentHashMap<>();
+
     public static CompiledScript getCompiledHelperCode(javax.script.ScriptEngine engine) throws ScriptException {
         if (compiledHelperCode == null) {
             compiledHelperCode = ((Compilable) engine).compile(JavascriptHelper.JAVASCRIPT_CODE);
@@ -44,7 +46,27 @@ public class scriptManager {
     }
 
     public static CompiledScript compileScript(String relativePath, String processedScript, javax.script.ScriptEngine engine) throws ScriptException {
-        return ((Compilable) engine).compile(processedScript);
+        if (relativePath != null) {
+            CompiledScript cached = COMPILED_SCRIPT_CACHE.get(relativePath);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        CompiledScript compiled = ((Compilable) engine).compile(processedScript);
+        if (relativePath != null) {
+            COMPILED_SCRIPT_CACHE.put(relativePath, compiled);
+        }
+        return compiled;
+    }
+
+    public static void invalidateCompiledCache(String relativePath) {
+        if (relativePath != null) {
+            COMPILED_SCRIPT_CACHE.remove(relativePath);
+        }
+    }
+
+    public static void clearCompiledCache() {
+        COMPILED_SCRIPT_CACHE.clear();
     }
 
     public static File getScriptFolder(JavaPlugin plugin) {
@@ -277,6 +299,7 @@ public class scriptManager {
 
         SCRIPT_CACHE.clear();
         CODE_CACHE.clear();
+        COMPILED_SCRIPT_CACHE.clear();
         LOADING_SCRIPTS.clear();
     }
 
@@ -479,6 +502,7 @@ public class scriptManager {
     }
 
     public static void onScriptFileChanged(File file) {
+        invalidateCompiledCache(getRelativePath(file));
         updateCacheFor(file);
         cacheCode(file);
         if (sharedClass.configUtil.getConfigFromBuffer("AutoReloadScriptsOnChange", true)) {
@@ -628,7 +652,11 @@ public class scriptManager {
     }
 
     public static void removeCodeCache(File file) {
-        CODE_CACHE.remove(getRelativePath(file));
+        String key = getRelativePath(file);
+        if (key != null) {
+            CODE_CACHE.remove(key);
+            COMPILED_SCRIPT_CACHE.remove(key);
+        }
     }
 
     public static boolean isRelativePath(String path) {
