@@ -29,15 +29,23 @@ public class DiskStorage {
         }
     }
 
+    private static void executeAsync(Runnable task) {
+        if (sharedClass.TaskThreadPool != null && !sharedClass.TaskThreadPool.isShutdown()) {
+            sharedClass.TaskThreadPool.submit(task);
+        } else {
+            CompletableFuture.runAsync(task);
+        }
+    }
+
     public void saveAllCaches(boolean async) {
         Runnable task = () -> {
             for (String fileName : cache.keySet()) {
-                saveFile(fileName, false, "", true); // Save each file synchronously to avoid thread spam
+                saveFile(fileName, false, "", true);
             }
         };
 
         if (async) {
-            new Thread(task).start();
+            executeAsync(task);
         } else {
             task.run();
         }
@@ -56,7 +64,7 @@ public class DiskStorage {
                 }
             }
 
-            Map<String, String> fileData = new HashMap<>();
+            Map<String, String> fileData = new ConcurrentHashMap<>();
 
             if (file.exists()) {
                 try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
@@ -81,32 +89,31 @@ public class DiskStorage {
         };
 
         if (async) {
-            new Thread(task).start();
+            executeAsync(task);
         } else {
             task.run();
         }
     }
 
     public void saveCaches(String scriptName) {
-        Set<String> files = privateCache.get(scriptName);
+        Set<String> files = privateCache.remove(scriptName);
         if (files == null) return;
 
         for (String fullName : files) {
             saveFile(fullName, false, "", true);
         }
-
-        files.clear();
     }
 
     public void saveFile(String fileName, boolean async, String scriptName, boolean global) {
         Runnable task = () -> {
             String fullName = (global ? fileName : scriptName + "_" + fileName).replaceAll("[^a-zA-Z0-9._-]", "_");
-            if (!cache.containsKey(fullName)) return;
-            if (!filesBeingSaved.add(fullName)) return; // Already saving
+            Map<String, String> fileData = cache.get(fullName);
+            if (fileData == null) return;
+            if (!filesBeingSaved.add(fullName)) return;
 
             File file = new File(SAVE_DIR, fullName + ".dat");
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-                for (Map.Entry<String, String> entry : cache.get(fullName).entrySet()) {
+                for (Map.Entry<String, String> entry : fileData.entrySet()) {
                     writer.write(entry.getKey() + "=" + entry.getValue());
                     writer.newLine();
                 }
@@ -119,7 +126,7 @@ public class DiskStorage {
         };
 
         if (async) {
-            new Thread(task).start();
+            executeAsync(task);
         } else {
             task.run();
         }
