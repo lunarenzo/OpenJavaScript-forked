@@ -198,7 +198,7 @@ public class FileManagerObject {
         watchService = FileSystems.getDefault().newWatchService();
         watcherStarted = true;
 
-        Thread watcher = new Thread(() -> {
+        Runnable task = () -> {
             while (watcherStarted) {
                 try {
                     WatchKey key;
@@ -217,7 +217,7 @@ public class FileManagerObject {
                                 WatchEvent.Kind<?> kind = event.kind();
                                 if (kind == StandardWatchEventKinds.OVERFLOW) continue;
                                 if (kind == listener.kind) {
-                                    FoliaSupport.runTask(() -> listener.dispatch(event)); // lambda (OMG HALF LIFE 3????)
+                                    FoliaSupport.runTask(() -> listener.dispatch(event)); // lambda
                                 }
                             }
                         }
@@ -235,11 +235,16 @@ public class FileManagerObject {
                     break;
                 }
             }
-        });
+        };
 
-        watcher.setDaemon(true);
-        watcher.start();
-        watcherThread = watcher;
+        if (sharedClass.TaskThreadPool != null && !sharedClass.TaskThreadPool.isShutdown()) {
+            sharedClass.TaskThreadPool.submit(task);
+        } else {
+            Thread watcher = new Thread(task);
+            watcher.setDaemon(true);
+            watcher.start();
+            watcherThread = watcher;
+        }
     }
 
     private File resolveTargetFile(String relativePath) {
@@ -293,18 +298,21 @@ public class FileManagerObject {
         if (target == null || !target.exists() || !target.isDirectory()) return false;
 
         try {
-            boolean deleted = false;
-            Files.walk(target.toPath())
-                    .sorted(Comparator.reverseOrder())
-                    .forEach(path -> {
-                        try {
-                            Files.deleteIfExists(path);
-                        } catch (IOException ignored) {}
-                    });
+            boolean deleted;
+            try (var stream = Files.walk(target.toPath())) {
+                stream.sorted(Comparator.reverseOrder())
+                      .forEach(path -> {
+                          try {
+                              Files.deleteIfExists(path);
+                          } catch (IOException ignored) {}
+                      });
+            }
             try {
                 deleted = target.delete();
-            } catch (Exception ignored) {};
-            
+            } catch (Exception ignored) {
+                deleted = false;
+            }
+
             return deleted;
         } catch (IOException e) {
             return false;

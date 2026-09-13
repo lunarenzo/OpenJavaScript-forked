@@ -359,8 +359,11 @@ public class InventoryApiObject {
             inventories.remove(this);
         }
 
+        private boolean isCopy = false;
+
         public InventoryUI copy() {
             InventoryUI copy = new InventoryUI(type, title);
+            copy.isCopy = true;
             copy.size = this.size;
             copy.slots.putAll(slots);
             copy.rebuild();
@@ -430,6 +433,10 @@ public class InventoryApiObject {
             for (Object cb : handlersSnapshot) {
                 invoke(cb, player, e);
             }
+
+            if (isCopy && inventory != null && inventory.getViewers().size() <= 1) {
+                destroy();
+            }
         }
 
         private void invoke(Object cb, Object... args) {
@@ -463,13 +470,14 @@ public class InventoryApiObject {
                 itemPlaceHandlers.clear();
                 closeHandlers.clear();
 
-                for (HumanEntity viewer : new ArrayList<>(inventory.getViewers())) {
-                    viewer.closeInventory();
+                if (inventory != null) {
+                    for (HumanEntity viewer : new ArrayList<>(inventory.getViewers())) {
+                        viewer.closeInventory();
+                    }
+                    inventory.clear();
+                    inventory = null;
                 }
-
-                inventory.clear();
                 inventories.remove(this);
-                inventory = null;
             });
         }
     }

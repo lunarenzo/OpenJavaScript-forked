@@ -13,6 +13,7 @@ import com.comphenix.protocol.events.*;
 import coolcostupit.openjs.logging.pluginLogger;
 import coolcostupit.openjs.modules.scriptWrapper;
 import coolcostupit.openjs.modules.sharedClass;
+import org.bukkit.entity.Player;
 
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
@@ -23,7 +24,7 @@ import java.util.logging.Level;
 public class ProtocolLibObject {
     private final ProtocolManager manager = ProtocolLibrary.getProtocolManager();
     private final Map<Object, PacketListener> scriptListeners = new ConcurrentHashMap<>();
-    private final Map<String, List<PacketListener>> TotalScriptListeners = new ConcurrentHashMap<>();
+    private final Map<String, Set<PacketListener>> TotalScriptListeners = new ConcurrentHashMap<>();
 
     public final ScriptEngine engine;
     public final String scriptName;
@@ -62,11 +63,11 @@ public class ProtocolLibObject {
         return result.toArray(new PacketType[0]);
     }
 
-    public void broadcastServerPacket(PacketContainer packet, org.bukkit.entity.Player source, Number broadcastRange) throws Exception {
+    public void broadcastServerPacket(PacketContainer packet, Player source, Number broadcastRange) throws Exception {
         manager.broadcastServerPacket(packet, source.getLocation(), broadcastRange.intValue());
     }
 
-    public void sendServerPacket(org.bukkit.entity.Player player, PacketContainer packet) throws Exception {
+    public void sendServerPacket(Player player, PacketContainer packet) throws Exception {
         manager.sendServerPacket(player, packet);
     }
 
@@ -91,7 +92,7 @@ public class ProtocolLibObject {
 
         manager.addPacketListener(adapter);
         scriptListeners.put(adapter, adapter);
-        TotalScriptListeners.computeIfAbsent(this.scriptName, k -> new ArrayList<>()).add(adapter);
+        TotalScriptListeners.computeIfAbsent(this.scriptName, k -> ConcurrentHashMap.newKeySet()).add(adapter);
 
         return adapter;
     }
@@ -100,15 +101,18 @@ public class ProtocolLibObject {
         PacketListener listener = scriptListeners.remove(adapter);
         if (listener != null) {
             manager.removePacketListener(listener);
+            Set<PacketListener> total = TotalScriptListeners.get(scriptName);
+            if (total != null) {
+                total.remove(listener);
+            }
         }
     }
 
     public void clearListeners() {
-        List<PacketListener> listeners = TotalScriptListeners.remove(scriptName);
+        Set<PacketListener> listeners = TotalScriptListeners.remove(scriptName);
         if (listeners != null) {
             for (PacketListener listener : listeners) {
                 manager.removePacketListener(listener);
-                //Logger.scriptlog(Level.INFO, scriptName, "[ProtocolLib] Listener destroyed", pluginLogger.LIGHT_BLUE);
             }
         }
     }

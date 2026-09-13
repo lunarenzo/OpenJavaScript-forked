@@ -28,16 +28,19 @@ public class PublicVarManager {
 
         Object monitor = waitMonitors.computeIfAbsent(key, k -> new Object());
         synchronized (monitor) {
-            long deadline = System.nanoTime() + 500_000_000L;
-            while (!publicVars.containsKey(key)) {
-                long remaining = deadline - System.nanoTime();
-                if (remaining <= 0) return null;
-                long ms = remaining / 1_000_000L;
-                int ns = (int)(remaining % 1_000_000L);
-                monitor.wait(ms, ns);
+            try {
+                long deadline = System.nanoTime() + 500_000_000L;
+                while (!publicVars.containsKey(key)) {
+                    long remaining = deadline - System.nanoTime();
+                    if (remaining <= 0) return null;
+                    long ms = remaining / 1_000_000L;
+                    int ns = (int)(remaining % 1_000_000L);
+                    monitor.wait(ms, ns);
+                }
+                return publicVars.get(key);
+            } finally {
+                waitMonitors.remove(key);
             }
-            waitMonitors.remove(key);
-            return publicVars.get(key);
         }
     }
 }
